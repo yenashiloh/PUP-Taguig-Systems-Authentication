@@ -5,19 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PUP-Taguig Systems Authentication</title>
     <link rel="stylesheet" href="assets/css/login.css">
+    <link rel="icon" type="image/png" href="{{ asset('assets/images/PUPLogo.png') }}">
     <style>
-    .logo-form-bg {
-        position: absolute;
-        left: 10%;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 85%;
-        height: 520px;
-        border-radius: 20px;
-        z-index: 1;
-        background-color: white;
-    }
-
     .logo-form-bg::before {
         content: '';
         position: absolute;
@@ -62,6 +51,9 @@
                     </div>
                     
                     <button type="submit" class="sign-in-btn">Sign in</button>
+                    <div class="signup-text">
+                        Don't have an account? <a href="{{{route ('sign-up')}}}" class="signup-link">Sign up</a>
+                    </div>
                 </form>
             </div>
         </div>
