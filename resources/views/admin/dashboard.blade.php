@@ -33,7 +33,7 @@
             </a>
             <h6 class="ms-2 fw-bold mb-0" style="color:#7e0e09;">PUP-T Systems Authentication</h6>
           </div>
-          
+
       </div>
       <nav class="sidebar-nav">
         <ul>
@@ -45,7 +45,7 @@
                     <span class="text">Home</span>
                 </a>
             </li>
-            
+
             <li class="nav-item">
                 <a href="" >
                   <span class="icon">
@@ -175,7 +175,7 @@
               <!-- end col -->
               <div class="col-md-6">
                 <div class="breadcrumb-wrapper">
-                 
+
                 </div>
               </div>
               <!-- end col -->
@@ -211,7 +211,7 @@
               <!-- End Icon Cart -->
             </div>
             <!-- End Col -->
-         
+
             <!-- End Col -->
           </div>
           <!-- End Row -->
@@ -234,6 +234,6 @@
     <script src="../../assets/admin/js/polyfill.js"></script>
     <script src="../../assets/admin/js/main.js"></script>
 
-    
+
   </body>
 </html>
