@@ -77,7 +77,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                         <div class="input-style-1">
                                             <label>Middle Name</label>
                                             <input type="text" name="middle_name"
                                                 value="{{ old('middle_name', $faculty->middle_name) }}" />
@@ -87,7 +87,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                         <div class="input-style-1">
                                             <label>Last Name</label>
                                             <input type="text" name="last_name"
                                                 value="{{ old('last_name', $faculty->last_name) }}" required />
@@ -107,7 +107,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="input-style-2">
+                                         <div class="input-style-1">
                                             <label>Email Address</label>
                                             <input type="email" name="email"
                                                 value="{{ old('email', $faculty->email) }}" required />
@@ -117,7 +117,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                         <div class="input-style-1">
                                             <label>Employee Number</label>
                                             <input type="text" name="employee_number"
                                                 value="{{ old('employee_number', $faculty->employee_number) }}"
@@ -128,7 +128,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                         <div class="input-style-1">
                                             <label>Department</label>
                                             <input type="text" name="department"
                                                 value="{{ old('department', $faculty->department) }}" required />

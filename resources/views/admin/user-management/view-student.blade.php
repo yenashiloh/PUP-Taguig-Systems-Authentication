@@ -76,7 +76,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Middle Name</label>
                                             <input type="text" name="middle_name" value="{{ $student->middle_name ?? 'N/A' }}" required/>
                                             @error('middle_name')
@@ -85,7 +85,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Last Name</label>
                                             <input type="text" name="last_name" value="{{ $student->last_name }}" required/>
                                             @error('last_name')
@@ -94,7 +94,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Email Address</label>
                                             <input type="text" name="email" value="{{ $student->email }}" required/>
                                             @error('email')
@@ -112,7 +112,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Student Number</label>
                                             <input type="text" name="student_number" value="{{ $student->student_number }}" required/>
                                             @error('student_number')
@@ -121,7 +121,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Year</label>
                                             <input type="text" name="year" value="{{ $student->year }}" required/>
                                             @error('year')
@@ -130,7 +130,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="input-style-2">
+                                       <div class="input-style-1">
                                             <label>Section</label>
                                             <input type="text" name="section" value="{{ $student->section }}" required/>
                                             @error('section')
