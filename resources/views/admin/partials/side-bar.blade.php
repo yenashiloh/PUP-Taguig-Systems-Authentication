@@ -96,7 +96,7 @@
                 <hr />
             </span>
             <li class="nav-item">
-                <a href="">
+                <a href="#" onclick="logoutConfirmation()">
                     <span class="icon">
                         <i class="fas fa-sign-out-alt"></i>
                     </span>
