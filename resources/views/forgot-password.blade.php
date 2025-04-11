@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUP-Taguig Systems Authentication</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Forgot Password</title>
     <link rel="stylesheet" href="assets/css/login.css">
     <link rel="icon" type="image/png" href="{{ asset('assets/images/PUPLogo.png') }}">
     <style>
@@ -29,7 +31,6 @@
         <div class="bg-image"></div>
         <div class="diagonal-overlay"></div>
         <div class="logo-form-bg"></div>
-
         <div class="logo-container">
             <img src="assets/images/PUPLogo.png" alt="PUP Logo" class="logo">
         </div>
@@ -37,20 +38,20 @@
         <div class="login-form-container">
             <div class="login-form">
                 <div class="form-title">
-                    <h2>PUP-Taguig Systems</h2>
-                    <h2>Authentication</h2>
+                    <h2>Forgot your Password</h2>
+                    <h5 class="fw-light">Please enter your email. You will receive a link to create a new password via
+                        email.</h5>
                 </div>
-
-                <form method="POST" action="{{ route('loginPost') }}">
+                <form method="POST" action="{{ route('password.email') }}">
                     @csrf
-                
+                    
                     @if (session('status'))
                         <div
                             style="background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; padding: 10px 15px; border-radius: 5px; margin-top: 10px; margin-bottom: 10px;">
                             {{ session('status') }}
                         </div>
                     @endif
-                
+
                     @if ($errors->any())
                         <div
                             style="background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7; padding: 10px 15px; border-radius: 5px; margin-top: 10px; margin-bottom: 10px;">
@@ -61,24 +62,16 @@
                             </ul>
                         </div>
                     @endif
-                
+
                     <div class="form-group">
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="Enter your email address">
+                        <input type="email" id="email" name="email" class="form-control"
+                            placeholder="Enter your email address">
                     </div>
-                
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password">
-                    </div>
-                
-                    <button type="submit" class="sign-in-btn">Sign in</button>
-                
+                    <button type="submit" class="sign-in-btn">Forgot Password</button>
+
                     <div class="signup-text">
-                        Don't have an account? <a href="{{ route('sign-up') }}" class="signup-link">Sign up</a>
-                    </div>
-                    <div class="signup-text">
-                        <a href="{{ route('forgot-password') }}" class="signup-link">Forgot Password?</a>
+                        <a href="{{ route('login') }}" class="signup-link">Back to Login</a>
                     </div>
                 </form>
             </div>

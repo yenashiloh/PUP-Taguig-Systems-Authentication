@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class PublicController extends Controller
 {
@@ -14,6 +18,36 @@ class PublicController extends Controller
     public function showLoginPage()
     {
         return view('login');
+    }
+
+    // Login Post                                                                                                                                                 
+    public function loginPost(Request $request)
+    {
+        // Validate the input
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|min:8',
+        ]);
+    
+        // Check if validation fails
+        if ($validator->fails()) {
+            return redirect()->route('login')
+                            ->withErrors($validator)
+                            ->withInput();
+        }
+    
+        // admin login first
+        if (Auth::guard('admin')->attempt(['email' => $request->email, 'password' => $request->password])) {
+            return redirect()->route('admin.dashboard');
+        }
+        
+        // regular user login
+        if (Auth::guard('admin')->attempt(['email' => $request->email, 'password' => $request->password])) {
+            $request->session()->regenerate();
+            return redirect()->route('admin.dashboard');
+        }
+    
+        return back()->withErrors(['email' => 'The email and password do not match.']);
     }
 
     // Show sign up page
@@ -116,6 +150,63 @@ class PublicController extends Controller
                 'message' => 'An error occurred while creating your account.',
                 'errors' => ['general' => [$e->getMessage()]]
             ], 500);
+        }
+    }
+
+    // Show forgot password page
+    public function showForgotPasswordPage()
+    {
+        return view('forgot-password');
+    }
+
+    // Send password reset link
+    public function sendResetLinkEmail(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return back()->with('status', 'Password reset link has been sent to your email!');
+        } else {
+            return back()->withErrors(['email' => 'No registered user found with this email address.']);
+        }
+    }
+
+    // Show reset password form
+    public function showResetForm(Request $request, $token)
+    {
+        return view('reset-password', ['token' => $token, 'email' => $request->email]);
+    }
+
+    // Reset password
+    public function reset(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+    
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password)
+                ])->setRememberToken(Str::random(60));
+    
+                $user->save();
+    
+                event(new PasswordReset($user));
+            }
+        );
+    
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('status', 'Your password has been reset successfully! You can now log in.');
+        } else {
+            return back()->withErrors(['email' => 'Failed to reset the password. Please try again.']);
         }
     }
 }

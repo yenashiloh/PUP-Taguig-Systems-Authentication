@@ -204,7 +204,7 @@
         </div>
     </div>
     
-    <!-- Bootstrap JS (optional, depending on if you need JS functionality) -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ asset('assets/js/sign-up.js') }}"></script>
 

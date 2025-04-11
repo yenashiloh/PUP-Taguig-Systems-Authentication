@@ -390,6 +390,66 @@ h6,
 
 /* ========== Buttons css ========== */
 /* buttons base styles */
+#userTable thead {
+  background-color: #f8f9fa;
+  color: #495057;
+  margin-top: 10px;
+}
+
+#userTable th {
+  text-align: center;
+  padding: 10px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Style the table rows */
+#userTable tbody tr {
+  background-color: #ffffff;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Hover effect on rows */
+#userTable tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Style the table data cells */
+#userTable td {
+  padding: 10px;
+  text-align: center;
+}
+
+.main-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  padding: 5px 20px;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 24px;
+  border-radius: 3px;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.4s ease-in-out;
+  border: 1px solid transparent;
+  overflow: hidden;
+}
+.main-button i {
+  font-size: 17px;
+}
+.main-button i {
+  font-size: 15x;
+}
+
 .main-btn {
   display: inline-flex;
   align-items: center;
@@ -402,7 +462,7 @@ h6,
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  padding: 15px 45px;
+  padding: 8px 45px;
   font-weight: 500;
   font-size: 14px;
   line-height: 24px;
@@ -2083,7 +2143,7 @@ h6,
 .input-style-1 input,
 .input-style-1 textarea {
   width: 100%;
-  background: rgba(239, 239, 239, 0.5);
+  /* background: rgba(239, 239, 239, 0.5); */
   border: 1px solid #e5e5e5;
   border-radius: 4px;
   padding: 16px;
@@ -5956,3 +6016,75 @@ h6,
     transform: rotate(360deg);
   }
 }
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1050;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.6); /* Keep this for the background overlay */
+}
+
+.modal-backdrop {
+  z-index: 1040; /* Make sure this is below the modal */
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+
+/* Make sure the modal content has NO overlay on it */
+.modal-content {
+  background-color: #fff !important;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-in-out;
+  /* Make sure there's no semi-transparent overlay on the modal content itself */
+}
+
+.modal.fade .modal-dialog {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Ensure modal dialog itself doesn't have background color */
+.modal-dialog {
+  background-color: transparent;
+}
+    /* Close button */
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 24px;
+      color: #aaa;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .close-btn:hover {
+      color: #333;
+    }
+
+    /* Fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Trigger button */
+    .open-modal-btn {
+      padding: 10px 20px;
+      background: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }

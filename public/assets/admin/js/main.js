@@ -51,3 +51,42 @@
     mainWrapper.classList.remove("active");
   });
 })();
+
+/**
+ * Sweet alert logout confirmation
+ */
+function logoutConfirmation() {
+  Swal.fire({
+      title: 'Logout Confirmation',
+      text: "Are you sure you want to logout?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, logout!',
+  }).then((result) => {
+      if (result.isConfirmed) {
+          // Submit the logout form if the user confirms
+          document.getElementById('logout-form').submit();
+      }
+  });
+}
+
+/**
+ * Success Message
+ */
+
+document.addEventListener('DOMContentLoaded', function () {
+  const alert = document.querySelector('.my-success-alert');
+  if (alert) {
+      setTimeout(() => {
+          // Fade out first
+          alert.classList.remove('show');
+          alert.classList.add('hide');
+          
+          setTimeout(() => {
+              alert.remove();
+          }, 300); 
+      }, 3000); // 3 seconds
+  }
+});
