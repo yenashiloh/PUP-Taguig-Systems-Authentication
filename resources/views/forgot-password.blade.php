@@ -71,7 +71,7 @@
                     <button type="submit" class="sign-in-btn">Forgot Password</button>
 
                     <div class="signup-text">
-                        <a href="{{ route('login') }}" class="signup-link">Back to Login</a>
+                        <a href="{{ url('/') }}" class="signup-link">Back to Home</a>
                     </div>
                 </form>
             </div>

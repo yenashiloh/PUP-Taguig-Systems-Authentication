@@ -18,7 +18,9 @@
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 
 <script>
-    $(document).ready(function() {
-        $('#userTable').DataTable();
+      $(document).ready(function() {
+        $('#userTable').DataTable({
+            "order": [[1, "asc"]] 
+        });
     });
 </script>

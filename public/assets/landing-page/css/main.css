@@ -184,6 +184,25 @@ h6 {
   }
 }
 
+.header .btn-forgot-password,
+.header .btn-forgot-password:focus {
+  color: var(--accent-color);
+  background: #ffffff;
+  border: 2px solid var(--accent-color);
+  font-size: 14px;
+  padding: 8px 25px;
+  margin: 0 0 0 30px;
+  border-radius: 4px;
+  transition: 0.3s;
+  text-decoration: none;
+}
+
+.header .btn-forgot-password:hover,
+.header .btn-forgot-password:focus:hover {
+  background: color-mix(in srgb, #ffffff, var(--accent-color) 15%);
+  color: var(--accent-color);
+}
+
 .scrolled .header {
   box-shadow: 0px 0 18px rgba(0, 0, 0, 0.1);
 }

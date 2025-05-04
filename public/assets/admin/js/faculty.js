@@ -4,7 +4,7 @@ var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('
 function toggleAccountStatus(userId, action) {
     let actionText = action === 'deactivate' ? 'deactivate' : 'reactivate';
     let confirmButtonText = action === 'deactivate' ? 'Yes, deactivate it!' : 'Yes, reactivate it!';
-    let statusText = action === 'deactivate' ? 'Deactivated' : 'Activate';
+    let statusText = action === 'deactivate' ? 'Deactivated' : 'Active';
     
     // Opposite action that will be available after the current action completes
     let oppositeAction = action === 'deactivate' ? 'reactivate' : 'deactivate';
@@ -69,3 +69,12 @@ function toggleAccountStatus(userId, action) {
     });
 }
 
+$(document).ready(function () {
+    const table = $('#userTable').DataTable({
+        dom: '<"top"fB>rt<"bottom"lip><"clear">', // f = filter (search), B = buttons
+        buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
+    });
+
+    // Move Add Users button below search
+    $('#customButtons').insertAfter('.dataTables_filter');
+});

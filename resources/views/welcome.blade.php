@@ -49,11 +49,11 @@
       </nav>
 
       <a class="btn-getstarted" href="{{route ('login')}}">Login</a>
+      <a class="btn-forgot-password" href="{{route ('forgot-password')}}">Forgot Password</a>
     </div>
   </header>
 
   <main class="main">
-
     <!-- Hero Section -->
     <section id="hero" class="hero section dark-background">
 

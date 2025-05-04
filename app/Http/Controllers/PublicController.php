@@ -59,61 +59,73 @@ class PublicController extends Controller
     // Store user account
     public function store(Request $request)
     {
-        // Email Address Validation
-        $existingUser = User::where('email', $request->email)->first();
-        if ($existingUser) {
-            return response()->json([
-                'message' => 'The email is already taken. Please use another email address.',
-                'errors' => [
-                    'email' => ['The email is already taken. Please use another email address.']
-                ]
-            ], 422);
-        }
-    
         try {
+            // First step: Get a more detailed error message
+            \Log::info('Registration attempt with data: ' . json_encode($request->all()));
+            
+            // Email Address Validation first
+            $existingUser = User::where('email', $request->email)->first();
+            if ($existingUser) {
+                return response()->json([
+                    'message' => 'The email is already taken. Please use another email address.',
+                    'errors' => [
+                        'email' => ['The email is already taken. Please use another email address.']
+                    ]
+                ], 422);
+            }
+        
+            // Basic validation for all users
             $validatedData = $request->validate([
                 'role' => 'required|in:Student,Faculty',
                 'email' => 'required|email|unique:users,email',
-                'first_name' => 'required|string|max:50|regex:/^[A-Za-z\s]{2,50}$/',
-                'last_name' => 'required|string|max:50|regex:/^[A-Za-z\s]{2,50}$/',
+                'first_name' => 'required|string|max:50',
+                'last_name' => 'required|string|max:50',
                 'middle_name' => 'nullable|string|max:50',
             ]);
-    
+        
             // Validation based on role
             if ($request->role == 'Faculty') {
-                $request->validate([
-                    'phone_number' => 'required|regex:/^[0-9]{11}$/',
+                $facultyData = $request->validate([
+                    'phone_number' => 'required|string',
                     'department' => 'required|string',
+                    'employee_number' => 'required|string',
                 ]);
             } else { // Student
-                $request->validate([
+                $studentData = $request->validate([
                     'program' => 'required|string',
-                    'year' => 'required|in:1,2,3,4,5',
-                    'section' => 'required|in:1,2,3,4,5,6,7,8,9,10',
+                    'year' => 'required|string',
+                    'section' => 'required|string',
+                    'student_number' => 'required|string',
                     'birthdate' => [
                         'required',
                         'date',
                         'before:today',
-                        function ($attribute, $value, $fail) {
-                            $birthdate = new \DateTime($value);
-                            $today = new \DateTime();
-                            $age = $birthdate->diff($today)->y;
-                            if ($age < 15) {
-                                $fail('You must be at least 15 years old.');
-                            }
-                        },
                     ],
                 ]);
+                
+                // Age validation separately to avoid potential errors
+                $birthdate = new \DateTime($request->birthdate);
+                $today = new \DateTime();
+                $age = $birthdate->diff($today)->y;
+                if ($age < 15) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => ['birthdate' => ['You must be at least 15 years old.']]
+                    ], 422);
+                }
             }
-    
+        
             // Generate a password
             $randomNumbers = rand(10000, 99999);
             $firstTwoLetters = strtoupper(substr($request->first_name, 0, 1) . substr($request->last_name, 0, 1));
-            $specialChar = Str::random(1, "!@#$%^&*");
-    
+            
+            // Fix the Str::random to use proper syntax
+            $specialChars = "!@#$%^&*";
+            $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
+        
             $password = $randomNumbers . $firstTwoLetters . $specialChar;
             $hashedPassword = Hash::make($password);
-    
+        
             // Create User Account
             $user = User::create([
                 'role' => $request->role,
@@ -131,28 +143,34 @@ class PublicController extends Controller
                 'section' => $request->section ?? null,
                 'birthdate' => $request->birthdate ?? null,
             ]);
-    
-            // Send Email with HTML Template
-            Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
-                $message->to($user->email)
-                        ->subject('PUP-Taguig Systems - Your Account Details');
-            });
-    
+        
+            // Add try-catch specifically for mail sending
+            try {
+                Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
+                    $message->to($user->email)
+                            ->subject('PUP-Taguig Systems - Your Account Details');
+                });
+            } catch (\Exception $mailError) {
+                \Log::error('Email sending failed: ' . $mailError->getMessage());
+                // Continue execution even if email fails
+            }
+        
             return response()->json(['message' => 'Account created successfully! Login details have been sent to your email.']);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Validation failed.',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Registration error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'message' => 'An error occurred while creating your account.',
                 'errors' => ['general' => [$e->getMessage()]]
             ], 500);
         }
     }
-
     // Show forgot password page
     public function showForgotPasswordPage()
     {

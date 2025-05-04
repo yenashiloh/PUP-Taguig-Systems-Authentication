@@ -98,7 +98,7 @@
             <p><strong>Important:</strong> For security reasons, please change your password after your first login.</p>
             
             <div style="text-align: center;">
-                <a href="http://127.0.0.1:8000/sign-up" class="button" style="color: #ffffff !important;">Login Now</a>
+                <a href="http://127.0.0.1:8000" class="button" style="color: #ffffff !important;">Login Now</a>
             </div>
             
             <p>If you have any questions or need assistance, please contact our support team at systems-authentication@google.com</p>

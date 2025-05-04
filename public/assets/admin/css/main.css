@@ -6088,3 +6088,8 @@ h6,
       border-radius: 8px;
       cursor: pointer;
     }
+
+    .modal-lg .modal-content {
+      width: 100%;
+      max-width: 900px; /* You can adjust this width as needed */
+    }

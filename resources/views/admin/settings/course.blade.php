@@ -58,9 +58,6 @@
                                                 <h6>Course Name</h6>
                                             </th>
                                             <th>
-                                                <h6>Department</h6>
-                                            </th>
-                                            <th>
                                                 <h6>Status</h6>
                                             </th>
                                             <th>
@@ -76,9 +73,6 @@
                                                     <div class="lead">
                                                         <p>{{ $course->course_name }}</p>
                                                     </div>
-                                                </td>
-                                                <td class="min-width">
-                                                    <p>{{ $course->department->dept_name ?? 'N/A' }}</p>
                                                 </td>
                                                 <td class="min-width">
                                                     <p class="status-text">
@@ -128,18 +122,6 @@
                                 <div class="input-style-1">
                                     <label>Course Name</label>
                                     <input type="text" name="course_name" placeholder="Course Name" required />
-                                </div>
-                                <div class="select-style-1">
-                                    <label>Department</label>
-                                    <div class="select-position">
-                                        <select name="department_id" required>
-                                            <option value="" disabled selected>Select your department</option>
-                                            @foreach ($departments as $department)
-                                                <option value="{{ $department->department_id }}">
-                                                    {{ $department->dept_name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
                                 </div>
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2"

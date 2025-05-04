@@ -16,7 +16,7 @@
                 <div class="row align-items-center">
                     <div class="col-md-6">
                         <div class="title">
-                            <h2>Faculty</h2>
+                            <h2>All Faculty Lists</h2>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -55,7 +55,7 @@
                                                 <h6>Last Name</h6>
                                             </th>
                                             <th>
-                                                <h6>Status</h6>
+                                                <h6>Account Status</h6>
                                             </th>
                                             <th>
                                                 <h6>Action</h6>

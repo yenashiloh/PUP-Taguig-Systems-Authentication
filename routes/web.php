@@ -53,11 +53,11 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::get('/user-management/faculty/{user}', [UserManagementController::class, 'viewFaculty'])->name('admin.user-management.view-faculty');
     //Update Faculty Details
     Route::put('/user-management/faculty/{user}/update', [UserManagementController::class, 'updateFaculty'])->name('admin.user-management.update-faculty');
-
+    Route::post('/students/store', [UserManagementController::class, 'storeStudent'])->name('admin.user-management.store-student');
 
     // Show Student Page
     Route::get('/user-management/student', [UserManagementController::class, 'studentPage'])->name('admin.user-management.student');
-    //View Student Details
+    //View Student Detaiuls
     Route::get('/user-management/student/{user}', [UserManagementController::class, 'viewStudent'])->name('admin.user-management.view-student');
     //Show Total Student Details
     Route::get('/dashboard/student/{user}', [AdminController::class, 'viewTotalStudent'])->name('admin.dashboard.view-total-student');
@@ -80,6 +80,13 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::delete('/courses/{id}', [CourseDepartmentController::class, 'destroyCourse'])->name('courses.destroy');
 
     Route::delete('/departments/{id}', [CourseDepartmentController::class, 'destroyDepartment'])->name('departments.destroy');
+
+    Route::post('/user-management/import-students', [UserManagementController::class, 'importStudents'])
+    ->name('admin.user-management.import-students');
+
+// Download template for student import
+Route::get('/user-management/download-template', [UserManagementController::class, 'downloadTemplate'])
+    ->name('admin.user-management.download-template');
 
 
 });
