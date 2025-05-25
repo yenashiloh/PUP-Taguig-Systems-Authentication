@@ -114,7 +114,7 @@
                 <div class="row">
                     <div class="col-lg-12">
                         <div class="card-style mb-30">
-                            <div class="row mb-3 align-items-center">
+                            <div class="row mb-3 align-items-center mb-2">
                                 <div class="col-md-2">
                                     <select class="form-select" id="programFilter" onchange="filterTable()">
                                         <option value="" disabled selected>Programs</option>
@@ -160,22 +160,90 @@
                                             ({{ $statusCounts['Deactivated'] ?? 0 }})</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4 d-flex justify-content-end">
+                                <div class="col-md-4 d-flex mb-2 justify-content-end">
                                     <button class="main-button primary-btn me-2 btn-sm" data-bs-toggle="modal"
-                                        data-bs-target="#addUserModal">Add Users</button>
-                                    <button type="button"
-                                        class="main-btn primary-btn-outline square-btn btn-hover btn-sm"
-                                        data-bs-toggle="modal" data-bs-target="#importModal">
-                                        Import User Data
+                                        data-bs-target="#addUserModal">
+                                        <i class="fas fa-plus me-1"></i> Add
                                     </button>
+                                    <button type="button"
+                                        class="main-btn primary-btn-outline square-btn me-2 btn-hover btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#importModal">
+                                        <i class="fas fa-upload me-1"></i> Import
+                                    </button>
+                                    <div class="dropdown me-2">
+                                        <button class="main-btn primary-btn-outline square-btn btn-hover btn-sm"
+                                            type="button" id="exportDropdown" data-bs-toggle="dropdown"
+                                            aria-expanded="false">
+                                            <i class="fas fa-file-export me-1"></i> Export
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                                            <li>
+                                                <a class="dropdown-item" href="#"
+                                                    onclick="exportAllStudents()">
+                                                    <i class="fas fa-users me-2"></i> Export All Students
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#"
+                                                    onclick="exportFilteredStudents()">
+                                                    <i class="fas fa-filter me-2"></i> Export Filtered Data
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-muted" href="#"
+                                                    style="cursor: default;">
+                                                    <small><i class="fas fa-info-circle me-2"></i> CSV format</small>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
 
+                            <!-- Bulk Actions Bar -->
+                            <div class="row mb-3" id="bulkActionsBar" style="display: none;">
+                                <div class="col-12">
+                                    <div class="alert alert-info d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <span id="selectedCount">0</span> student(s) selected
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-success"
+                                                onclick="bulkAction('reactivate')" id="bulkReactivateBtn"
+                                                title="Reactivate Selected">
+                                                <i class="fas fa-check-circle me-1"></i> Reactivate
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger"
+                                                onclick="bulkAction('deactivate')" id="bulkDeactivateBtn"
+                                                title="Deactivate Selected">
+                                                <i class="fas fa-ban me-1"></i> Deactivate
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-secondary"
+                                                onclick="clearSelection()" title="Clear Selection">
+                                                <i class="fas fa-times me-1"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="table-wrapper table-responsive">
                                 <table class="table" id="userTable">
                                     <thead>
                                         <tr>
+                                            <th style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="selectAll"
+                                                        onchange="toggleSelectAll()" title="Select All">
+                                                    <label class="form-check-label visually-hidden" for="selectAll">
+                                                        Select All
+                                                    </label>
+                                                </div>
+                                            </th>
                                             <th>
                                                 <h6>Student ID</h6>
                                             </th>
@@ -200,7 +268,22 @@
                                         @foreach ($users as $user)
                                             <tr id="user-{{ $user->id }}" data-program="{{ $user->program }}"
                                                 data-year="{{ $user->year }}" data-section="{{ $user->section }}"
-                                                data-status="{{ strtolower($user->status) }}">
+                                                data-status="{{ strtolower($user->status) }}"
+                                                data-user-id="{{ $user->id }}"
+                                                data-user-status="{{ $user->status }}">
+                                                <td>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input user-checkbox" type="checkbox"
+                                                            id="user-checkbox-{{ $user->id }}"
+                                                            value="{{ $user->id }}"
+                                                            data-status="{{ $user->status }}"
+                                                            onchange="updateSelectAll()">
+                                                        <label class="form-check-label visually-hidden"
+                                                            for="user-checkbox-{{ $user->id }}">
+                                                            Select {{ $user->first_name }} {{ $user->last_name }}
+                                                        </label>
+                                                    </div>
+                                                </td>
                                                 <td class="min-width">
                                                     <div class="lead">
                                                         <p>
@@ -212,38 +295,44 @@
                                                     <p>{{ $user->last_name }}</p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p><a href="#0">{{ $user->first_name }}</a></p>
+                                                    <p>
+                                                        <a">{{ $user->first_name }}</a>
+                                                    </p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p><a href="#0">{{ $user->email }}</a></p>
+                                                    <p>
+                                                        <a">{{ $user->email }}</a>
+                                                    </p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p class="status-text">{{ $user->status }}</p>
+                                                    <p>
+                                                        <a"> {{ $user->status }}</a>
+                                                    </p>
                                                 </td>
                                                 <td>
-                                                    <button class="main-button secondary-btn btn-hover mb-1"
-                                                        onclick="window.location='{{ route('admin.user-management.view-student', ['user' => $user->id]) }}'">
-                                                        View
-                                                    </button>
-                                                    <span class="toggle-btn-container">
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-outline-primary btn-sm"
+                                                            onclick="window.location='{{ route('admin.user-management.view-student', ['user' => $user->id]) }}'">
+                                                            <i class="fas fa-eye me-1"></i> View
+                                                        </button>
                                                         @if ($user->status === 'Active' || $user->status === 'active')
-                                                            <button class="main-button danger-btn btn-hover mb-1"
+                                                            <button class="btn btn-outline-danger btn-sm"
                                                                 onclick="toggleAccountStatus({{ $user->id }}, 'deactivate')">
-                                                                Deactivate
+                                                                <i class="fas fa-ban me-1"></i> Deactivate
                                                             </button>
                                                         @elseif ($user->status === 'Deactivated' || $user->status === 'deactivated')
-                                                            <button class="main-button warning-btn btn-hover mb-1"
+                                                            <button class="btn btn-outline-success btn-sm"
                                                                 onclick="toggleAccountStatus({{ $user->id }}, 'reactivate')">
-                                                                Reactivate
+                                                                <i class="fas fa-check-circle me-1"></i> Reactivate
                                                             </button>
                                                         @endif
-                                                    </span>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endforeach
                                         @if (count($users) === 0)
                                             <tr class="no-records-row">
-                                                <td colspan="6" class="text-center py-3">
+                                                <td colspan="7" class="text-center py-3">
                                                     <p class="text-muted mb-0">No records found.</p>
                                                 </td>
                                             </tr>
@@ -255,7 +344,6 @@
                     </div>
                 </div>
             </div>
-        </div>
     </section>
 
     <!-- Add User Modal -->

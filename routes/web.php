@@ -8,18 +8,18 @@ use App\Http\Controllers\CourseDepartmentController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
-    // Show the home page - redirect to dashboard if admin is logged in
+    // Show the home page
     Route::get('/', function () {
         return view('welcome');
     });
 
-    // Show the login page - redirect to dashboard if admin is already logged in
+    // Show the login page 
     Route::get('/login', [PublicController::class, 'showLoginPage'])->name('login');
     
-    // Show the sign-up page - redirect to dashboard if admin is logged in
+    // Show the sign-up page
     Route::get('/sign-up', [PublicController::class, 'showSignUpPage'])->name('sign-up');
     
-    // Forgot password pages - redirect to dashboard if admin is logged in
+    // Forgot password pages
     Route::get('/forgot-password', [PublicController::class, 'showForgotPasswordPage'])->name('forgot-password');
     Route::get('reset-password/{token}', [PublicController::class, 'showResetForm'])->name('password.reset');
 });
@@ -92,10 +92,33 @@ Route::middleware(['admin.auth'])->group(function () {
 
     Route::delete('/departments/{id}', [CourseDepartmentController::class, 'destroyDepartment'])->name('departments.destroy');
 
-    Route::post('/user-management/import-students', [UserManagementController::class, 'importStudents'])
-        ->name('admin.user-management.import-students');
+    Route::post('/user-management/import-students', [UserManagementController::class, 'importStudents'])->name('admin.user-management.import-students');
 
     // Download template for student import
-    Route::get('/user-management/download-template', [UserManagementController::class, 'downloadTemplate'])
-        ->name('admin.user-management.download-template');
+    Route::get('/user-management/download-template', [UserManagementController::class, 'downloadTemplate'])->name('admin.user-management.download-template');
+
+    // Store Faculty
+    Route::post('/faculty/store', [UserManagementController::class, 'storeFaculty'])->name('admin.user-management.store-faculty');
+
+    // Import Faculty
+    Route::post('/user-management/import-faculty', [UserManagementController::class, 'importFaculty'])->name('admin.user-management.import-faculty');
+
+    // Download template for faculty import
+    Route::get('/user-management/download-faculty-template', [UserManagementController::class, 'downloadFacultyTemplate'])->name('admin.user-management.download-faculty-template');
+
+    // Export all faculty data
+    Route::get('/user-management/export-faculty', [UserManagementController::class, 'exportFaculty'])->name('admin.user-management.export-faculty');
+
+    // Export filtered faculty data
+    Route::get('/user-management/export-filtered-faculty', [UserManagementController::class, 'exportFilteredFaculty'])->name('admin.user-management.export-filtered-faculty');
+
+    // Export all students data
+    Route::get('/user-management/export-students', [UserManagementController::class, 'exportStudents'])
+        ->name('admin.user-management.export-students');
+
+    // Export filtered students data
+    Route::get('/user-management/export-filtered-students', [UserManagementController::class, 'exportFilteredStudents'])
+        ->name('admin.user-management.export-filtered-students');
+        Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])
+    ->name('admin.bulk-toggle-user-status');
 });
