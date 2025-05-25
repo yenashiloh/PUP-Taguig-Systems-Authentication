@@ -121,4 +121,9 @@ Route::middleware(['admin.auth'])->group(function () {
         ->name('admin.user-management.export-filtered-students');
         Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])
     ->name('admin.bulk-toggle-user-status');
+
+  
+
+    Route::put('/admin/settings/department/{id}/update', [CourseDepartmentController::class, 'updateDepartment'])->name('admin.settings.department.update');
+Route::post('/admin/settings/department/{id}/toggle-status', [CourseDepartmentController::class, 'toggleDepartmentStatus'])->name('admin.settings.department.toggle-status');
 });
