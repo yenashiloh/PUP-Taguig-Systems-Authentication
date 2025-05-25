@@ -77,7 +77,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                         <div class="input-style-1">
+                                        <div class="input-style-1">
                                             <label>Middle Name</label>
                                             <input type="text" name="middle_name"
                                                 value="{{ old('middle_name', $faculty->middle_name) }}" />
@@ -87,7 +87,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                         <div class="input-style-1">
+                                        <div class="input-style-1">
                                             <label>Last Name</label>
                                             <input type="text" name="last_name"
                                                 value="{{ old('last_name', $faculty->last_name) }}" required />
@@ -107,7 +107,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                         <div class="input-style-1">
+                                        <div class="input-style-1">
                                             <label>Email Address</label>
                                             <input type="email" name="email"
                                                 value="{{ old('email', $faculty->email) }}" required />
@@ -117,7 +117,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                         <div class="input-style-1">
+                                        <div class="input-style-1">
                                             <label>Employee Number</label>
                                             <input type="text" name="employee_number"
                                                 value="{{ old('employee_number', $faculty->employee_number) }}"
@@ -127,12 +127,45 @@
                                             @enderror
                                         </div>
                                     </div>
+                        
+
                                     <div class="col-md-4">
-                                         <div class="input-style-1">
+                                        <div class="select-style-1">
                                             <label>Department</label>
-                                            <input type="text" name="department"
-                                                value="{{ old('department', $faculty->department) }}" required />
+                                            <div class="select-position">
+                                                <select name="department" required>
+                                                    <option value="">Select Department</option>
+                                                    @foreach ($departments as $department)
+                                                        <option value="{{ $department->dept_name }}"
+                                                            {{ old('department', $faculty->department) == $department->dept_name ? 'selected' : '' }}>
+                                                            {{ $department->dept_name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
                                             @error('department')
+                                                <div class="text-danger">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <div class="select-style-1">
+                                            <label>Employment Status</label>
+                                            <div class="select-position">
+                                                <select name="employment_status" required>
+                                                    <option value="">Select Employment Status</option>
+                                                    <option value="Full-Time"
+                                                        {{ old('employment_status', $faculty->employment_status) == 'Full-Time' ? 'selected' : '' }}>
+                                                        Full-Time
+                                                    </option>
+                                                    <option value="Part-Time"
+                                                        {{ old('employment_status', $faculty->employment_status) == 'Part-Time' ? 'selected' : '' }}>
+                                                        Part-Time
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            @error('employment_status')
                                                 <div class="text-danger">{{ $message }}</div>
                                             @enderror
                                         </div>

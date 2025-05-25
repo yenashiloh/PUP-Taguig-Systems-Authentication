@@ -1,5 +1,6 @@
 <?php
 use App\Http\Middleware\AdminAuth;
+use App\Http\Middleware\RedirectIfAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register the admin auth middleware
         $middleware->alias([
             'admin.auth' => AdminAuth::class,
+            'redirect.if.admin' => RedirectIfAdmin::class, 
         ]);
         
         //Prevent back history middleware

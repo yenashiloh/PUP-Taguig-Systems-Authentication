@@ -37,6 +37,79 @@
                 <!-- end row -->
             </div>
 
+            <!-- Import Success Message -->
+            @if (session('import_success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fa fa-check-circle me-2"></i>
+                    {{ session('import_success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            <!-- Import Error Message -->
+            @if (session('import_error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fa fa-exclamation-triangle me-2"></i>
+                    {{ session('import_error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            <!-- Detailed Import Errors -->
+            @if (session('import_errors') && count(session('import_errors')) > 0)
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fa fa-exclamation-circle me-2"></i>
+                                Import Issues Found ({{ count(session('import_errors')) }} rows with errors)
+                            </h6>
+                            <div class="import-errors-container"
+                                style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px; background-color: #f8f9fa;">
+                                @foreach (session('import_errors') as $error)
+                                    <div class="error-item mb-2 p-2"
+                                        style="border-left: 3px solid #dc3545; background-color: white;">
+                                        <small class="text-danger fw-bold">{{ $error }}</small>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fa fa-info-circle me-1"></i>
+                                    These rows were skipped. Please fix the errors and import again.
+                                </small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"
+                            aria-label="Close"></button>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Import Summary -->
+            @if (session('import_summary'))
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <h6 class="alert-heading mb-2">
+                        <i class="fa fa-info-circle me-2"></i>
+                        Import Summary
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Total Processed:</strong> {{ session('import_summary')['total'] ?? 0 }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong class="text-success">Successfully Imported:</strong>
+                            {{ session('import_summary')['success'] ?? 0 }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong class="text-danger">Failed:</strong> {{ session('import_summary')['failed'] ?? 0 }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+
             <div class="tables-wrapper">
                 <div class="row">
                     <div class="col-lg-12">
@@ -44,50 +117,47 @@
                             <div class="row mb-3 align-items-center">
                                 <div class="col-md-2">
                                     <select class="form-select" id="programFilter" onchange="filterTable()">
-                                        <option value="">Programs</option>
-                                        <option value="bachelor of science in information technology">Bachelor of
-                                            Science in Information Technology</option>
-                                        <option value="bachelor of science in business administration">Bachelor of
-                                            Science in Business Administration</option>
-                                        <option value="bachelor of science in office administration">Bachelor of Science
-                                            in Office Administration</option>
-                                        <option value="bachelor of science in psychology">Bachelor of Science in
-                                            Psychology</option>
-                                        <option value="bachelor of science in electrical engineering">Bachelor of
-                                            Science in Electrical Engineering</option>
-                                        <option value="bachelor of science in mechanical engineering">Bachelor of
-                                            Science in Mechanical Engineering</option>
+                                        <option value="" disabled selected>Programs</option>
+                                        @foreach ($courses as $course)
+                                            @php
+                                                $count = $programCounts[$course->course_name] ?? 0;
+                                            @endphp
+                                            <option value="{{ $course->course_name }}">
+                                                {{ $course->course_name }} ({{ $count }})
+                                            </option>
+                                        @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-2">
                                     <select class="form-select" id="yearFilter" onchange="filterTable()">
                                         <option value="">Year</option>
-                                        <option value="1st year">1st Year</option>
-                                        <option value="2nd year">2nd Year</option>
-                                        <option value="3rd year">3rd Year</option>
-                                        <option value="4th year">4th Year</option>
+                                        <option value="1st Year">1st Year ({{ $yearCounts['1st Year'] ?? 0 }})</option>
+                                        <option value="2nd Year">2nd Year ({{ $yearCounts['2nd Year'] ?? 0 }})</option>
+                                        <option value="3rd Year">3rd Year ({{ $yearCounts['3rd Year'] ?? 0 }})</option>
+                                        <option value="4th Year">4th Year ({{ $yearCounts['4th Year'] ?? 0 }})</option>
                                     </select>
                                 </div>
                                 <div class="col-md-2">
                                     <select class="form-select" id="sectionFilter" onchange="filterTable()">
                                         <option value="">Section</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
+                                        <option value="1">1 ({{ $sectionCounts['1'] ?? 0 }})</option>
+                                        <option value="2">2 ({{ $sectionCounts['2'] ?? 0 }})</option>
+                                        <option value="3">3 ({{ $sectionCounts['3'] ?? 0 }})</option>
+                                        <option value="4">4 ({{ $sectionCounts['4'] ?? 0 }})</option>
+                                        <option value="5">5 ({{ $sectionCounts['5'] ?? 0 }})</option>
+                                        <option value="6">6 ({{ $sectionCounts['6'] ?? 0 }})</option>
+                                        <option value="7">7 ({{ $sectionCounts['7'] ?? 0 }})</option>
+                                        <option value="8">8 ({{ $sectionCounts['8'] ?? 0 }})</option>
+                                        <option value="9">9 ({{ $sectionCounts['9'] ?? 0 }})</option>
+                                        <option value="10">10 ({{ $sectionCounts['10'] ?? 0 }})</option>
                                     </select>
                                 </div>
                                 <div class="col-md-2">
                                     <select class="form-select" id="accountStatusFilter" onchange="filterTable()">
                                         <option value="">Status</option>
-                                        <option value="active">Active</option>
-                                        <option value="deactivated">Deactivated</option>
+                                        <option value="Active">Active ({{ $statusCounts['Active'] ?? 0 }})</option>
+                                        <option value="Deactivated">Deactivated
+                                            ({{ $statusCounts['Deactivated'] ?? 0 }})</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4 d-flex justify-content-end">
@@ -100,6 +170,8 @@
                                     </button>
                                 </div>
                             </div>
+
+
                             <div class="table-wrapper table-responsive">
                                 <table class="table" id="userTable">
                                     <thead>
@@ -187,7 +259,8 @@
     </section>
 
     <!-- Add User Modal -->
-    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -269,24 +342,10 @@
                                 <div class="select-position">
                                     <select id="program" class="form-control form-select" name="program" required>
                                         <option value="" disabled selected>Select your program/course</option>
-                                        <option value="Bachelor of Science in Information Technology">Bachelor of
-                                            Science
-                                            in Information Technology</option>
-                                        <option value="Bachelor of Science in Business Administration">Bachelor of
-                                            Science
-                                            in Business Administration</option>
-                                        <option value="Bachelor of Science in Office Administration">Bachelor of
-                                            Science in
-                                            Office Administration</option>
-                                        <option value="Bachelor of Science in Psychology">Bachelor of Science in
-                                            Psychology
-                                        </option>
-                                        <option value="Bachelor of Science in Electrical Engineering">Bachelor of
-                                            Science
-                                            in Electrical Engineering</option>
-                                        <option value="Bachelor of Science in Mechanical Engineering">Bachelor of
-                                            Science
-                                            in Mechanical Engineering</option>
+                                        @foreach ($courses as $course)
+                                            <option value="{{ $course->course_name }}">{{ $course->course_name }}
+                                            </option>
+                                        @endforeach
                                     </select>
                                     <div class="invalid-feedback">Please select a program.</div>
                                 </div>
@@ -312,17 +371,20 @@
         </div>
     </div>
 
+
     <!-- Import Modal -->
     <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <form action="{{ route('admin.user-management.import-students') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.user-management.import-students') }}" method="POST"
+                enctype="multipart/form-data" id="importForm">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="importUsersModalLabel">Import Students</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                            id="closeModalBtn"></button>
                     </div>
-    
+
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="importFile" class="form-label">Upload CSV or Excel File</label>
@@ -331,7 +393,7 @@
                                 required>
                             <small class="text-muted">Accepted formats: .csv, .xls, .xlsx</small>
                         </div>
-                        
+
                         <div class="alert alert-info">
                             <p class="mb-1"><strong>Required columns:</strong></p>
                             <ul class="mb-0">
@@ -346,18 +408,27 @@
                                 <li>Birthdate (format: MM/DD/YYYY)</li>
                             </ul>
                             <p class="mt-2 mb-0">
-                                <a href="{{ route('admin.user-management.download-template') }}" class="text-primary">
+                                <a href="{{ route('admin.user-management.download-template') }}"
+                                    class="text-primary">
                                     <i class="fa fa-download me-1"></i> Download template
                                 </a>
                             </p>
                         </div>
+
+
+                        <div class="modal-footer">
+                            <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
+                                data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
+                            <button type="submit" class="main-button primary-btn" id="importBtn">
+                                <span id="importBtnText">Import</span>
+                                <span id="importBtnLoading" style="display: none;">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"
+                                        aria-hidden="true"></span>
+                                    Processing...
+                                </span>
+                            </button>
+                        </div>
                     </div>
-    
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="main-button primary-btn">Import</button>
-                    </div>
-                </div>
             </form>
         </div>
     </div>
@@ -365,7 +436,7 @@
     <!-- ========== section end ========== -->
 </main>
 <!-- ======== main-wrapper end =========== -->
-<script src="../../assets/admin/js/faculty.js"></script>
+{{-- <script src="../../assets/admin/js/faculty.js"></script> --}}
 <script src="../../assets/admin/js/student.js"></script>
 
 @include('admin.partials.footer')

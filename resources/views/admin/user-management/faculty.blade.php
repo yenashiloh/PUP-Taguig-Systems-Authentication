@@ -5,9 +5,7 @@
 
 <!-- ======== main-wrapper start =========== -->
 <main class="main-wrapper">
-
     @include('admin.partials.header')
-
     <!-- ========== section start ========== -->
     <section class="section">
         <div class="container-fluid">
@@ -36,11 +34,45 @@
                 </div>
                 <!-- end row -->
             </div>
+            <!-- ========== title-wrapper end ========== -->
 
             <div class="tables-wrapper">
                 <div class="row">
                     <div class="col-lg-12">
                         <div class="card-style mb-30">
+                            <!-- Filter Section -->
+                            <div class="row mb-3 align-items-center">
+                                <div class="col-md-2">
+                                    <select class="form-select" id="departmentFilter" onchange="filterTable()">
+                                        <option value="">Department</option>
+                                        @foreach ($departments as $department)
+                                            @php
+                                                $count = $departmentCounts[$department->dept_name] ?? 0;
+                                            @endphp
+                                            <option value="{{ $department->dept_name }}">
+                                                {{ $department->dept_name }} ({{ $count }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" id="employmentStatusFilter" onchange="filterTable()">
+                                        <option value="">Employment Status</option>
+                                        <option value="Full-Time">Full-Time ({{ $employmentStatusCounts['Full-Time'] ?? 0 }})</option>
+                                        <option value="Part-Time">Part-Time ({{ $employmentStatusCounts['Part-Time'] ?? 0 }})</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" id="accountStatusFilter" onchange="filterTable()">
+                                        <option value="">Account Status</option>
+                                        <option value="Active">Active ({{ $statusCounts['Active'] ?? 0 }})</option>
+                                        <option value="Deactivated">Deactivated ({{ $statusCounts['Deactivated'] ?? 0 }})</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <!-- End Filter Section -->
+
+                            <!-- Table Section -->
                             <div class="table-wrapper table-responsive">
                                 <table class="table" id="userTable">
                                     <thead>
@@ -61,11 +93,13 @@
                                                 <h6>Action</h6>
                                             </th>
                                         </tr>
-                                        <!-- end table row-->
                                     </thead>
                                     <tbody>
                                         @foreach ($users as $user)
-                                            <tr id="user-{{ $user->id }}">
+                                            <tr id="user-{{ $user->id }}"
+                                                data-department="{{ $user->department ?? '' }}"
+                                                data-employment-status="{{ $user->employment_status ?? '' }}"
+                                                data-status="{{ $user->status ?? '' }}">
                                                 <td class="min-width">
                                                     <div class="lead">
                                                         <p>
@@ -83,11 +117,12 @@
                                                     <p class="status-text">{{ $user->status }}</p>
                                                 </td>
                                                 <td>
-                                                    <button class="main-button secondary-btn btn-hover mb-1" onclick="window.location='{{ route('admin.user-management.view-faculty', ['user' => $user->id]) }}'">
+                                                    <button class="main-button secondary-btn btn-hover mb-1"
+                                                        onclick="window.location='{{ route('admin.user-management.view-faculty', ['user' => $user->id]) }}'">
                                                         View
-                                                    </button>                                                    
+                                                    </button>
                                                     <span class="toggle-btn-container">
-                                                        @if ($user->status === 'Activate')
+                                                        @if ($user->status === 'Active')
                                                             <button class="main-button danger-btn btn-hover mb-1"
                                                                 onclick="toggleAccountStatus({{ $user->id }}, 'deactivate')">
                                                                 Deactivate
@@ -102,18 +137,20 @@
                                                 </td>
                                             </tr>
                                         @endforeach
-                                        <!-- end table row -->
                                     </tbody>
                                 </table>
-                                <!-- end table -->
                             </div>
+                            <!-- End Table Section -->
                         </div>
                         <!-- end card -->
                     </div>
                     <!-- end col -->
                 </div>
                 <!-- end row -->
-                <!-- end container -->
+            </div>
+            <!-- end tables-wrapper -->
+        </div>
+        <!-- end container -->
     </section>
     <!-- ========== section end ========== -->
 </main>
