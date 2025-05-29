@@ -295,19 +295,13 @@
                                                     <p>{{ $user->last_name }}</p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p>
-                                                        <a">{{ $user->first_name }}</a>
-                                                    </p>
+                                                    <p>{{ $user->first_name }}</p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p>
-                                                        <a">{{ $user->email }}</a>
-                                                    </p>
+                                                    <p>{{ $user->email }}</p>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p>
-                                                        <a"> {{ $user->status }}</a>
-                                                    </p>
+                                                    <p>{{ $user->status }}</p>
                                                 </td>
                                                 <td>
                                                     <div class="btn-group" role="group">
@@ -330,13 +324,6 @@
                                                 </td>
                                             </tr>
                                         @endforeach
-                                        @if (count($users) === 0)
-                                            <tr class="no-records-row">
-                                                <td colspan="7" class="text-center py-3">
-                                                    <p class="text-muted mb-0">No records found.</p>
-                                                </td>
-                                            </tr>
-                                        @endif
                                     </tbody>
                                 </table>
                             </div>
@@ -363,18 +350,21 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3 input-style-1">
-                                <label for="email" class="form-label">Email</label>
+                                <label for="email" class="form-label">Email <span
+                                        class="text-danger">*</span></label>
                                 <input type="email" class="form-control" id="email" name="email" required>
                                 <div class="invalid-feedback">Please enter a valid email address.</div>
                             </div>
                             <div class="col-md-6 mb-3 input-style-1">
-                                <label for="student_number" class="form-label">Student Number</label>
+                                <label for="student_number" class="form-label">Student Number <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="student_number" name="student_number"
                                     required>
                                 <div class="invalid-feedback">Please enter a student number.</div>
                             </div>
                             <div class="col-md-4 mb-3 input-style-1">
-                                <label for="first_name" class="form-label">First Name</label>
+                                <label for="first_name" class="form-label">First Name <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="first_name" name="first_name"
                                     required>
                                 <div class="invalid-feedback">Please enter a first name.</div>
@@ -386,12 +376,13 @@
                                 <div class="invalid-feedback">Please enter a middle name.</div>
                             </div>
                             <div class="col-md-4 mb-3 input-style-1">
-                                <label for="last_name" class="form-label">Last Name</label>
+                                <label for="last_name" class="form-label">Last Name <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="last_name" name="last_name" required>
                                 <div class="invalid-feedback">Please enter a last name.</div>
                             </div>
                             <div class="col-md-6 mb-3 select-style-1">
-                                <label>Year</label>
+                                <label>Year <span class="text-danger">*</span></label>
                                 <div class="select-position">
                                     <select id="year" class="form-control form-select select-position"
                                         name="year" required>
@@ -405,7 +396,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3 select-style-1">
-                                <label>Section</label>
+                                <label>Section <span class="text-danger">*</span></label>
                                 <div class="select-position">
                                     <select id="section" class="form-control form-select select-position"
                                         name="section" required>
@@ -426,7 +417,7 @@
                             </div>
 
                             <div class="col-md-6 mb-3 select-style-1">
-                                <label>Program</label>
+                                <label>Program <span class="text-danger">*</span></label>
                                 <div class="select-position">
                                     <select id="program" class="form-control form-select" name="program" required>
                                         <option value="" disabled selected>Select your program/course</option>
@@ -440,7 +431,7 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <div class="input-style-1">
-                                    <label>Birthdate</label>
+                                    <label>Birthdate <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control" id="birthdate" name="birthdate"
                                         required>
                                 </div>

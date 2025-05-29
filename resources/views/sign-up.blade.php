@@ -72,7 +72,7 @@
                             <div class="form-group">
                                 <label for="facultyMiddleName">Middle Name</label>
                                 <input type="text" id="facultyMiddleName" class="form-control"
-                                    placeholder="Enter your middle name" name="middle_name">
+                                    placeholder="Enter your middle name (optional)" name="middle_name">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -103,25 +103,38 @@
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-12">
+                                <div class="col-md-6">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="facultyBirthdate">Birthdate</label>
+                                    <input type="date" id="facultyBirthdate" class="form-control" name="birthdate">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
                             <div class="form-group">
-                                <label for="department">Department</label>
-                                <select id="department" class="form-control form-select" name="department">
-                                    <option value="" disabled selected>Select your department</option>
-                                    <option value="Department of Business Administration">Department of Business
-                                        Administration</option>
-                                    <option value="Information Technology Education">Information Technology Education
-                                    </option>
-                                    <option value="Department of Information Technology">Department of Information
-                                        Technology</option>
-                                    <option value="Department of Office Administration">Department of Office
-                                        Administration</option>
-                                    <option value="Department of Psychology">Department of Psychology</option>
-                                    <option value="Department of Office Accountant">Department of Office Accountant
-                                    </option>
-                                    <option value="Department of Engineering">Department of Engineering</option>
+                                <label for="employmentStatus">Employment Status</label>
+                                <select id="employmentStatus" class="form-control form-select"
+                                    name="employment_status">
+                                    <option value="" disabled selected>Select employment status</option>
+                                    <option value="Full-Time">Full-Time</option>
+                                    <option value="Part-Time">Part-Time</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select id="department" class="form-control form-select" name="department">
+                                <option value="" disabled selected>Select your department</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->dept_name }}">{{ $department->dept_name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -141,7 +154,7 @@
                             <div class="form-group">
                                 <label for="studentMiddleName">Middle Name</label>
                                 <input type="text" id="studentMiddleName" class="form-control"
-                                    placeholder="Enter your middle name" name="middle_name">
+                                    placeholder="Enter your middle name (optional)" name="middle_name">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -167,18 +180,9 @@
                                 <label for="program">Program</label>
                                 <select id="program" class="form-control form-select" name="program">
                                     <option value="" disabled selected>Select your program</option>
-                                    <option value="Bachelor of Science in Information Technology">Bachelor of Science
-                                        in Information Technology</option>
-                                    <option value="Bachelor of Science in Business Administration">Bachelor of Science
-                                        in Business Administration</option>
-                                    <option value="Bachelor of Science in Office Administration">Bachelor of Science in
-                                        Office Administration</option>
-                                    <option value=">Bachelor of Science in Psychology">Bachelor of Science in
-                                        Psychology</option>
-                                    <option value="Bachelor of Science in Electrical Engineering">Bachelor of Science
-                                        in Electrical Engineering</option>
-                                    <option value="Bachelor of Science in Mechanical Engineering">Bachelor of Science
-                                        in Mechanical Engineering</option>
+                                    @foreach ($courses as $course)
+                                        <option value="{{ $course->course_name }}">{{ $course->course_name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>

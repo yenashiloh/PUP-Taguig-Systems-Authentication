@@ -420,3 +420,49 @@ body {
         width: 85%;
     }
 }
+
+/* Password field container styling */
+.password-container {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #666;
+    font-size: 18px;
+    z-index: 100;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #7e0e09;
+}
+
+.password-toggle:focus {
+    outline: none;
+    color: #7e0e09;
+}
+
+.password-container input[type="password"],
+.password-container input[type="text"] {
+    padding-right: 50px !important;
+    width: 100%;
+}
+
+.password-toggle i {
+    pointer-events: none;
+}

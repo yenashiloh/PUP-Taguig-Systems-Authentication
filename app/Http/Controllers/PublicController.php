@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -53,14 +55,17 @@ class PublicController extends Controller
     // Show sign up page
     public function showSignUpPage()
     {
-        return view('sign-up');
+        // Get active departments and courses for dropdowns
+        $departments = Department::where('status', 'Active')->orderBy('dept_name', 'asc')->get();
+        $courses = Course::where('status', 'Active')->orderBy('course_name', 'asc')->get();
+        
+        return view('sign-up', compact('departments', 'courses'));
     }
 
     // Store user account
     public function store(Request $request)
     {
         try {
-            // First step: Get a more detailed error message
             \Log::info('Registration attempt with data: ' . json_encode($request->all()));
             
             // Email Address Validation first
@@ -78,32 +83,83 @@ class PublicController extends Controller
             $validatedData = $request->validate([
                 'role' => 'required|in:Student,Faculty',
                 'email' => 'required|email|unique:users,email',
-                'first_name' => 'required|string|max:50',
-                'last_name' => 'required|string|max:50',
-                'middle_name' => 'nullable|string|max:50',
+                'first_name' => 'required|string|max:50|min:2|regex:/^[a-zA-Z\s]+$/',
+                'last_name' => 'required|string|max:50|min:2|regex:/^[a-zA-Z\s]+$/',
+                'middle_name' => 'nullable|string|max:50|regex:/^[a-zA-Z\s]+$/',
+            ], [
+                'first_name.regex' => 'First name can only contain letters and spaces.',
+                'last_name.regex' => 'Last name can only contain letters and spaces.',
+                'middle_name.regex' => 'Middle name can only contain letters and spaces.',
             ]);
         
             // Validation based on role
             if ($request->role == 'Faculty') {
+                // Check if employee number already exists
+                $existingEmployee = User::where('employee_number', $request->employee_number)->first();
+                if ($existingEmployee) {
+                    return response()->json([
+                        'message' => 'The employee number is already taken. Please use another employee number.',
+                        'errors' => [
+                            'employee_number' => ['The employee number is already taken. Please use another employee number.']
+                        ]
+                    ], 422);
+                }
+
                 $facultyData = $request->validate([
-                    'phone_number' => 'required|string',
+                    'phone_number' => 'required|string|min:10|max:15',
                     'department' => 'required|string',
-                    'employee_number' => 'required|string',
-                ]);
-            } else { // Student
-                $studentData = $request->validate([
-                    'program' => 'required|string',
-                    'year' => 'required|string',
-                    'section' => 'required|string',
-                    'student_number' => 'required|string',
+                    'employee_number' => 'required|string|unique:users,employee_number|min:3|max:20',
+                    'employment_status' => 'required|in:Full-Time,Part-Time',
                     'birthdate' => [
                         'required',
                         'date',
                         'before:today',
+                        'after:1900-01-01',
+                    ],
+                ]);
+
+                // Age validation for faculty (must be at least 18)
+                $birthdate = new \DateTime($request->birthdate);
+                $today = new \DateTime();
+                $age = $birthdate->diff($today)->y;
+                if ($age < 18) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => ['birthdate' => ['Faculty members must be at least 18 years old.']]
+                    ], 422);
+                }
+                if ($age > 100) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => ['birthdate' => ['Please enter a valid birthdate.']]
+                    ], 422);
+                }
+            } else { // Student
+                // Check if student number already exists
+                $existingStudent = User::where('student_number', $request->student_number)->first();
+                if ($existingStudent) {
+                    return response()->json([
+                        'message' => 'The student number is already taken. Please use another student number.',
+                        'errors' => [
+                            'student_number' => ['The student number is already taken. Please use another student number.']
+                        ]
+                    ], 422);
+                }
+
+                $studentData = $request->validate([
+                    'program' => 'required|string',
+                    'year' => 'required|string',
+                    'section' => 'required|string',
+                    'student_number' => 'required|string|unique:users,student_number|min:5|max:20',
+                    'birthdate' => [
+                        'required',
+                        'date',
+                        'before:today',
+                        'after:1900-01-01',
                     ],
                 ]);
                 
-                // Age validation separately to avoid potential errors
+                // Age validation for students (must be at least 15)
                 $birthdate = new \DateTime($request->birthdate);
                 $today = new \DateTime();
                 $age = $birthdate->diff($today)->y;
@@ -113,13 +169,18 @@ class PublicController extends Controller
                         'errors' => ['birthdate' => ['You must be at least 15 years old.']]
                     ], 422);
                 }
+                if ($age > 100) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => ['birthdate' => ['Please enter a valid birthdate.']]
+                    ], 422);
+                }
             }
         
             // Generate a password
             $randomNumbers = rand(10000, 99999);
             $firstTwoLetters = strtoupper(substr($request->first_name, 0, 1) . substr($request->last_name, 0, 1));
             
-            // Fix the Str::random to use proper syntax
             $specialChars = "!@#$%^&*";
             $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
         
@@ -129,15 +190,17 @@ class PublicController extends Controller
             // Create User Account
             $user = User::create([
                 'role' => $request->role,
-                'email' => $request->email,
+                'status' => 'Active',
+                'email' => strtolower($request->email),
                 'password' => $hashedPassword,
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name ?? null,
-                'last_name' => $request->last_name,
+                'first_name' => ucwords(strtolower($request->first_name)),
+                'middle_name' => $request->middle_name ? ucwords(strtolower($request->middle_name)) : null,
+                'last_name' => ucwords(strtolower($request->last_name)),
                 'phone_number' => $request->phone_number ?? null,
-                'employee_number' => $request->employee_number ?? null,
+                'employee_number' => $request->employee_number ? strtoupper($request->employee_number) : null,
                 'department' => $request->department ?? null,
-                'student_number' => $request->student_number ?? null,
+                'employment_status' => $request->employment_status ?? null,
+                'student_number' => $request->student_number ? strtoupper($request->student_number) : null,
                 'program' => $request->program ?? null,
                 'year' => $request->year ?? null,
                 'section' => $request->section ?? null,
@@ -171,6 +234,7 @@ class PublicController extends Controller
             ], 500);
         }
     }
+
     // Show forgot password page
     public function showForgotPasswordPage()
     {

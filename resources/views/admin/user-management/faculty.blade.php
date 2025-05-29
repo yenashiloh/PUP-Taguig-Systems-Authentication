@@ -147,7 +147,7 @@
                                 <div class="col-md-6 d-flex justify-content-end">
                                     <button class="main-button primary-btn me-2 btn-sm" data-bs-toggle="modal"
                                         data-bs-target="#addFacultyModal">
-                                        <i class="fas fa-plus me-1"></i> Add 
+                                        <i class="fas fa-plus me-1"></i> Add
                                     </button>
 
                                     <button type="button"
@@ -251,7 +251,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($users as $user)
+                                        @forelse ($users as $user)
                                             <tr id="user-{{ $user->id }}"
                                                 data-department="{{ $user->department ?? '' }}"
                                                 data-employment-status="{{ $user->employment_status ?? '' }}"
@@ -312,14 +312,21 @@
                                                     </div>
                                                 </td>
                                             </tr>
-                                        @endforeach
-                                        @if (count($users) === 0)
+                                        @empty
+                                            <!-- No data row with correct column count -->
                                             <tr class="no-records-row">
-                                                <td colspan="7" class="text-center py-3">
-                                                    <p class="text-muted mb-0">No records found.</p>
+                                                <td></td> <!-- Checkbox column -->
+                                                <td></td> <!-- Employee ID column -->
+                                                <td></td> <!-- Last Name column -->
+                                                <td class="text-center py-4"
+                                                    style="font-style: italic; color: #6c757d;">
+                                                    No faculty members found
                                                 </td>
+                                                <td></td> <!-- Email column -->
+                                                <td></td> <!-- Status column -->
+                                                <td></td> <!-- Action column -->
                                             </tr>
-                                        @endif
+                                        @endforelse
                                     </tbody>
                                 </table>
                             </div>
@@ -355,18 +362,21 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3 input-style-1">
-                                <label for="email" class="form-label">Email</label>
+                                <label for="email" class="form-label">Email <span
+                                        class="text-danger">*</span></label>
                                 <input type="email" class="form-control" id="email" name="email" required>
                                 <div class="invalid-feedback">Please enter a valid email address.</div>
                             </div>
                             <div class="col-md-6 mb-3 input-style-1">
-                                <label for="employee_number" class="form-label">Employee Number</label>
+                                <label for="employee_number" class="form-label">Employee Number <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="employee_number"
                                     name="employee_number" required>
                                 <div class="invalid-feedback">Please enter an employee number.</div>
                             </div>
                             <div class="col-md-4 mb-3 input-style-1">
-                                <label for="first_name" class="form-label">First Name</label>
+                                <label for="first_name" class="form-label">First Name <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="first_name" name="first_name"
                                     required>
                                 <div class="invalid-feedback">Please enter a first name.</div>
@@ -377,18 +387,20 @@
                                 <div class="invalid-feedback">Please enter a middle name.</div>
                             </div>
                             <div class="col-md-4 mb-3 input-style-1">
-                                <label for="last_name" class="form-label">Last Name</label>
+                                <label for="last_name" class="form-label">Last Name <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="last_name" name="last_name" required>
                                 <div class="invalid-feedback">Please enter a last name.</div>
                             </div>
                             <div class="col-md-6 mb-3 input-style-1">
-                                <label for="phone_number" class="form-label">Phone Number</label>
+                                <label for="phone_number" class="form-label">Phone Number <span
+                                        class="text-danger">*</span></label>
                                 <input type="tel" class="form-control" id="phone_number" name="phone_number"
                                     required>
                                 <div class="invalid-feedback">Please enter a phone number.</div>
                             </div>
                             <div class="col-md-6 mb-3 select-style-1">
-                                <label>Department</label>
+                                <label>Department <span class="text-danger">*</span></label>
                                 <div class="select-position">
                                     <select id="department" class="form-control form-select" name="department"
                                         required>
@@ -402,7 +414,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3 select-style-1">
-                                <label>Employment Status</label>
+                                <label>Employment Status <span class="text-danger">*</span></label>
                                 <div class="select-position">
                                     <select id="employment_status" class="form-control form-select"
                                         name="employment_status" required>
@@ -415,7 +427,7 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <div class="input-style-1">
-                                    <label>Birthdate</label>
+                                    <label>Birthdate <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control" id="birthdate" name="birthdate"
                                         required>
                                 </div>

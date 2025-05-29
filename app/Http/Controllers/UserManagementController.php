@@ -75,44 +75,77 @@ class UserManagementController extends Controller
             // Log the incoming request for debugging
             \Log::info('Faculty registration attempt with data: ' . json_encode($request->all()));
             
-            // Email Address Validation first
-            $existingUser = User::where('email', $request->email)->first();
-            if ($existingUser) {
-                return response()->json([
-                    'message' => 'The email is already taken. Please use another email address.',
-                    'errors' => [
-                        'email' => ['The email is already taken. Please use another email address.']
-                    ]
-                ], 422);
-            }
-
-            // Employee Number Validation
-            $existingEmployee = User::where('employee_number', $request->employee_number)->first();
-            if ($existingEmployee) {
-                return response()->json([
-                    'message' => 'The employee number is already taken. Please use another employee number.',
-                    'errors' => [
-                        'employee_number' => ['The employee number is already taken. Please use another employee number.']
-                    ]
-                ], 422);
-            }
-            
+            //Validate all required fields with proper rules
             $validated = $request->validate([
                 'email' => 'required|email|unique:users,email',
-                'first_name' => 'required|string|max:255|min:2',
-                'middle_name' => 'nullable|string|max:255',
-                'last_name' => 'required|string|max:255|min:2',
+                'first_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'min:2',
+                    'regex:/^[a-zA-Z\s]+$/'
+                ],
+                'middle_name' => [
+                    'nullable',
+                    'string',
+                    'max:255',
+                    'regex:/^[a-zA-Z\s]*$/'
+                ],
+                'last_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'min:2',
+                    'regex:/^[a-zA-Z\s]+$/'
+                ],
                 'employee_number' => 'required|string|max:255|unique:users,employee_number',
-                'phone_number' => 'required|string|max:20|min:10',
+                'phone_number' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    'min:10',
+                    'regex:/^[0-9\+\-\(\)\s]+$/'
+                ],
                 'department' => 'required|string|max:255',
                 'employment_status' => 'required|in:Full-Time,Part-Time',
                 'birthdate' => 'required|date|before:today',
+            ], [
+                // Custom error messages
+                'email.required' => 'Email address is required.',
+                'email.email' => 'Please enter a valid email address.',
+                'email.unique' => 'This email address is already taken. Please use another email address.',
+                
+                'first_name.required' => 'First name is required.',
+                'first_name.min' => 'First name must be at least 2 characters long.',
+                'first_name.regex' => 'First name can only contain letters and spaces.',
+                
+                'middle_name.regex' => 'Middle name can only contain letters and spaces.',
+                
+                'last_name.required' => 'Last name is required.',
+                'last_name.min' => 'Last name must be at least 2 characters long.',
+                'last_name.regex' => 'Last name can only contain letters and spaces.',
+                
+                'employee_number.required' => 'Employee number is required.',
+                'employee_number.unique' => 'This employee number is already taken. Please use another employee number.',
+                
+                'phone_number.required' => 'Phone number is required.',
+                'phone_number.min' => 'Phone number must be at least 10 digits long.',
+                'phone_number.regex' => 'Phone number can only contain numbers, spaces, hyphens, parentheses, and plus sign.',
+                
+                'department.required' => 'Department is required.',
+                'employment_status.required' => 'Employment status is required.',
+                'employment_status.in' => 'Employment status must be either Full-Time or Part-Time.',
+                
+                'birthdate.required' => 'Birthdate is required.',
+                'birthdate.date' => 'Please enter a valid date.',
+                'birthdate.before' => 'Birthdate must be before today.',
             ]);
 
-            // Validate age
+            // Additional age validation
             $birthDate = new \DateTime($validated['birthdate']);
             $today = new \DateTime();
             $age = $birthDate->diff($today)->y;
+            
             if ($age < 18) {
                 return response()->json([
                     'message' => 'Validation failed.',
@@ -155,7 +188,6 @@ class UserManagementController extends Controller
 
             \Log::info('Faculty user created successfully with ID: ' . $user->id);
 
-            // Add try-catch specifically for mail sending
             try {
                 \Log::info('Attempting to send email to: ' . $user->email);
                 
@@ -169,7 +201,6 @@ class UserManagementController extends Controller
             } catch (\Exception $mailError) {
                 \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
                 \Log::error('Mail error trace: ' . $mailError->getTraceAsString());
-                // Continue execution even if email fails
             }
 
             return response()->json([
@@ -193,322 +224,323 @@ class UserManagementController extends Controller
     }
 
     // Import Faculty from CSV or Excel
-    public function importFaculty(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
-        ]);
+    // Import Faculty from CSV or Excel - UPDATED VALIDATION
+public function importFaculty(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
+    ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->with('import_error', 'Please upload a valid CSV or Excel file.')
-                ->withErrors($validator);
+    if ($validator->fails()) {
+        return redirect()->back()
+            ->with('import_error', 'Please upload a valid CSV or Excel file.')
+            ->withErrors($validator);
+    }
+
+    try {
+        $file = $request->file('import_file');
+        
+        // Additional file validation
+        if ($file->getSize() == 0) {
+            return redirect()->back()->with('import_error', 'The uploaded file is empty.');
+        }
+        
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $worksheet = $spreadsheet->getActiveSheet();
+        $rows = $worksheet->toArray();
+        
+        // Check if file has data
+        if (empty($rows) || count($rows) < 2) {
+            return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
+        }
+        
+        // Check maximum rows limit
+        if (count($rows) > 1001) { // 1000 data rows + 1 header
+            return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
         }
 
-        try {
-            $file = $request->file('import_file');
-            
-            // Additional file validation
-            if ($file->getSize() == 0) {
-                return redirect()->back()->with('import_error', 'The uploaded file is empty.');
-            }
-            
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-            
-            // Check if file has data
-            if (empty($rows) || count($rows) < 2) {
-                return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
-            }
-            
-            // Check maximum rows limit
-            if (count($rows) > 1001) { // 1000 data rows + 1 header
-                return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
-            }
+        // The first row should be headers
+        $headers = array_map('strtolower', array_map('trim', $rows[0]));
+        
+        // Check for empty headers
+        if (in_array('', $headers) || in_array(null, $headers)) {
+            return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
+        }
+        
+        // Check if all required headers are present
+        $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
+        $missingHeaders = array_diff($requiredHeaders, $headers);
+        
+        if (!empty($missingHeaders)) {
+            return redirect()->back()
+                ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
+        }
 
-            // The first row should be headers
-            $headers = array_map('strtolower', array_map('trim', $rows[0]));
+        // Remove the header row
+        array_shift($rows);
+        
+        $imported = 0;
+        $failed = 0;
+        $emailsSent = 0;
+        $emailsFailed = 0;
+        $errors = [];
+        $totalRows = count($rows);
+        
+        // Pre-check for duplicates within the file
+        $fileEmails = [];
+        $fileEmployeeNumbers = [];
+        
+        foreach ($rows as $index => $row) {
+            if (empty(array_filter($row))) continue;
             
-            // Check for empty headers
-            if (in_array('', $headers) || in_array(null, $headers)) {
-                return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
+            $rowData = [];
+            foreach ($headers as $colIndex => $header) {
+                $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
             }
             
-            // Check if all required headers are present
-            $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
-            $missingHeaders = array_diff($requiredHeaders, $headers);
+            $email = strtolower($rowData['email'] ?? '');
+            $employeeNumber = $rowData['employee_number'] ?? '';
+            $rowNumber = $index + 2;
             
-            if (!empty($missingHeaders)) {
-                return redirect()->back()
-                    ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
-            }
-
-            // Remove the header row
-            array_shift($rows);
-            
-            $imported = 0;
-            $failed = 0;
-            $emailsSent = 0;
-            $emailsFailed = 0;
-            $errors = [];
-            $totalRows = count($rows);
-            
-            // Pre-check for duplicates within the file
-            $fileEmails = [];
-            $fileEmployeeNumbers = [];
-            
-            foreach ($rows as $index => $row) {
-                if (empty(array_filter($row))) continue;
-                
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                }
-                
-                $email = strtolower($rowData['email'] ?? '');
-                $employeeNumber = $rowData['employee_number'] ?? '';
-                $rowNumber = $index + 2;
-                
-                if ($email) {
-                    if (in_array($email, $fileEmails)) {
-                        $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
-                    } else {
-                        $fileEmails[] = $email;
-                    }
-                }
-                
-                if ($employeeNumber) {
-                    if (in_array($employeeNumber, $fileEmployeeNumbers)) {
-                        $errors[] = "Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file";
-                    } else {
-                        $fileEmployeeNumbers[] = $employeeNumber;
-                    }
+            if ($email) {
+                if (in_array($email, $fileEmails)) {
+                    $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
+                } else {
+                    $fileEmails[] = $email;
                 }
             }
             
-            // Process each row
-            foreach ($rows as $index => $row) {
-                $rowNumber = $index + 2;
-                
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
+            if ($employeeNumber) {
+                if (in_array($employeeNumber, $fileEmployeeNumbers)) {
+                    $errors[] = "Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file";
+                } else {
+                    $fileEmployeeNumbers[] = $employeeNumber;
                 }
-                
-                // Map columns to user fields
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                    $rowData[str_replace(' ', '_', strtolower($header))] = $value;
-                }
-                
-                $hasError = false;
-                $rowErrors = [];
-                
-                // Validate email
-                $email = $rowData['email'] ?? '';
-                if (empty($email)) {
-                    $rowErrors[] = "Email is required";
-                    $hasError = true;
-                } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $rowErrors[] = "Email '$email' is not a valid email format";
-                    $hasError = true;
-                } elseif (User::where('email', strtolower($email))->exists()) {
-                    $rowErrors[] = "Email '$email' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate first name
-                $firstName = $rowData['first_name'] ?? '';
-                if (empty($firstName)) {
-                    $rowErrors[] = "First name is required";
-                    $hasError = true;
-                } elseif (strlen($firstName) < 2) {
-                    $rowErrors[] = "First name '$firstName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s\-\.\']+$/', $firstName)) {
-                    $rowErrors[] = "First name '$firstName' contains invalid characters";
-                    $hasError = true;
-                }
-                
-                // Validate last name
-                $lastName = $rowData['last_name'] ?? '';
-                if (empty($lastName)) {
-                    $rowErrors[] = "Last name is required";
-                    $hasError = true;
-                } elseif (strlen($lastName) < 2) {
-                    $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s\-\.\']+$/', $lastName)) {
-                    $rowErrors[] = "Last name '$lastName' contains invalid characters";
-                    $hasError = true;
-                }
-                
-                // Validate middle name (optional)
-                $middleName = $rowData['middle_name'] ?? '';
-                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s\-\.\']+$/', $middleName)) {
-                    $rowErrors[] = "Middle name '$middleName' contains invalid characters";
-                    $hasError = true;
-                }
-                
-                // Validate employee number
-                $employeeNumber = $rowData['employee_number'] ?? '';
-                if (empty($employeeNumber)) {
-                    $rowErrors[] = "Employee number is required";
-                    $hasError = true;
-                } elseif (strlen($employeeNumber) < 3) {
-                    $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
-                    $hasError = true;
-                } elseif (User::where('employee_number', $employeeNumber)->exists()) {
-                    $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate phone number
-                $phoneNumber = $rowData['phone_number'] ?? '';
-                if (empty($phoneNumber)) {
-                    $rowErrors[] = "Phone number is required";
-                    $hasError = true;
-                } elseif (strlen($phoneNumber) < 10) {
-                    $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
-                    $hasError = true;
-                }
-                
-                // Validate department
-                $department = $rowData['department'] ?? '';
-                if (empty($department)) {
-                    $rowErrors[] = "Department is required";
-                    $hasError = true;
-                }
-                
-                // Validate employment status
-                $employmentStatus = $rowData['employment_status'] ?? '';
-                $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
-                if (empty($employmentStatus)) {
-                    $rowErrors[] = "Employment status is required";
-                    $hasError = true;
-                } elseif (!in_array($employmentStatus, $validStatuses)) {
-                    $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
-                    $hasError = true;
-                }
-                
-                // Validate birthdate (optional)
-                $birthdate = $rowData['birthdate'] ?? '';
-                if (!empty($birthdate)) {
-                    try {
-                        $birthDate = Carbon::parse($birthdate);
-                        $age = $birthDate->age;
-                        if ($age < 18 || $age > 100) {
-                            $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
-                            $hasError = true;
-                        }
-                    } catch (\Exception $e) {
-                        $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+            }
+        }
+        
+        // Process each row
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+            
+            // Skip empty rows
+            if (empty(array_filter($row))) {
+                continue;
+            }
+            
+            // Map columns to user fields
+            $rowData = [];
+            foreach ($headers as $colIndex => $header) {
+                $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                $rowData[str_replace(' ', '_', strtolower($header))] = $value;
+            }
+            
+            $hasError = false;
+            $rowErrors = [];
+            
+            // Validate email
+            $email = $rowData['email'] ?? '';
+            if (empty($email)) {
+                $rowErrors[] = "Email is required";
+                $hasError = true;
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $rowErrors[] = "Email '$email' is not a valid email format";
+                $hasError = true;
+            } elseif (User::where('email', strtolower($email))->exists()) {
+                $rowErrors[] = "Email '$email' already exists in the system";
+                $hasError = true;
+            }
+            
+            // Validate first name - UPDATED: Only letters and spaces
+            $firstName = $rowData['first_name'] ?? '';
+            if (empty($firstName)) {
+                $rowErrors[] = "First name is required";
+                $hasError = true;
+            } elseif (strlen($firstName) < 2) {
+                $rowErrors[] = "First name '$firstName' must be at least 2 characters";
+                $hasError = true;
+            } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
+                $rowErrors[] = "First name '$firstName' can only contain letters and spaces ";
+                $hasError = true;
+            }
+            
+            // Validate last name - UPDATED: Only letters and spaces
+            $lastName = $rowData['last_name'] ?? '';
+            if (empty($lastName)) {
+                $rowErrors[] = "Last name is required";
+                $hasError = true;
+            } elseif (strlen($lastName) < 2) {
+                $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
+                $hasError = true;
+            } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+                $rowErrors[] = "Last name '$lastName' can only contain letters and spaces   ";
+                $hasError = true;
+            }
+            
+            // Validate middle name (optional) - UPDATED: Only letters and spaces
+            $middleName = $rowData['middle_name'] ?? '';
+            if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
+                $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces   ";
+                $hasError = true;
+            }
+            
+            // Validate employee number
+            $employeeNumber = $rowData['employee_number'] ?? '';
+            if (empty($employeeNumber)) {
+                $rowErrors[] = "Employee number is required";
+                $hasError = true;
+            } elseif (strlen($employeeNumber) < 3) {
+                $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
+                $hasError = true;
+            } elseif (User::where('employee_number', $employeeNumber)->exists()) {
+                $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
+                $hasError = true;
+            }
+            
+            // Validate phone number
+            $phoneNumber = $rowData['phone_number'] ?? '';
+            if (empty($phoneNumber)) {
+                $rowErrors[] = "Phone number is required";
+                $hasError = true;
+            } elseif (strlen($phoneNumber) < 10) {
+                $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
+                $hasError = true;
+            }
+            
+            // Validate department
+            $department = $rowData['department'] ?? '';
+            if (empty($department)) {
+                $rowErrors[] = "Department is required";
+                $hasError = true;
+            }
+            
+            // Validate employment status
+            $employmentStatus = $rowData['employment_status'] ?? '';
+            $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
+            if (empty($employmentStatus)) {
+                $rowErrors[] = "Employment status is required";
+                $hasError = true;
+            } elseif (!in_array($employmentStatus, $validStatuses)) {
+                $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
+                $hasError = true;
+            }
+            
+            // Validate birthdate (optional)
+            $birthdate = $rowData['birthdate'] ?? '';
+            if (!empty($birthdate)) {
+                try {
+                    $birthDate = Carbon::parse($birthdate);
+                    $age = $birthDate->age;
+                    if ($age < 18 || $age > 100) {
+                        $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
                         $hasError = true;
                     }
-                }
-                
-                // If there are errors for this row, add them to the errors array
-                if ($hasError) {
-                    foreach ($rowErrors as $error) {
-                        $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
-                    }
-                    $failed++;
-                    continue;
-                }
-                
-                // Create the user if all validations pass
-                try {
-                    // Generate a password like in storeFaculty
-                    $randomNumbers = rand(10000, 99999);
-                    $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
-                    
-                    $specialChars = "!@#$%^&*";
-                    $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
-                
-                    $password = $randomNumbers . $firstTwoLetters . $specialChar;
-                    $hashedPassword = Hash::make($password);
-
-                    $user = new User();
-                    $user->role = 'Faculty';
-                    $user->email = strtolower($email);
-                    $user->password = $hashedPassword;
-                    $user->first_name = ucwords(strtolower($firstName));
-                    $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
-                    $user->last_name = ucwords(strtolower($lastName));
-                    $user->employee_number = strtoupper($employeeNumber);
-                    $user->phone_number = $phoneNumber;
-                    $user->department = $department;
-                    $user->employment_status = ucfirst(strtolower($employmentStatus));
-                    $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
-                    $user->status = 'Active';
-                    
-                    $user->save();
-                    $imported++;
-
-                    // Send email notification with credentials
-                    try {
-                        Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
-                            $message->to($user->email)
-                                    ->subject('PUP-Taguig Systems - Your Account Details');
-                        });
-                        $emailsSent++;
-                    } catch (\Exception $mailError) {
-                        \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
-                        $emailsFailed++;
-                        // Continue execution even if email fails
-                    }
-                    
                 } catch (\Exception $e) {
-                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
-                    $failed++;
-                    continue;
+                    $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                    $hasError = true;
                 }
             }
             
-            // Prepare session data
-            $summary = [
-                'total' => $totalRows,
-                'success' => $imported,
-                'failed' => $failed,
-                'emails_sent' => $emailsSent,
-                'emails_failed' => $emailsFailed
-            ];
-            
-            // Set appropriate messages
-            if ($imported > 0 && $failed == 0) {
-                // All successful
-                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
-                return redirect()->back()
-                    ->with('import_success', "Successfully imported all $imported faculty member(s)!{$emailMessage}")
-                    ->with('import_summary', $summary);
-            } elseif ($imported > 0 && $failed > 0) {
-                // Partial success
-                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
-                return redirect()->back()
-                    ->with('import_success', "Successfully imported $imported faculty member(s). $failed row(s) had errors and were skipped.{$emailMessage}")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
-            } elseif ($imported == 0 && $failed > 0) {
-                // All failed
-                return redirect()->back()
-                    ->with('import_error', "No faculty members were imported. All $failed row(s) contained errors.")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
-            } else {
-                // No data processed
-                return redirect()->back()->with('import_error', 'No valid data found to import.');
+            // If there are errors for this row, add them to the errors array
+            if ($hasError) {
+                foreach ($rowErrors as $error) {
+                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
+                }
+                $failed++;
+                continue;
             }
             
-        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
-            Log::error('Spreadsheet reading error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
-        } catch (\Exception $e) {
-            Log::error('Import error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
+            // Create the user if all validations pass
+            try {
+                // Generate a password like in storeFaculty
+                $randomNumbers = rand(10000, 99999);
+                $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
+                
+                $specialChars = "!@#$%^&*";
+                $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
+            
+                $password = $randomNumbers . $firstTwoLetters . $specialChar;
+                $hashedPassword = Hash::make($password);
+
+                $user = new User();
+                $user->role = 'Faculty';
+                $user->email = strtolower($email);
+                $user->password = $hashedPassword;
+                $user->first_name = ucwords(strtolower($firstName));
+                $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
+                $user->last_name = ucwords(strtolower($lastName));
+                $user->employee_number = strtoupper($employeeNumber);
+                $user->phone_number = $phoneNumber;
+                $user->department = $department;
+                $user->employment_status = ucfirst(strtolower($employmentStatus));
+                $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
+                $user->status = 'Active';
+                
+                $user->save();
+                $imported++;
+
+                // Send email notification with credentials
+                try {
+                    Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
+                        $message->to($user->email)
+                                ->subject('PUP-Taguig Systems - Your Account Details');
+                    });
+                    $emailsSent++;
+                } catch (\Exception $mailError) {
+                    \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
+                    $emailsFailed++;
+                    // Continue execution even if email fails
+                }
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
+                $failed++;
+                continue;
+            }
         }
+        
+        // Prepare session data
+        $summary = [
+            'total' => $totalRows,
+            'success' => $imported,
+            'failed' => $failed,
+            'emails_sent' => $emailsSent,
+            'emails_failed' => $emailsFailed
+        ];
+        
+        // Set appropriate messages
+        if ($imported > 0 && $failed == 0) {
+            // All successful
+            $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
+            return redirect()->back()
+                ->with('import_success', "Successfully imported all $imported faculty member(s)!{$emailMessage}")
+                ->with('import_summary', $summary);
+        } elseif ($imported > 0 && $failed > 0) {
+            // Partial success
+            $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
+            return redirect()->back()
+                ->with('import_success', "Successfully imported $imported faculty member(s). $failed row(s) had errors and were skipped.{$emailMessage}")
+                ->with('import_errors', $errors)
+                ->with('import_summary', $summary);
+        } elseif ($imported == 0 && $failed > 0) {
+            // All failed
+            return redirect()->back()
+                ->with('import_error', "No faculty members were imported. All $failed row(s) contained errors.")
+                ->with('import_errors', $errors)
+                ->with('import_summary', $summary);
+        } else {
+            // No data processed
+            return redirect()->back()->with('import_error', 'No valid data found to import.');
+        }
+        
+    } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+        Log::error('Spreadsheet reading error: ' . $e->getMessage());
+        return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
+    } catch (\Exception $e) {
+        Log::error('Import error: ' . $e->getMessage());
+        return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
     }
+}
 
     // Download a template file for faculty import
     public function downloadFacultyTemplate()
@@ -557,17 +589,40 @@ class UserManagementController extends Controller
     }
 
     //Update Faculty Details
-    public function updateFaculty(Request $request, $userId)
+   public function updateFaculty(Request $request, $userId)
     {
         // Get valid departments for validation
         $validDepartments = Department::where('status', 'active')->pluck('dept_name')->toArray();
         
         // Validate request
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:20',
+            'first_name' => [
+                'required',
+                'string',
+                'max:255',
+                'min:2',
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
+            'middle_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^[a-zA-Z\s]*$/'
+            ],
+            'last_name' => [
+                'required',
+                'string',
+                'max:255',
+                'min:2',
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
+            'phone_number' => [
+                'required',
+                'string',
+                'max:20',
+                'min:10',
+                'regex:/^[0-9\+\-\(\)\s]+$/'
+            ],
             'email' => 'required|email|max:255|unique:users,email,'.$userId,
             'employee_number' => 'required|string|max:50|unique:users,employee_number,'.$userId,
             'department' => [
@@ -580,16 +635,61 @@ class UserManagementController extends Controller
                 'string',
                 'in:Full-Time,Part-Time'
             ],
-            'birthdate' => 'required|date',
+            'birthdate' => 'required|date|before:today',
         ], [
             // Custom error messages
+            'first_name.required' => 'First name is required.',
+            'first_name.min' => 'First name must be at least 2 characters long.',
+            'first_name.regex' => 'First name can only contain letters and spaces.',
+            
+            'middle_name.regex' => 'Middle name can only contain letters and spaces.',
+            
+            'last_name.required' => 'Last name is required.',
+            'last_name.min' => 'Last name must be at least 2 characters long.',
+            'last_name.regex' => 'Last name can only contain letters and spaces.',
+            
+            'phone_number.required' => 'Phone number is required.',
+            'phone_number.min' => 'Phone number must be at least 10 digits long.',
+            'phone_number.regex' => 'Phone number can only contain numbers, spaces, hyphens, parentheses, and plus sign.',
+            
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'This email address is already taken.',
+            
+            'employee_number.required' => 'Employee number is required.',
+            'employee_number.unique' => 'This employee number is already taken.',
+            
+            'department.required' => 'Department is required.',
             'department.in' => 'Please select a valid department.',
+            
+            'employment_status.required' => 'Employment status is required.',
             'employment_status.in' => 'Please select a valid employment status.',
+            
+            'birthdate.required' => 'Birthdate is required.',
+            'birthdate.date' => 'Please enter a valid date.',
+            'birthdate.before' => 'Birthdate must be before today.',
         ]);
         
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
+                ->withInput();
+        }
+        
+        // Additional age validation
+        $birthDate = new \DateTime($request->birthdate);
+        $today = new \DateTime();
+        $age = $birthDate->diff($today)->y;
+        
+        if ($age < 18) {
+            return redirect()->back()
+                ->withErrors(['birthdate' => 'Faculty member must be at least 18 years old.'])
+                ->withInput();
+        }
+
+        if ($age > 100) {
+            return redirect()->back()
+                ->withErrors(['birthdate' => 'Please enter a valid birthdate.'])
                 ->withInput();
         }
         
@@ -628,12 +728,12 @@ class UserManagementController extends Controller
         
         // Update user
         $faculty->update([
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
+            'first_name' => ucwords(strtolower($request->first_name)),
+            'middle_name' => $request->middle_name ? ucwords(strtolower($request->middle_name)) : null,
+            'last_name' => ucwords(strtolower($request->last_name)),
             'phone_number' => $request->phone_number,
-            'email' => $request->email,
-            'employee_number' => $request->employee_number,
+            'email' => strtolower($request->email),
+            'employee_number' => strtoupper($request->employee_number),
             'department' => $request->department,
             'employment_status' => $request->employment_status,
             'birthdate' => \Carbon\Carbon::parse($request->birthdate)->format('Y-m-d'),
@@ -642,222 +742,223 @@ class UserManagementController extends Controller
         return redirect()->back()->with('success', 'Faculty details updated successfully!');
     }
 
+    //Export Faculty Data to CSV
     public function exportFaculty(Request $request)
-{
-    try {
-        // Get all faculty members with their data
-        $faculty = User::where('role', 'Faculty')
-                      ->orderBy('last_name', 'asc')
-                      ->orderBy('first_name', 'asc')
-                      ->get();
+    {
+        try {
+            // Get all faculty members with their data
+            $faculty = User::where('role', 'Faculty')
+                        ->orderBy('last_name', 'asc')
+                        ->orderBy('first_name', 'asc')
+                        ->get();
 
-        // Check if there's any faculty data
-        if ($faculty->isEmpty()) {
-            return redirect()->back()->with('error', 'No faculty data available to export.');
-        }
+            // Check if there's any faculty data
+            if ($faculty->isEmpty()) {
+                return redirect()->back()->with('error', 'No faculty data available to export.');
+            }
 
-        // Create filename with current date
-        $filename = 'faculty_data_' . date('Y-m-d_H-i-s') . '.csv';
-        
-        // Set headers for CSV download
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
-        ];
-
-        // Create CSV content
-        $callback = function() use ($faculty) {
-            $file = fopen('php://output', 'w');
+            // Create filename with current date
+            $filename = 'faculty_data_' . date('Y-m-d_H-i-s') . '.csv';
             
-            // Add BOM for proper UTF-8 encoding in Excel
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
-            // CSV Headers
+            // Set headers for CSV download
             $headers = [
-                'Employee Number',
-                'Email Address',
-                'First Name',
-                'Middle Name',
-                'Last Name',
-                'Phone Number',
-                'Department',
-                'Employment Status',
-                'Account Status',
-                'Birthdate',
-                'Date Created',
-                'Last Updated'
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Pragma' => 'no-cache',
+                'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+                'Expires' => '0'
             ];
-            
-            fputcsv($file, $headers);
-            
-            // Add faculty data
-            foreach ($faculty as $member) {
-                $row = [
-                    $member->employee_number ?? 'N/A',
-                    $member->email ?? 'N/A',
-                    $member->first_name ?? 'N/A',
-                    $member->middle_name ?? 'N/A',
-                    $member->last_name ?? 'N/A',
-                    $member->phone_number ?? 'N/A',
-                    $member->department ?? 'N/A',
-                    $member->employment_status ?? 'N/A',
-                    $member->status ?? 'N/A',
-                    $member->birthdate ? \Carbon\Carbon::parse($member->birthdate)->format('m/d/Y') : 'N/A',
-                    $member->created_at ? $member->created_at->format('m/d/Y H:i:s') : 'N/A',
-                    $member->updated_at ? $member->updated_at->format('m/d/Y H:i:s') : 'N/A',
+
+            // Create CSV content
+            $callback = function() use ($faculty) {
+                $file = fopen('php://output', 'w');
+                
+                // Add BOM for proper UTF-8 encoding in Excel
+                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+                
+                // CSV Headers
+                $headers = [
+                    'Employee Number',
+                    'Email Address',
+                    'First Name',
+                    'Middle Name',
+                    'Last Name',
+                    'Phone Number',
+                    'Department',
+                    'Employment Status',
+                    'Account Status',
+                    'Birthdate',
+                    'Date Created',
+                    'Last Updated'
                 ];
                 
-                fputcsv($file, $row);
-            }
+                fputcsv($file, $headers);
+                
+                // Add faculty data
+                foreach ($faculty as $member) {
+                    $row = [
+                        $member->employee_number ?? 'N/A',
+                        $member->email ?? 'N/A',
+                        $member->first_name ?? 'N/A',
+                        $member->middle_name ?? 'N/A',
+                        $member->last_name ?? 'N/A',
+                        $member->phone_number ?? 'N/A',
+                        $member->department ?? 'N/A',
+                        $member->employment_status ?? 'N/A',
+                        $member->status ?? 'N/A',
+                        $member->birthdate ? \Carbon\Carbon::parse($member->birthdate)->format('m/d/Y') : 'N/A',
+                        $member->created_at ? $member->created_at->format('m/d/Y H:i:s') : 'N/A',
+                        $member->updated_at ? $member->updated_at->format('m/d/Y H:i:s') : 'N/A',
+                    ];
+                    
+                    fputcsv($file, $row);
+                }
+                
+                fclose($file);
+            };
+
+            // Log the export activity
+            \Log::info('Faculty data exported by admin: ' . Auth::guard('admin')->user()->email);
+
+            return response()->stream($callback, 200, $headers);
             
-            fclose($file);
-        };
-
-        // Log the export activity
-        \Log::info('Faculty data exported by admin: ' . Auth::guard('admin')->user()->email);
-
-        return response()->stream($callback, 200, $headers);
-        
-    } catch (\Exception $e) {
-        \Log::error('Faculty export error: ' . $e->getMessage());
-        return redirect()->back()->with('error', 'Failed to export faculty data. Please try again.');
+        } catch (\Exception $e) {
+            \Log::error('Faculty export error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to export faculty data. Please try again.');
+        }
     }
-}
 
-/**
- * Export Filtered Faculty data to CSV
- */
-public function exportFilteredFaculty(Request $request)
-{
-    try {
-        // Build query based on filters
-        $query = User::where('role', 'Faculty');
-        
-        // Apply filters if provided
-        if ($request->has('department') && !empty($request->department)) {
-            $query->where('department', $request->department);
-        }
-        
-        if ($request->has('employment_status') && !empty($request->employment_status)) {
-            $query->where('employment_status', $request->employment_status);
-        }
-        
-        if ($request->has('status') && !empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-        
-        $faculty = $query->orderBy('last_name', 'asc')
-                         ->orderBy('first_name', 'asc')
-                         ->get();
-
-        // Check if there's any faculty data
-        if ($faculty->isEmpty()) {
-            return redirect()->back()->with('error', 'No faculty data found matching the selected filters.');
-        }
-
-        // Create filename with current date and filter info
-        $filterInfo = '';
-        if ($request->has('department') && !empty($request->department)) {
-            $filterInfo .= '_' . str_replace(' ', '-', strtolower($request->department));
-        }
-        if ($request->has('employment_status') && !empty($request->employment_status)) {
-            $filterInfo .= '_' . str_replace('-', '', strtolower($request->employment_status));
-        }
-        if ($request->has('status') && !empty($request->status)) {
-            $filterInfo .= '_' . strtolower($request->status);
-        }
-        
-        $filename = 'faculty_data' . $filterInfo . '_' . date('Y-m-d_H-i-s') . '.csv';
-        
-        // Set headers for CSV download
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
-        ];
-
-        // Create CSV content
-        $callback = function() use ($faculty, $request) {
-            $file = fopen('php://output', 'w');
+    /**
+     * Export Filtered Faculty data to CSV
+     */
+    public function exportFilteredFaculty(Request $request)
+    {
+        try {
+            // Build query based on filters
+            $query = User::where('role', 'Faculty');
             
-            // Add BOM for proper UTF-8 encoding in Excel
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
-            // Add filter information as comments
-            if ($request->has('department') || $request->has('employment_status') || $request->has('status')) {
-                fputcsv($file, ['# Faculty Export with Filters']);
-                fputcsv($file, ['# Generated on: ' . date('Y-m-d H:i:s')]);
-                
-                if ($request->has('department') && !empty($request->department)) {
-                    fputcsv($file, ['# Department Filter: ' . $request->department]);
-                }
-                if ($request->has('employment_status') && !empty($request->employment_status)) {
-                    fputcsv($file, ['# Employment Status Filter: ' . $request->employment_status]);
-                }
-                if ($request->has('status') && !empty($request->status)) {
-                    fputcsv($file, ['# Account Status Filter: ' . $request->status]);
-                }
-                
-                fputcsv($file, ['# Total Records: ' . $faculty->count()]);
-                fputcsv($file, ['']); // Empty row for separation
+            // Apply filters if provided
+            if ($request->has('department') && !empty($request->department)) {
+                $query->where('department', $request->department);
             }
             
-            // CSV Headers
+            if ($request->has('employment_status') && !empty($request->employment_status)) {
+                $query->where('employment_status', $request->employment_status);
+            }
+            
+            if ($request->has('status') && !empty($request->status)) {
+                $query->where('status', $request->status);
+            }
+            
+            $faculty = $query->orderBy('last_name', 'asc')
+                            ->orderBy('first_name', 'asc')
+                            ->get();
+
+            // Check if there's any faculty data
+            if ($faculty->isEmpty()) {
+                return redirect()->back()->with('error', 'No faculty data found matching the selected filters.');
+            }
+
+            // Create filename with current date and filter info
+            $filterInfo = '';
+            if ($request->has('department') && !empty($request->department)) {
+                $filterInfo .= '_' . str_replace(' ', '-', strtolower($request->department));
+            }
+            if ($request->has('employment_status') && !empty($request->employment_status)) {
+                $filterInfo .= '_' . str_replace('-', '', strtolower($request->employment_status));
+            }
+            if ($request->has('status') && !empty($request->status)) {
+                $filterInfo .= '_' . strtolower($request->status);
+            }
+            
+            $filename = 'faculty_data' . $filterInfo . '_' . date('Y-m-d_H-i-s') . '.csv';
+            
+            // Set headers for CSV download
             $headers = [
-                'Employee Number',
-                'Email Address',
-                'First Name',
-                'Middle Name',
-                'Last Name',
-                'Phone Number',
-                'Department',
-                'Employment Status',
-                'Account Status',
-                'Birthdate',
-                'Date Created',
-                'Last Updated'
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Pragma' => 'no-cache',
+                'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+                'Expires' => '0'
             ];
-            
-            fputcsv($file, $headers);
-            
-            // Add faculty data
-            foreach ($faculty as $member) {
-                $row = [
-                    $member->employee_number ?? 'N/A',
-                    $member->email ?? 'N/A',
-                    $member->first_name ?? 'N/A',
-                    $member->middle_name ?? 'N/A',
-                    $member->last_name ?? 'N/A',
-                    $member->phone_number ?? 'N/A',
-                    $member->department ?? 'N/A',
-                    $member->employment_status ?? 'N/A',
-                    $member->status ?? 'N/A',
-                    $member->birthdate ? \Carbon\Carbon::parse($member->birthdate)->format('m/d/Y') : 'N/A',
-                    $member->created_at ? $member->created_at->format('m/d/Y H:i:s') : 'N/A',
-                    $member->updated_at ? $member->updated_at->format('m/d/Y H:i:s') : 'N/A',
+
+            // Create CSV content
+            $callback = function() use ($faculty, $request) {
+                $file = fopen('php://output', 'w');
+                
+                // Add BOM for proper UTF-8 encoding in Excel
+                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+                
+                // Add filter information as comments
+                if ($request->has('department') || $request->has('employment_status') || $request->has('status')) {
+                    fputcsv($file, ['# Faculty Export with Filters']);
+                    fputcsv($file, ['# Generated on: ' . date('Y-m-d H:i:s')]);
+                    
+                    if ($request->has('department') && !empty($request->department)) {
+                        fputcsv($file, ['# Department Filter: ' . $request->department]);
+                    }
+                    if ($request->has('employment_status') && !empty($request->employment_status)) {
+                        fputcsv($file, ['# Employment Status Filter: ' . $request->employment_status]);
+                    }
+                    if ($request->has('status') && !empty($request->status)) {
+                        fputcsv($file, ['# Account Status Filter: ' . $request->status]);
+                    }
+                    
+                    fputcsv($file, ['# Total Records: ' . $faculty->count()]);
+                    fputcsv($file, ['']); // Empty row for separation
+                }
+                
+                // CSV Headers
+                $headers = [
+                    'Employee Number',
+                    'Email Address',
+                    'First Name',
+                    'Middle Name',
+                    'Last Name',
+                    'Phone Number',
+                    'Department',
+                    'Employment Status',
+                    'Account Status',
+                    'Birthdate',
+                    'Date Created',
+                    'Last Updated'
                 ];
                 
-                fputcsv($file, $row);
-            }
+                fputcsv($file, $headers);
+                
+                // Add faculty data
+                foreach ($faculty as $member) {
+                    $row = [
+                        $member->employee_number ?? 'N/A',
+                        $member->email ?? 'N/A',
+                        $member->first_name ?? 'N/A',
+                        $member->middle_name ?? 'N/A',
+                        $member->last_name ?? 'N/A',
+                        $member->phone_number ?? 'N/A',
+                        $member->department ?? 'N/A',
+                        $member->employment_status ?? 'N/A',
+                        $member->status ?? 'N/A',
+                        $member->birthdate ? \Carbon\Carbon::parse($member->birthdate)->format('m/d/Y') : 'N/A',
+                        $member->created_at ? $member->created_at->format('m/d/Y H:i:s') : 'N/A',
+                        $member->updated_at ? $member->updated_at->format('m/d/Y H:i:s') : 'N/A',
+                    ];
+                    
+                    fputcsv($file, $row);
+                }
+                
+                fclose($file);
+            };
+
+            // Log the export activity
+            \Log::info('Filtered faculty data exported by admin: ' . Auth::guard('admin')->user()->email . ' | Filters: ' . json_encode($request->only(['department', 'employment_status', 'status'])));
+
+            return response()->stream($callback, 200, $headers);
             
-            fclose($file);
-        };
-
-        // Log the export activity
-        \Log::info('Filtered faculty data exported by admin: ' . Auth::guard('admin')->user()->email . ' | Filters: ' . json_encode($request->only(['department', 'employment_status', 'status'])));
-
-        return response()->stream($callback, 200, $headers);
-        
-    } catch (\Exception $e) {
-        \Log::error('Filtered faculty export error: ' . $e->getMessage());
-        return redirect()->back()->with('error', 'Failed to export faculty data. Please try again.');
+        } catch (\Exception $e) {
+            \Log::error('Filtered faculty export error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to export faculty data. Please try again.');
+        }
     }
-}
     //Get Courses for Dropdown
     public function getCoursesForDropdown()
     {
@@ -899,16 +1000,33 @@ public function exportFilteredFaculty(Request $request)
 
 
     // Update Student Details
-   public function updateStudent(Request $request, $userId)
+    public function updateStudent(Request $request, $userId)
     {
         // Get valid course names for validation
         $validCourses = Course::where('status', 'active')->pluck('course_name')->toArray();
         
         // Validate request
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255|min:2|regex:/^[a-zA-Z\s\-\.\']+$/',
-            'middle_name' => 'nullable|string|max:255|regex:/^[a-zA-Z\s\-\.\']+$/',
-            'last_name' => 'required|string|max:255|min:2|regex:/^[a-zA-Z\s\-\.\']+$/',
+            'first_name' => [
+                'required',
+                'string',
+                'max:255',
+                'min:2',
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
+            'middle_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^[a-zA-Z\s]*$/'
+            ],
+            'last_name' => [
+                'required',
+                'string',
+                'max:255',
+                'min:2',
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
             'email' => 'required|email|max:255|unique:users,email,' . $userId,
             'program' => [
                 'required',
@@ -941,9 +1059,16 @@ public function exportFilteredFaculty(Request $request)
             ],
         ], [
             // Custom error messages
-            'first_name.regex' => 'First name can only contain letters, spaces, hyphens, dots, and apostrophes.',
-            'middle_name.regex' => 'Middle name can only contain letters, spaces, hyphens, dots, and apostrophes.',
-            'last_name.regex' => 'Last name can only contain letters, spaces, hyphens, dots, and apostrophes.',
+            'first_name.required' => 'First name is required.',
+            'first_name.min' => 'First name must be at least 2 characters long.',
+            'first_name.regex' => 'First name can only contain letters and spaces.',
+            
+            'middle_name.regex' => 'Middle name can only contain letters and spaces.',
+            
+            'last_name.required' => 'Last name is required.',
+            'last_name.min' => 'Last name must be at least 2 characters long.',
+            'last_name.regex' => 'Last name can only contain letters and spaces.',
+            
             'program.in' => 'Please select a valid program.',
             'year.in' => 'Please select a valid year.',
             'section.in' => 'Please select a valid section.',
@@ -957,6 +1082,23 @@ public function exportFilteredFaculty(Request $request)
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
+                ->withInput();
+        }
+        
+        // Additional age validation
+        $birthDate = new \DateTime($request->birthdate);
+        $today = new \DateTime();
+        $age = $birthDate->diff($today)->y;
+        
+        if ($age < 15) {
+            return redirect()->back()
+                ->withErrors(['birthdate' => 'Student must be at least 15 years old.'])
+                ->withInput();
+        }
+
+        if ($age > 100) {
+            return redirect()->back()
+                ->withErrors(['birthdate' => 'Please enter a valid birthdate.'])
                 ->withInput();
         }
 
@@ -1032,21 +1174,84 @@ public function exportFilteredFaculty(Request $request)
     } 
 
     //Store Student
-    public function storeStudent(Request $request)
+   public function storeStudent(Request $request)
     {
         try {
             $validated = $request->validate([
                 'email' => 'required|email|unique:users,email',
-                'first_name' => 'required|string|max:255',
-                'middle_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
+                'first_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'min:2',
+                    'regex:/^[a-zA-Z\s]+$/'
+                ],
+                'middle_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'regex:/^[a-zA-Z\s]+$/'
+                ],
+                'last_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'min:2',
+                    'regex:/^[a-zA-Z\s]+$/'
+                ],
                 'student_number' => 'required|string|max:255|unique:users,student_number',
                 'program' => 'required|string|max:255',
                 'year' => 'required|string|max:255',
                 'section' => 'required|string|max:255',
-                'birthdate' => 'required|date',
+                'birthdate' => 'required|date|before:today',
+            ], [
+                // Custom error messages
+                'email.required' => 'Email address is required.',
+                'email.email' => 'Please enter a valid email address.',
+                'email.unique' => 'This email address is already taken. Please use another email address.',
+                
+                'first_name.required' => 'First name is required.',
+                'first_name.min' => 'First name must be at least 2 characters long.',
+                'first_name.regex' => 'First name can only contain letters and spaces.',
+                
+                'middle_name.required' => 'Middle name is required.',
+                'middle_name.regex' => 'Middle name can only contain letters and spaces.',
+                
+                'last_name.required' => 'Last name is required.',
+                'last_name.min' => 'Last name must be at least 2 characters long.',
+                'last_name.regex' => 'Last name can only contain letters and spaces.',
+                
+                'student_number.required' => 'Student number is required.',
+                'student_number.unique' => 'This student number is already taken. Please use another student number.',
+                
+                'program.required' => 'Program is required.',
+                'year.required' => 'Year is required.',
+                'section.required' => 'Section is required.',
+                
+                'birthdate.required' => 'Birthdate is required.',
+                'birthdate.date' => 'Please enter a valid date.',
+                'birthdate.before' => 'Birthdate must be before today.',
             ]);
-    
+
+            // Additional age validation
+            $birthDate = new \DateTime($validated['birthdate']);
+            $today = new \DateTime();
+            $age = $birthDate->diff($today)->y;
+            
+            if ($age < 15) {
+                return response()->json([
+                    'message' => 'Validation failed.',
+                    'errors' => ['birthdate' => ['Student must be at least 15 years old.']]
+                ], 422);
+            }
+
+            if ($age > 100) {
+                return response()->json([
+                    'message' => 'Validation failed.',
+                    'errors' => ['birthdate' => ['Please enter a valid birthdate.']]
+                ], 422);
+            }
+
             // Generate a password
             $randomNumbers = rand(10000, 99999);
             $firstTwoLetters = strtoupper(substr($validated['first_name'], 0, 1) . substr($validated['last_name'], 0, 1));
@@ -1056,22 +1261,22 @@ public function exportFilteredFaculty(Request $request)
         
             $password = $randomNumbers . $firstTwoLetters . $specialChar;
             $hashedPassword = Hash::make($password);
-    
+
             $user = User::create([
                 'role' => 'Student',
                 'status' => 'Active',
-                'email' => $validated['email'],
+                'email' => strtolower($validated['email']),
                 'password' => $hashedPassword,
-                'first_name' => $validated['first_name'],
-                'middle_name' => $validated['middle_name'],
-                'last_name' => $validated['last_name'],
-                'student_number' => $validated['student_number'],
+                'first_name' => ucwords(strtolower($validated['first_name'])),
+                'middle_name' => ucwords(strtolower($validated['middle_name'])),
+                'last_name' => ucwords(strtolower($validated['last_name'])),
+                'student_number' => strtoupper($validated['student_number']),
                 'program' => $validated['program'],
                 'year' => $validated['year'],
                 'section' => $validated['section'],
                 'birthdate' => $validated['birthdate'],
             ]);
-    
+
             // Send email notification with credentials
             try {
                 Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
@@ -1082,13 +1287,23 @@ public function exportFilteredFaculty(Request $request)
                 \Log::error('Email sending failed: ' . $mailError->getMessage());
                 // Continue execution even if email fails
             }
-    
-            return response()->json(['message' => 'Student added successfully! Login details have been sent to their email.', 'user' => $user], 201);
+
+            return response()->json([
+                'message' => 'Student added successfully! Login details have been sent to their email.', 
+                'user' => $user
+            ], 201);
+            
         } catch (ValidationException $e) {
-            return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
+            return response()->json([
+                'message' => 'Validation failed.', 
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             \Log::error('Error adding student: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return response()->json(['message' => 'An error occurred while adding the student.'], 500);
+            return response()->json([
+                'message' => 'An error occurred while adding the student.',
+                'errors' => ['general' => [$e->getMessage()]]
+            ], 500);
         }
     }
 
@@ -1219,7 +1434,7 @@ public function exportFilteredFaculty(Request $request)
                     $hasError = true;
                 }
                 
-                // Validate first name
+                // Validate first name - UPDATED: Only letters and spaces
                 $firstName = $rowData['first_name'] ?? '';
                 if (empty($firstName)) {
                     $rowErrors[] = "First name is required";
@@ -1227,12 +1442,12 @@ public function exportFilteredFaculty(Request $request)
                 } elseif (strlen($firstName) < 2) {
                     $rowErrors[] = "First name '$firstName' must be at least 2 characters";
                     $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s\-\.\']+$/', $firstName)) {
-                    $rowErrors[] = "First name '$firstName' contains invalid characters";
+                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
+                    $rowErrors[] = "First name '$firstName' can only contain letters and spaces";
                     $hasError = true;
                 }
                 
-                // Validate last name
+                // Validate last name - UPDATED: Only letters and spaces
                 $lastName = $rowData['last_name'] ?? '';
                 if (empty($lastName)) {
                     $rowErrors[] = "Last name is required";
@@ -1240,15 +1455,15 @@ public function exportFilteredFaculty(Request $request)
                 } elseif (strlen($lastName) < 2) {
                     $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
                     $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s\-\.\']+$/', $lastName)) {
-                    $rowErrors[] = "Last name '$lastName' contains invalid characters";
+                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+                    $rowErrors[] = "Last name '$lastName' can only contain letters and spaces";
                     $hasError = true;
                 }
                 
-                // Validate middle name (optional)
+                // Validate middle name (optional) - UPDATED: Only letters and spaces
                 $middleName = $rowData['middle_name'] ?? '';
-                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s\-\.\']+$/', $middleName)) {
-                    $rowErrors[] = "Middle name '$middleName' contains invalid characters";
+                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
+                    $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
                     $hasError = true;
                 }
                 
@@ -1261,7 +1476,7 @@ public function exportFilteredFaculty(Request $request)
                     $rowErrors[] = "Student number '$studentNumber' must be at least 5 characters";
                     $hasError = true;
                 } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $studentNumber)) {
-                    $rowErrors[] = "Student number '$studentNumber' contains invalid characters";
+                    $rowErrors[] = "Student number '$studentNumber' can only contain letters, numbers, and hyphens";
                     $hasError = true;
                 } elseif (User::where('student_number', $studentNumber)->exists()) {
                     $rowErrors[] = "Student number '$studentNumber' already exists in the system";
@@ -1544,220 +1759,220 @@ public function exportFilteredFaculty(Request $request)
     }
 }
 
-/**
- * Export Filtered Students data to CSV
- */
-public function exportFilteredStudents(Request $request)
-{
-    try {
-        // Build query based on filters
-        $query = User::where('role', 'Student');
-        
-        // Apply filters if provided
-        if ($request->has('program') && !empty($request->program)) {
-            $query->where('program', $request->program);
-        }
-        
-        if ($request->has('year') && !empty($request->year)) {
-            $query->where('year', $request->year);
-        }
-        
-        if ($request->has('section') && !empty($request->section)) {
-            $query->where('section', $request->section);
-        }
-        
-        if ($request->has('status') && !empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-        
-        $students = $query->orderBy('last_name', 'asc')
-                          ->orderBy('first_name', 'asc')
-                          ->get();
-
-        // Check if there's any student data
-        if ($students->isEmpty()) {
-            return redirect()->back()->with('error', 'No student data found matching the selected filters.');
-        }
-
-        // Create filename with current date and filter info
-        $filterInfo = '';
-        if ($request->has('program') && !empty($request->program)) {
-            $filterInfo .= '_' . str_replace(' ', '-', strtolower($request->program));
-        }
-        if ($request->has('year') && !empty($request->year)) {
-            $filterInfo .= '_' . str_replace(' ', '', strtolower($request->year));
-        }
-        if ($request->has('section') && !empty($request->section)) {
-            $filterInfo .= '_section' . $request->section;
-        }
-        if ($request->has('status') && !empty($request->status)) {
-            $filterInfo .= '_' . strtolower($request->status);
-        }
-        
-        $filename = 'students_data' . $filterInfo . '_' . date('Y-m-d_H-i-s') . '.csv';
-        
-        // Set headers for CSV download
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
-        ];
-
-        // Create CSV content
-        $callback = function() use ($students, $request) {
-            $file = fopen('php://output', 'w');
+    /**
+     * Export Filtered Students data to CSV
+     */
+    public function exportFilteredStudents(Request $request)
+    {
+        try {
+            // Build query based on filters
+            $query = User::where('role', 'Student');
             
-            // Add BOM for proper UTF-8 encoding in Excel
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
-            // Add filter information as comments
-            if ($request->has('program') || $request->has('year') || $request->has('section') || $request->has('status')) {
-                fputcsv($file, ['# Students Export with Filters']);
-                fputcsv($file, ['# Generated on: ' . date('Y-m-d H:i:s')]);
-                
-                if ($request->has('program') && !empty($request->program)) {
-                    fputcsv($file, ['# Program Filter: ' . $request->program]);
-                }
-                if ($request->has('year') && !empty($request->year)) {
-                    fputcsv($file, ['# Year Filter: ' . $request->year]);
-                }
-                if ($request->has('section') && !empty($request->section)) {
-                    fputcsv($file, ['# Section Filter: ' . $request->section]);
-                }
-                if ($request->has('status') && !empty($request->status)) {
-                    fputcsv($file, ['# Account Status Filter: ' . $request->status]);
-                }
-                
-                fputcsv($file, ['# Total Records: ' . $students->count()]);
-                fputcsv($file, ['']); // Empty row for separation
+            // Apply filters if provided
+            if ($request->has('program') && !empty($request->program)) {
+                $query->where('program', $request->program);
             }
             
-            // CSV Headers
+            if ($request->has('year') && !empty($request->year)) {
+                $query->where('year', $request->year);
+            }
+            
+            if ($request->has('section') && !empty($request->section)) {
+                $query->where('section', $request->section);
+            }
+            
+            if ($request->has('status') && !empty($request->status)) {
+                $query->where('status', $request->status);
+            }
+            
+            $students = $query->orderBy('last_name', 'asc')
+                            ->orderBy('first_name', 'asc')
+                            ->get();
+
+            // Check if there's any student data
+            if ($students->isEmpty()) {
+                return redirect()->back()->with('error', 'No student data found matching the selected filters.');
+            }
+
+            // Create filename with current date and filter info
+            $filterInfo = '';
+            if ($request->has('program') && !empty($request->program)) {
+                $filterInfo .= '_' . str_replace(' ', '-', strtolower($request->program));
+            }
+            if ($request->has('year') && !empty($request->year)) {
+                $filterInfo .= '_' . str_replace(' ', '', strtolower($request->year));
+            }
+            if ($request->has('section') && !empty($request->section)) {
+                $filterInfo .= '_section' . $request->section;
+            }
+            if ($request->has('status') && !empty($request->status)) {
+                $filterInfo .= '_' . strtolower($request->status);
+            }
+            
+            $filename = 'students_data' . $filterInfo . '_' . date('Y-m-d_H-i-s') . '.csv';
+            
+            // Set headers for CSV download
             $headers = [
-                'Student Number',
-                'Email Address',
-                'First Name',
-                'Middle Name',
-                'Last Name',
-                'Program',
-                'Year',
-                'Section',
-                'Account Status',
-                'Birthdate',
-                'Date Created',
-                'Last Updated'
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Pragma' => 'no-cache',
+                'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+                'Expires' => '0'
             ];
-            
-            fputcsv($file, $headers);
-            
-            // Add student data
-            foreach ($students as $student) {
-                $row = [
-                    $student->student_number ?? 'N/A',
-                    $student->email ?? 'N/A',
-                    $student->first_name ?? 'N/A',
-                    $student->middle_name ?? 'N/A',
-                    $student->last_name ?? 'N/A',
-                    $student->program ?? 'N/A',
-                    $student->year ?? 'N/A',
-                    $student->section ?? 'N/A',
-                    $student->status ?? 'N/A',
-                    $student->birthdate ? \Carbon\Carbon::parse($student->birthdate)->format('m/d/Y') : 'N/A',
-                    $student->created_at ? $student->created_at->format('m/d/Y H:i:s') : 'N/A',
-                    $student->updated_at ? $student->updated_at->format('m/d/Y H:i:s') : 'N/A',
+
+            // Create CSV content
+            $callback = function() use ($students, $request) {
+                $file = fopen('php://output', 'w');
+                
+                // Add BOM for proper UTF-8 encoding in Excel
+                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+                
+                // Add filter information as comments
+                if ($request->has('program') || $request->has('year') || $request->has('section') || $request->has('status')) {
+                    fputcsv($file, ['# Students Export with Filters']);
+                    fputcsv($file, ['# Generated on: ' . date('Y-m-d H:i:s')]);
+                    
+                    if ($request->has('program') && !empty($request->program)) {
+                        fputcsv($file, ['# Program Filter: ' . $request->program]);
+                    }
+                    if ($request->has('year') && !empty($request->year)) {
+                        fputcsv($file, ['# Year Filter: ' . $request->year]);
+                    }
+                    if ($request->has('section') && !empty($request->section)) {
+                        fputcsv($file, ['# Section Filter: ' . $request->section]);
+                    }
+                    if ($request->has('status') && !empty($request->status)) {
+                        fputcsv($file, ['# Account Status Filter: ' . $request->status]);
+                    }
+                    
+                    fputcsv($file, ['# Total Records: ' . $students->count()]);
+                    fputcsv($file, ['']); // Empty row for separation
+                }
+                
+                // CSV Headers
+                $headers = [
+                    'Student Number',
+                    'Email Address',
+                    'First Name',
+                    'Middle Name',
+                    'Last Name',
+                    'Program',
+                    'Year',
+                    'Section',
+                    'Account Status',
+                    'Birthdate',
+                    'Date Created',
+                    'Last Updated'
                 ];
                 
-                fputcsv($file, $row);
+                fputcsv($file, $headers);
+                
+                // Add student data
+                foreach ($students as $student) {
+                    $row = [
+                        $student->student_number ?? 'N/A',
+                        $student->email ?? 'N/A',
+                        $student->first_name ?? 'N/A',
+                        $student->middle_name ?? 'N/A',
+                        $student->last_name ?? 'N/A',
+                        $student->program ?? 'N/A',
+                        $student->year ?? 'N/A',
+                        $student->section ?? 'N/A',
+                        $student->status ?? 'N/A',
+                        $student->birthdate ? \Carbon\Carbon::parse($student->birthdate)->format('m/d/Y') : 'N/A',
+                        $student->created_at ? $student->created_at->format('m/d/Y H:i:s') : 'N/A',
+                        $student->updated_at ? $student->updated_at->format('m/d/Y H:i:s') : 'N/A',
+                    ];
+                    
+                    fputcsv($file, $row);
+                }
+                
+                fclose($file);
+            };
+
+            // Log the export activity
+            \Log::info('Filtered students data exported by admin: ' . Auth::guard('admin')->user()->email . ' | Filters: ' . json_encode($request->only(['program', 'year', 'section', 'status'])));
+
+            return response()->stream($callback, 200, $headers);
+            
+        } catch (\Exception $e) {
+            \Log::error('Filtered students export error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to export student data. Please try again.');
+        }
+    }
+
+    public function bulkToggleUserStatus(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'user_ids' => 'required|array|min:1',
+                'user_ids.*' => 'integer|exists:users,id',
+                'action' => 'required|in:activate,deactivate,reactivate'
+            ]);
+
+            $userIds = $validated['user_ids'];
+            $action = $validated['action'];
+            
+            // Normalize action
+            $newStatus = ($action === 'deactivate') ? 'Deactivated' : 'Active';
+            
+            // Get users to be updated
+            $users = User::whereIn('id', $userIds)->get();
+            
+            if ($users->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No users found to update.'
+                ], 404);
             }
             
-            fclose($file);
-        };
-
-        // Log the export activity
-        \Log::info('Filtered students data exported by admin: ' . Auth::guard('admin')->user()->email . ' | Filters: ' . json_encode($request->only(['program', 'year', 'section', 'status'])));
-
-        return response()->stream($callback, 200, $headers);
-        
-    } catch (\Exception $e) {
-        \Log::error('Filtered students export error: ' . $e->getMessage());
-        return redirect()->back()->with('error', 'Failed to export student data. Please try again.');
-    }
-}
-
-public function bulkToggleUserStatus(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'user_ids' => 'required|array|min:1',
-            'user_ids.*' => 'integer|exists:users,id',
-            'action' => 'required|in:activate,deactivate,reactivate'
-        ]);
-
-        $userIds = $validated['user_ids'];
-        $action = $validated['action'];
-        
-        // Normalize action
-        $newStatus = ($action === 'deactivate') ? 'Deactivated' : 'Active';
-        
-        // Get users to be updated
-        $users = User::whereIn('id', $userIds)->get();
-        
-        if ($users->isEmpty()) {
+            // Filter users that actually need status change
+            $usersToUpdate = $users->filter(function ($user) use ($newStatus) {
+                return $user->status !== $newStatus;
+            });
+            
+            if ($usersToUpdate->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'All selected users already have the requested status.'
+                ], 400);
+            }
+            
+            // Update user statuses
+            $updatedCount = User::whereIn('id', $usersToUpdate->pluck('id'))->update([
+                'status' => $newStatus,
+                'updated_at' => now()
+            ]);
+            
+            // Log the bulk action
+            $adminEmail = Auth::guard('admin')->user()->email;
+            $userNames = $usersToUpdate->map(function ($user) {
+                return $user->first_name . ' ' . $user->last_name . ' (' . ($user->student_number ?? $user->employee_number) . ')';
+            })->join(', ');
+            
+            \Log::info("Bulk {$action} performed by admin: {$adminEmail} on users: {$userNames}");
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully {$action}d {$updatedCount} user(s).",
+                'updated_count' => $updatedCount,
+                'total_selected' => count($userIds),
+                'action' => $action,
+                'new_status' => $newStatus
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'No users found to update.'
-            ], 404);
-        }
-        
-        // Filter users that actually need status change
-        $usersToUpdate = $users->filter(function ($user) use ($newStatus) {
-            return $user->status !== $newStatus;
-        });
-        
-        if ($usersToUpdate->isEmpty()) {
+                'message' => 'Invalid request data.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Bulk toggle user status error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => 'All selected users already have the requested status.'
-            ], 400);
+                'message' => 'An error occurred while updating user statuses.'
+            ], 500);
         }
-        
-        // Update user statuses
-        $updatedCount = User::whereIn('id', $usersToUpdate->pluck('id'))->update([
-            'status' => $newStatus,
-            'updated_at' => now()
-        ]);
-        
-        // Log the bulk action
-        $adminEmail = Auth::guard('admin')->user()->email;
-        $userNames = $usersToUpdate->map(function ($user) {
-            return $user->first_name . ' ' . $user->last_name . ' (' . ($user->student_number ?? $user->employee_number) . ')';
-        })->join(', ');
-        
-        \Log::info("Bulk {$action} performed by admin: {$adminEmail} on users: {$userNames}");
-        
-        return response()->json([
-            'success' => true,
-            'message' => "Successfully {$action}d {$updatedCount} user(s).",
-            'updated_count' => $updatedCount,
-            'total_selected' => count($userIds),
-            'action' => $action,
-            'new_status' => $newStatus
-        ]);
-        
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Invalid request data.',
-            'errors' => $e->errors()
-        ], 422);
-    } catch (\Exception $e) {
-        \Log::error('Bulk toggle user status error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-        return response()->json([
-            'success' => false,
-            'message' => 'An error occurred while updating user statuses.'
-        ], 500);
     }
-}
 }

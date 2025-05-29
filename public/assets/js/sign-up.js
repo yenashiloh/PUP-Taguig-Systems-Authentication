@@ -49,22 +49,52 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Role-specific validations
         if (role === 'Faculty') {
-            isValid = validateField('facultyFirstName', /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-'.]{2,50}$/, 'Please enter a valid first name (2-50 characters)') && isValid;
-            isValid = validateField('facultyMiddleName', null, null, false) && isValid; // Optional
-            isValid = validateField('facultyLastName', /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-'.]{2,50}$/, 'Please enter a valid last name (2-50 characters)') && isValid;
-            isValid = validateField('facultyPhoneNumber', /^[0-9]{10,11}$/, 'Please enter a valid 10-11 digit phone number') && isValid;
-            isValid = validateField('employeeNumber', null, 'Please enter your employee number') && isValid;
+            // Name validations - only letters and spaces
+            isValid = validateField('facultyFirstName', /^[A-Za-z\s]{2,50}$/, 'First name can only contain letters and spaces (2-50 characters)') && isValid;
+            isValid = validateField('facultyMiddleName', /^[A-Za-z\s]*$/, 'Middle name can only contain letters and spaces', false) && isValid; // Optional
+            isValid = validateField('facultyLastName', /^[A-Za-z\s]{2,50}$/, 'Last name can only contain letters and spaces (2-50 characters)') && isValid;
+            
+            // Other faculty validations
+            isValid = validateField('facultyPhoneNumber', /^[0-9]{11}$/, 'Please enter a valid 11-digit phone number') && isValid;
+            isValid = validateField('employeeNumber', /^.{3,20}$/, 'Employee number must be 3-20 characters') && isValid;
             isValid = validateField('department', null, 'Please select your department') && isValid;
+            isValid = validateField('employmentStatus', null, 'Please select employment status') && isValid;
+            
+            // Faculty birthdate validation (must be at least 18 years old)
+            const facultyBirthdateInput = document.getElementById('facultyBirthdate');
+            if (!facultyBirthdateInput.value) {
+                showError(facultyBirthdateInput, 'Please enter your birthdate');
+                isValid = false;
+            } else {
+                const birthdate = new Date(facultyBirthdateInput.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (birthdate >= today) {
+                    showError(facultyBirthdateInput, 'Birthdate cannot be today or a future date');
+                    isValid = false;
+                } else if (getAge(birthdate) < 18) {
+                    showError(facultyBirthdateInput, 'Faculty members must be at least 18 years old');
+                    isValid = false;
+                } else if (getAge(birthdate) > 100) {
+                    showError(facultyBirthdateInput, 'Please enter a valid birthdate');
+                    isValid = false;
+                }
+            }
+            
         } else if (role === 'Student') {
-            isValid = validateField('studentFirstName', /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-'.]{2,50}$/, 'Please enter a valid first name (2-50 characters)') && isValid;
-            isValid = validateField('studentMiddleName', null, null, false) && isValid; // Optional
-            isValid = validateField('studentLastName', /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-'.]{2,50}$/, 'Please enter a valid last name (2-50 characters)') && isValid;
-            isValid = validateField('studentNumber', null, 'Please enter your student number') && isValid;
+            // Name validations - only letters and spaces
+            isValid = validateField('studentFirstName', /^[A-Za-z\s]{2,50}$/, 'First name can only contain letters and spaces (2-50 characters)') && isValid;
+            isValid = validateField('studentMiddleName', /^[A-Za-z\s]*$/, 'Middle name can only contain letters and spaces', false) && isValid; // Optional
+            isValid = validateField('studentLastName', /^[A-Za-z\s]{2,50}$/, 'Last name can only contain letters and spaces (2-50 characters)') && isValid;
+            
+            // Other student validations
+            isValid = validateField('studentNumber', /^.{5,20}$/, 'Student number must be 5-20 characters') && isValid;
             isValid = validateField('program', null, 'Please select your program/course') && isValid;
             isValid = validateField('year', null, 'Please select your year') && isValid;
             isValid = validateField('section', null, 'Please select your section') && isValid;
             
-            // Birthdate validation (cannot be today or future date)
+            // Student birthdate validation (must be at least 15 years old)
             const birthdateInput = document.getElementById('birthdate');
             if (!birthdateInput.value) {
                 showError(birthdateInput, 'Please enter your birthdate');
@@ -79,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     isValid = false;
                 } else if (getAge(birthdate) < 15) {
                     showError(birthdateInput, 'You must be at least 15 years old');
+                    isValid = false;
+                } else if (getAge(birthdate) > 100) {
+                    showError(birthdateInput, 'Please enter a valid birthdate');
                     isValid = false;
                 }
             }
@@ -146,6 +179,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                 else if (field === 'student_number') {
                                     showError(document.getElementById('studentNumber'), data.errors[field][0]);
                                 }
+                                else if (field === 'employee_number') {
+                                    showError(document.getElementById('employeeNumber'), data.errors[field][0]);
+                                }
+                                else if (field === 'employment_status') {
+                                    showError(document.getElementById('employmentStatus'), data.errors[field][0]);
+                                }
+                                else if (field === 'birthdate') {
+                                    const role = document.getElementById('role').value;
+                                    const fieldId = role === 'Faculty' ? 'facultyBirthdate' : 'birthdate';
+                                    showError(document.getElementById(fieldId), data.errors[field][0]);
+                                }
                                 else {
                                     // If field cannot be found, show a general error
                                     showErrorMessage(`Error with ${field}: ${data.errors[field][0]}`);
@@ -172,6 +216,32 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+    
+    // Add real-time validation for name fields
+    function addRealTimeValidation() {
+        // Faculty name fields
+        const facultyFirstName = document.getElementById('facultyFirstName');
+        const facultyMiddleName = document.getElementById('facultyMiddleName');
+        const facultyLastName = document.getElementById('facultyLastName');
+        
+        // Student name fields
+        const studentFirstName = document.getElementById('studentFirstName');
+        const studentMiddleName = document.getElementById('studentMiddleName');
+        const studentLastName = document.getElementById('studentLastName');
+        
+        // Add event listeners for real-time validation
+        [facultyFirstName, facultyMiddleName, facultyLastName, studentFirstName, studentMiddleName, studentLastName].forEach(field => {
+            if (field) {
+                field.addEventListener('input', function() {
+                    // Remove characters that are not letters or spaces
+                    this.value = this.value.replace(/[^A-Za-z\s]/g, '');
+                });
+            }
+        });
+    }
+    
+    // Call real-time validation setup
+    addRealTimeValidation();
     
     // Helper functions for validation
     function validateField(id, pattern, errorMsg, required = true) {
@@ -200,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Pattern validation for text inputs
-        if (pattern && !pattern.test(field.value)) {
+        if (pattern && !pattern.test(field.value.trim())) {
             showError(field, errorMsg);
             return false;
         }
@@ -245,14 +315,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function showLoader() {
         // Disable the button
-        submitButton.querySelector('button').disabled = true;
+        const button = submitButton.querySelector('button');
+        button.disabled = true;
         
         // Store original button content
-        const originalHTML = submitButton.querySelector('button').innerHTML;
-        submitButton.querySelector('button').setAttribute('data-original-html', originalHTML);
+        const originalHTML = button.innerHTML;
+        button.setAttribute('data-original-html', originalHTML);
         
         // Replace with loader
-        submitButton.querySelector('button').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
     }
     
     function hideLoader() {
