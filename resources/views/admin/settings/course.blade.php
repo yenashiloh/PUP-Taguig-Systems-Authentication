@@ -57,6 +57,9 @@
                                                 <h6>Course Name</h6>
                                             </th>
                                             <th>
+                                                <h6>Department</h6>
+                                            </th>
+                                            <th>
                                                 <h6>Status</h6>
                                             </th>
                                             <th>
@@ -73,6 +76,11 @@
                                                     </div>
                                                 </td>
                                                 <td class="min-width">
+                                                    <div class="lead">
+                                                        <p>{{ $course->department->dept_name ?? 'No Department' }}</p>
+                                                    </div>
+                                                </td>
+                                                <td class="min-width">
                                                     <p class="status-text">
                                                         {{ ucfirst($course->status) }}
                                                     </p>
@@ -82,6 +90,7 @@
                                                         <button class="btn btn-outline-warning btn-sm edit-course-btn"
                                                             data-id="{{ $course->course_id }}"
                                                             data-name="{{ $course->course_name }}"
+                                                            data-department-id="{{ $course->department_id }}"
                                                             data-status="{{ $course->status }}" data-bs-toggle="modal"
                                                             data-bs-target="#editCourseModal">
                                                             <i class="fas fa-edit me-1"></i> Edit
@@ -132,9 +141,28 @@
                         <div class="modal-body">
                             <form action="{{ route('store.course') }}" method="POST">
                                 @csrf
-                                <div class="input-style-1">
-                                    <label>Course Name</label>
-                                    <input type="text" name="course_name" placeholder="Course Name" required />
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <div class="input-style-1">
+                                            <label>Course Name <span class="text-danger">*</span></label>
+                                            <input type="text" name="course_name" placeholder="Enter Course Name" required />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="select-style-1">
+                                            <label>Department <span class="text-danger">*</span></label>
+                                            <div class="select-position">
+                                                <select name="department_id" required>
+                                                    <option value="" disabled selected>Select Department</option>
+                                                    @foreach ($departments as $department)
+                                                        <option value="{{ $department->department_id }}">
+                                                            {{ $department->dept_name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
@@ -163,19 +191,39 @@
                                 @method('PUT')
                                 <input type="hidden" id="edit_course_id" name="course_id">
 
-                                <div class="input-style-1">
-                                    <label>Course Name</label>
-                                    <input type="text" id="edit_course_name" name="course_name"
-                                        placeholder="Enter Course Name" required />
-                                </div>
-
-                                <div class="select-style-1">
-                                    <label>Status</label>
-                                    <div class="select-position">
-                                        <select id="edit_course_status" name="status" required>
-                                            <option value="Active">Active</option>
-                                            <option value="Inactive">Inactive</option>
-                                        </select>
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <div class="input-style-1">
+                                            <label>Course Name <span class="text-danger">*</span></label>
+                                            <input type="text" id="edit_course_name" name="course_name"
+                                                placeholder="Enter Course Name" required />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="select-style-1">
+                                            <label>Department <span class="text-danger">*</span></label>
+                                            <div class="select-position">
+                                                <select id="edit_course_department" name="department_id" required>
+                                                    <option value="" disabled>Select Department</option>
+                                                    @foreach ($departments as $department)
+                                                        <option value="{{ $department->department_id }}">
+                                                            {{ $department->dept_name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="select-style-1">
+                                            <label>Status <span class="text-danger">*</span></label>
+                                            <div class="select-position">
+                                                <select id="edit_course_status" name="status" required>
+                                                    <option value="Active">Active</option>
+                                                    <option value="Inactive">Inactive</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -193,6 +241,60 @@
         </div>
     </section>
 </main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit course button functionality
+        document.querySelectorAll('.edit-course-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const courseId = this.getAttribute('data-id');
+                const courseName = this.getAttribute('data-name');
+                const departmentId = this.getAttribute('data-department-id');
+                const courseStatus = this.getAttribute('data-status');
+                
+                // Populate the edit form
+                document.getElementById('edit_course_id').value = courseId;
+                document.getElementById('edit_course_name').value = courseName;
+                document.getElementById('edit_course_department').value = departmentId;
+                document.getElementById('edit_course_status').value = courseStatus;
+                
+                // Set form action
+                document.getElementById('editCourseForm').action = `/courses/${courseId}/update`;
+            });
+        });
+
+        // Edit course form submission
+        document.getElementById('editCourseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const courseId = document.getElementById('edit_course_id').value;
+            
+            fetch(`/courses/${courseId}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', data.message, 'success').then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error!', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'An error occurred while updating the course.', 'error');
+            });
+        });
+    });
+</script>
+
 <script src="../../assets/admin/js/course-department.js"></script>
 @include('admin.partials.footer')
 </body>

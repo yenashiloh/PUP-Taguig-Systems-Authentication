@@ -127,7 +127,7 @@
                                             @enderror
                                         </div>
                                     </div>
-                        
+
 
                                     <div class="col-md-4">
                                         <div class="select-style-1">
@@ -170,11 +170,16 @@
                                             @enderror
                                         </div>
                                     </div>
+                                    @php
+                                        $today = date('Y-m-d');
+                                    @endphp
+
                                     <div class="col-md-4">
                                         <div class="input-style-1">
                                             <label>Birthdate</label>
                                             <input type="date" name="birthdate" class="form-control"
-                                                value="{{ old('birthdate', $faculty->birthdate) }}" required>
+                                                value="{{ old('birthdate', $faculty->birthdate) }}"
+                                                max="{{ $today }}" required>
                                             @error('birthdate')
                                                 <div class="text-danger">{{ $message }}</div>
                                             @enderror

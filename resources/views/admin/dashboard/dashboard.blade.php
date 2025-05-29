@@ -57,7 +57,7 @@
                     </a>
                 </div>
                 <div class="col-xl-4 col-lg-4 col-sm-6">
-                    <a href="" class="icon-card mb-30">
+                    <a href="{{ route('admin.deactivated-users') }}" class="icon-card mb-30">
                         <div class="icon orange">
                             <i class="lni lni-ban"></i>
                         </div>

@@ -21,7 +21,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="breadcrumb-wrapper">
-                           <nav aria-label="breadcrumb">
+                            <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
                                     <li class="breadcrumb-item">
                                         <a href="{{ route('admin.dashboard') }}">Home</a>
@@ -193,11 +193,16 @@
                                             @enderror
                                         </div>
                                     </div>
+                                    @php
+                                        $today = date('Y-m-d');
+                                    @endphp
+
                                     <div class="col-md-4">
                                         <div class="input-style-1">
                                             <label>Birthdate</label>
                                             <input type="date" name="birthdate" class="form-control"
-                                                value="{{ old('birthdate', $student->birthdate) }}" required>
+                                                value="{{ old('birthdate', $student->birthdate) }}"
+                                                max="{{ $today }}" required>
                                             @error('birthdate')
                                                 <div class="text-danger">{{ $message }}</div>
                                             @enderror

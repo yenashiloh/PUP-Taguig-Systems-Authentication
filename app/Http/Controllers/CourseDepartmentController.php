@@ -16,8 +16,8 @@ class CourseDepartmentController extends Controller
     {
         $admin = Auth::guard('admin')->user();
         $users = User::all();
-        $departments = Department::all();
-        $courses = Course::all(); // Removed 'with' since no department relation
+        $departments = Department::where('status', 'Active')->orderBy('dept_name', 'asc')->get();
+        $courses = Course::with('department')->orderBy('course_name', 'asc')->get();
 
         return view('admin.settings.course', compact('admin', 'users', 'departments', 'courses'));
     }
@@ -140,14 +140,18 @@ class CourseDepartmentController extends Controller
     {
         $request->validate([
             'course_name' => 'required|string|max:255|unique:courses,course_name',
+            'department_id' => 'required|exists:departments,department_id',
         ], [
             'course_name.unique' => 'This course already exists.',
             'course_name.required' => 'Please enter a course name.',
+            'department_id.required' => 'Please select a department.',
+            'department_id.exists' => 'Please select a valid department.',
         ]);
 
         try {
             Course::create([
                 'course_name' => $request->course_name,
+                'department_id' => $request->department_id,
                 'status' => 'Active',
             ]);
 
@@ -241,6 +245,60 @@ class CourseDepartmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while deleting the department.'
+            ], 500);
+        }
+    }
+
+    // Update Course
+    public function updateCourse(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'course_name' => 'required|string|max:255|unique:courses,course_name,' . $id . ',course_id',
+                'department_id' => 'required|exists:departments,department_id',
+                'status' => 'required|in:Active,Inactive',
+            ], [
+                'course_name.unique' => 'This course name already exists.',
+                'course_name.required' => 'Please enter a course name.',
+                'department_id.required' => 'Please select a department.',
+                'department_id.exists' => 'Please select a valid department.',
+                'status.required' => 'Please select a status.',
+                'status.in' => 'Status must be either Active or Inactive.',
+            ]);
+
+            $course = Course::findOrFail($id);
+
+            if ($course->course_name === $request->course_name && 
+                $course->department_id == $request->department_id && 
+                $course->status === $request->status) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No changes were made to update.'
+                ]);
+            }
+
+            $course->update([
+                'course_name' => $request->course_name,
+                'department_id' => $request->department_id,
+                'status' => $request->status,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course updated successfully!'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error updating course: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the course.'
             ], 500);
         }
     }

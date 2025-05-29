@@ -15,7 +15,7 @@
 
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
@@ -93,18 +93,21 @@
                             <div class="form-group">
                                 <label for="facultyPhoneNumber">Phone Number <span class="text-danger">*</span></label>
                                 <input type="tel" id="facultyPhoneNumber" class="form-control"
-                                    placeholder="Enter your phone number" name="phone_number" data-required="true" required>
+                                    placeholder="Enter your phone number" name="phone_number" data-required="true"
+                                    required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="employeeNumber">Employee Number <span class="text-danger">*</span></label>
                                 <input type="text" id="employeeNumber" class="form-control"
-                                    placeholder="Enter your employee number" name="employee_number" data-required="true" required>
-                                @if($employeeValidation)
+                                    placeholder="Enter your employee number" name="employee_number" data-required="true"
+                                    required>
+                                @if ($employeeValidation)
                                     <small class="text-muted">
-                                        {{ $employeeValidation->min_digits }}-{{ $employeeValidation->max_digits }} characters,
-                                        @if($employeeValidation->numbers_only)
+                                        {{ $employeeValidation->min_digits }}-{{ $employeeValidation->max_digits }}
+                                        characters,
+                                        @if ($employeeValidation->numbers_only)
                                             numbers only
                                         @elseif($employeeValidation->letters_only)
                                             letters only
@@ -121,13 +124,15 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="facultyBirthdate">Birthdate <span class="text-danger">*</span></label>
-                                <input type="date" id="facultyBirthdate" class="form-control" name="birthdate" data-required="true" required>
+                                <input type="date" id="facultyBirthdate" class="form-control" name="birthdate"
+                                    data-required="true" required max="{{ date('Y-m-d') }}">
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="employmentStatus">Employment Status <span class="text-danger">*</span></label>
+                                <label for="employmentStatus">Employment Status <span
+                                        class="text-danger">*</span></label>
                                 <select id="employmentStatus" class="form-control form-select"
                                     name="employment_status" data-required="true" required>
                                     <option value="" disabled selected>Select employment status</option>
@@ -142,10 +147,12 @@
                         <div class="col-md-12">
                             <div class="form-group">
                                 <label for="facultyDepartment">Department <span class="text-danger">*</span></label>
-                                <select id="facultyDepartment" class="form-control form-select" name="department" data-required="true" required>
+                                <select id="facultyDepartment" class="form-control form-select" name="department"
+                                    data-required="true" required>
                                     <option value="" disabled selected>Select your department</option>
                                     @foreach ($departments as $department)
-                                        <option value="{{ $department->dept_name }}">{{ $department->dept_name }}</option>
+                                        <option value="{{ $department->dept_name }}">{{ $department->dept_name }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -161,7 +168,8 @@
                             <div class="form-group">
                                 <label for="studentFirstName">First Name <span class="text-danger">*</span></label>
                                 <input type="text" id="studentFirstName" class="form-control"
-                                    placeholder="Enter your first name" name="first_name" data-required="true" required>
+                                    placeholder="Enter your first name" name="first_name" data-required="true"
+                                    required>
                             </div>
                         </div>
                         <div class="col-md-4 mb-2 mb-md-0">
@@ -175,7 +183,8 @@
                             <div class="form-group">
                                 <label for="studentLastName">Last Name <span class="text-danger">*</span></label>
                                 <input type="text" id="studentLastName" class="form-control"
-                                    placeholder="Enter your last name" name="last_name" data-required="true" required>
+                                    placeholder="Enter your last name" name="last_name" data-required="true"
+                                    required>
                             </div>
                         </div>
                     </div>
@@ -186,11 +195,13 @@
                             <div class="form-group">
                                 <label for="studentNumber">Student Number <span class="text-danger">*</span></label>
                                 <input type="text" id="studentNumber" class="form-control"
-                                    placeholder="Enter your student number" name="student_number" data-required="true" required>
-                                @if($studentValidation)
+                                    placeholder="Enter your student number" name="student_number"
+                                    data-required="true" required>
+                                @if ($studentValidation)
                                     <small class="text-muted">
-                                        {{ $studentValidation->min_digits }}-{{ $studentValidation->max_digits }} characters,
-                                        @if($studentValidation->numbers_only)
+                                        {{ $studentValidation->min_digits }}-{{ $studentValidation->max_digits }}
+                                        characters,
+                                        @if ($studentValidation->numbers_only)
                                             numbers only
                                         @elseif($studentValidation->letters_only)
                                             letters only
@@ -204,10 +215,12 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="program">Program <span class="text-danger">*</span></label>
-                                <select id="program" class="form-control form-select" name="program" data-required="true" required>
+                                <select id="program" class="form-control form-select" name="program"
+                                    data-required="true" required>
                                     <option value="" disabled selected>Select your program</option>
                                     @foreach ($courses as $course)
-                                        <option value="{{ $course->course_name }}">{{ $course->course_name }}</option>
+                                        <option value="{{ $course->course_name }}">{{ $course->course_name }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -219,7 +232,8 @@
                         <div class="col-md-4 mb-2 mb-md-0">
                             <div class="form-group">
                                 <label for="year">Year <span class="text-danger">*</span></label>
-                                <select id="year" class="form-control form-select" name="year" data-required="true" required>
+                                <select id="year" class="form-control form-select" name="year"
+                                    data-required="true" required>
                                     <option value="" disabled selected>Select your year</option>
                                     <option value="1st Year">1st Year</option>
                                     <option value="2nd Year">2nd Year</option>
@@ -231,7 +245,8 @@
                         <div class="col-md-4 mb-2 mb-md-0">
                             <div class="form-group">
                                 <label for="section">Section <span class="text-danger">*</span></label>
-                                <select id="section" class="form-control form-select" name="section" data-required="true" required>
+                                <select id="section" class="form-control form-select" name="section"
+                                    data-required="true" required>
                                     <option value="" disabled selected>Select your section</option>
                                     <option value="1">Section 1</option>
                                     <option value="2">Section 2</option>
@@ -249,7 +264,8 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="studentBirthdate">Birthdate <span class="text-danger">*</span></label>
-                                <input type="date" id="studentBirthdate" class="form-control" name="birthdate" data-required="true" required>
+                                <input type="date" id="studentBirthdate" class="form-control" name="birthdate"
+                                    data-required="true" required max="{{ date('Y-m-d') }}">
                             </div>
                         </div>
                     </div>
@@ -273,7 +289,5 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ asset('assets/js/sign-up.js') }}"></script>
-
 </body>
-
 </html>

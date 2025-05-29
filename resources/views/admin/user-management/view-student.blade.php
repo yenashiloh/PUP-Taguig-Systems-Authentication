@@ -193,16 +193,22 @@
                                             @enderror
                                         </div>
                                     </div>
+                                    @php
+                                        $today = date('Y-m-d');
+                                    @endphp
+
                                     <div class="col-md-4">
                                         <div class="input-style-1">
                                             <label>Birthdate</label>
                                             <input type="date" name="birthdate" class="form-control"
-                                                value="{{ old('birthdate', $student->birthdate) }}" required>
+                                                value="{{ old('birthdate', $student->birthdate) }}"
+                                                max="{{ $today }}" required>
                                             @error('birthdate')
                                                 <div class="text-danger">{{ $message }}</div>
                                             @enderror
                                         </div>
                                     </div>
+
                                     <div class="col-md-12 text-end">
                                         <button type="submit" class="main-button primary-btn btn-hover">
                                             Update

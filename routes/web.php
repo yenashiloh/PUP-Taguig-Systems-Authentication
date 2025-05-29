@@ -9,11 +9,11 @@ use App\Http\Controllers\UserValidationController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
+    
     // Show the home page
-  Route::get('/', function () {
+    Route::get('/', function () {
     return view('welcome');
-})->name('home');
-
+    })->name('home');
 
     // Show the login page 
     Route::get('/login', [PublicController::class, 'showLoginPage'])->name('login');
@@ -92,7 +92,11 @@ Route::middleware(['admin.auth'])->group(function () {
     // Destroy Course
     Route::delete('/courses/{id}', [CourseDepartmentController::class, 'destroyCourse'])->name('courses.destroy');
 
+    //Delete Department
     Route::delete('/departments/{id}', [CourseDepartmentController::class, 'destroyDepartment'])->name('departments.destroy');
+
+    // Update Course
+    Route::put('/courses/{id}/update', [CourseDepartmentController::class, 'updateCourse'])->name('courses.update');
 
     Route::post('/user-management/import-students', [UserManagementController::class, 'importStudents'])->name('admin.user-management.import-students');
 
@@ -133,4 +137,21 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::get('/settings/user-validation', [UserValidationController::class, 'showUserValidation'])->name('admin.settings.user-validation');
     Route::post('/settings/user-validation/update-student', [UserValidationController::class, 'updateStudentValidation'])->name('admin.settings.user-validation.update-student');
     Route::post('/settings/user-validation/update-employee', [UserValidationController::class, 'updateEmployeeValidation'])->name('admin.settings.user-validation.update-employee');
+
+    // Show the deactivated users page
+    Route::get('/dashboard/deactivated-users', [AdminController::class, 'deactivatedUsersPage'])->name('admin.deactivated-users');
+
+    // Show deactivated user details
+    Route::get('/dashboard/deactivated-users/{user}', [AdminController::class, 'viewDeactivatedUser'])->name('admin.dashboard.view-deactivated-user');
+
+    // Reactivate single user
+    Route::post('/admin/reactivate-user/{userId}', [AdminController::class, 'reactivateUser'])->name('admin.reactivate-user');
+
+    // Bulk reactivate users
+    Route::post('/admin/bulk-reactivate-users', [AdminController::class, 'bulkReactivateUsers'])->name('admin.bulk-reactivate-users');
+
+    // Admin Profile Routes
+    Route::get('/admin/profile', [AdminController::class, 'showProfile'])->name('admin.profile');
+    Route::put('/admin/profile/update', [AdminController::class, 'updateProfile'])->name('admin.profile.update');
+    Route::put('/admin/profile/update-password', [AdminController::class, 'updatePassword'])->name('admin.profile.update-password');
 });

@@ -385,4 +385,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize form on page load
     hideAllFields();
+
+    /**
+     * Birthdate - Disabled the future dates
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Set max attribute for both faculty and student birthdate fields
+    const facultyBirthdate = document.getElementById('facultyBirthdate');
+    const studentBirthdate = document.getElementById('studentBirthdate');
+    
+    if (facultyBirthdate) {
+        facultyBirthdate.setAttribute('max', today);
+    }
+    
+    if (studentBirthdate) {
+        studentBirthdate.setAttribute('max', today);
+    }
+    
+    // Optional: Add validation to prevent manual entry of future dates
+    function validateBirthdate(input) {
+        const selectedDate = new Date(input.value);
+        const todayDate = new Date();
+        
+        if (selectedDate > todayDate) {
+            input.setCustomValidity('Birthdate cannot be in the future');
+            input.reportValidity();
+            input.value = ''; // Clear the invalid date
+        } else {
+            input.setCustomValidity(''); // Clear any previous error
+        }
+    }
+    
+    // Add event listeners for validation
+    if (facultyBirthdate) {
+        facultyBirthdate.addEventListener('change', function() {
+            validateBirthdate(this);
+        });
+    }
+    
+    if (studentBirthdate) {
+        studentBirthdate.addEventListener('change', function() {
+            validateBirthdate(this);
+        });
+    }
+});
 });
