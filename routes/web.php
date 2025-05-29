@@ -10,9 +10,10 @@ use App\Http\Controllers\UserValidationController;
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
     // Show the home page
-    Route::get('/', function () {
-        return view('welcome');
-    });
+  Route::get('/', function () {
+    return view('welcome');
+})->name('home');
+
 
     // Show the login page 
     Route::get('/login', [PublicController::class, 'showLoginPage'])->name('login');

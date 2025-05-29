@@ -82,13 +82,13 @@
                     </div>
 
                     <button type="submit" class="sign-in-btn">Sign in</button>
-
-                    <div class="signup-text">
-                        Don't have an account? <a href="{{ route('sign-up') }}" class="signup-link">Sign up</a>
-                    </div>
                     <div class="signup-text">
                         <a href="{{ route('forgot-password') }}" class="signup-link">Forgot Password?</a>
                     </div>
+                    <div class="signup-text">
+                        <a href="{{ route('home') }}" class="signup-link">Go Back</a>
+                    </div>
+
                 </form>
             </div>
         </div>
