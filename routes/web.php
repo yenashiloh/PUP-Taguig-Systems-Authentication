@@ -5,6 +5,7 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CourseDepartmentController;
+use App\Http\Controllers\UserValidationController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
@@ -117,13 +118,18 @@ Route::middleware(['admin.auth'])->group(function () {
         ->name('admin.user-management.export-students');
 
     // Export filtered students data
-    Route::get('/user-management/export-filtered-students', [UserManagementController::class, 'exportFilteredStudents'])
-        ->name('admin.user-management.export-filtered-students');
-        Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])
+    Route::get('/user-management/export-filtered-students', [UserManagementController::class, 'exportFilteredStudents'])->name('admin.user-management.export-filtered-students');
+    Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])
     ->name('admin.bulk-toggle-user-status');
 
-  
-
+    //Update Department
     Route::put('/admin/settings/department/{id}/update', [CourseDepartmentController::class, 'updateDepartment'])->name('admin.settings.department.update');
-Route::post('/admin/settings/department/{id}/toggle-status', [CourseDepartmentController::class, 'toggleDepartmentStatus'])->name('admin.settings.department.toggle-status');
+    //Add Department
+    Route::post('/admin/settings/department/{id}/toggle-status', [CourseDepartmentController::class, 'toggleDepartmentStatus'])->name('admin.settings.department.toggle-status');
+    Route::post('/courses/{id}/toggle-status', [CourseDepartmentController::class, 'toggleCourseStatus']);
+
+     // User Validation Routes
+    Route::get('/settings/user-validation', [UserValidationController::class, 'showUserValidation'])->name('admin.settings.user-validation');
+    Route::post('/settings/user-validation/update-student', [UserValidationController::class, 'updateStudentValidation'])->name('admin.settings.user-validation.update-student');
+    Route::post('/settings/user-validation/update-employee', [UserValidationController::class, 'updateEmployeeValidation'])->name('admin.settings.user-validation.update-employee');
 });

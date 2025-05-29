@@ -17,11 +17,13 @@
                 </a>
             </li>
             <li
-                class="nav-item {{ request()->routeIs('admin.dashboard') || 
-                request()->routeIs('admin.total-faculty') || 
-                request()->routeIs('admin.total-student') || 
-                request()->routeIs('admin.dashboard.view-total-student') || 
-                request()->routeIs('admin.dashboard.view-total-faculty') ? 'active' : '' }}">
+                class="nav-item {{ request()->routeIs('admin.dashboard') ||
+                request()->routeIs('admin.total-faculty') ||
+                request()->routeIs('admin.total-student') ||
+                request()->routeIs('admin.dashboard.view-total-student') ||
+                request()->routeIs('admin.dashboard.view-total-faculty')
+                    ? 'active'
+                    : '' }}">
                 <a href="{{ route('admin.dashboard') }}">
                     <span class="icon">
                         <i class="fas fa-home"></i>
@@ -68,24 +70,24 @@
                     <span class="text fw-bold">Settings</span>
                 </a>
             </li>
-            <li class="nav-item {{ request()->routeIs('admin.settings.department') ? 'active': '' }}">
-                <a href="{{ route ('admin.settings.department')}}">
+            <li class="nav-item {{ request()->routeIs('admin.settings.department') ? 'active' : '' }}">
+                <a href="{{ route('admin.settings.department') }}">
                     <span class="icon">
                         <i class="fas fa-book"></i>
                     </span>
                     <span class="text">Department</span>
                 </a>
             </li>
-            <li class="nav-item {{ request()->routeIs('admin.settings.course') ? 'active': '' }}">
-                <a href="{{ route ('admin.settings.course')}}">
+            <li class="nav-item {{ request()->routeIs('admin.settings.course') ? 'active' : '' }}">
+                <a href="{{ route('admin.settings.course') }}">
                     <span class="icon">
                         <i class="fas fa-book"></i>
                     </span>
                     <span class="text">Course</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="">
+            <li class="nav-item {{ request()->routeIs('admin.settings.user-validation') ? 'active' : '' }}">
+                <a href="{{ route('admin.settings.user-validation') }}">
                     <span class="icon">
                         <i class="fas fa-user-check"></i>
                     </span>

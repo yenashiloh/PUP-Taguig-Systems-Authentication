@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Course;
+use App\Models\UserValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -59,7 +60,11 @@ class PublicController extends Controller
         $departments = Department::where('status', 'Active')->orderBy('dept_name', 'asc')->get();
         $courses = Course::where('status', 'Active')->orderBy('course_name', 'asc')->get();
         
-        return view('sign-up', compact('departments', 'courses'));
+        // Get validation settings for frontend
+        $studentValidation = UserValidation::where('validation_type', 'student_number')->where('is_active', true)->first();
+        $employeeValidation = UserValidation::where('validation_type', 'employee_number')->where('is_active', true)->first();
+        
+        return view('sign-up', compact('departments', 'courses', 'studentValidation', 'employeeValidation'));
     }
 
     // Store user account
@@ -105,10 +110,14 @@ class PublicController extends Controller
                     ], 422);
                 }
 
-                $facultyData = $request->validate([
+                // Get employee number validation rules
+                $employeeRules = UserValidation::getEmployeeNumberRules();
+                $employeeValidation = UserValidation::where('validation_type', 'employee_number')->where('is_active', true)->first();
+                
+                $facultyValidationRules = [
                     'phone_number' => 'required|string|min:10|max:15',
                     'department' => 'required|string',
-                    'employee_number' => 'required|string|unique:users,employee_number|min:3|max:20',
+                    'employee_number' => array_merge(['required', 'unique:users,employee_number'], is_array($employeeRules) ? $employeeRules : explode('|', $employeeRules)),
                     'employment_status' => 'required|in:Full-Time,Part-Time',
                     'birthdate' => [
                         'required',
@@ -116,7 +125,17 @@ class PublicController extends Controller
                         'before:today',
                         'after:1900-01-01',
                     ],
-                ]);
+                ];
+
+                // Add custom error message for employee number
+                $customMessages = [];
+                if ($employeeValidation) {
+                    $customMessages['employee_number.regex'] = 'Employee number ' . $employeeValidation->getValidationMessage() . '.';
+                    $customMessages['employee_number.min'] = 'Employee number must be at least ' . $employeeValidation->min_digits . ' characters.';
+                    $customMessages['employee_number.max'] = 'Employee number cannot exceed ' . $employeeValidation->max_digits . ' characters.';
+                }
+
+                $facultyData = $request->validate($facultyValidationRules, $customMessages);
 
                 // Age validation for faculty (must be at least 18)
                 $birthdate = new \DateTime($request->birthdate);
@@ -146,18 +165,32 @@ class PublicController extends Controller
                     ], 422);
                 }
 
-                $studentData = $request->validate([
+                // Get student number validation rules
+                $studentRules = UserValidation::getStudentNumberRules();
+                $studentValidation = UserValidation::where('validation_type', 'student_number')->where('is_active', true)->first();
+
+                $studentValidationRules = [
                     'program' => 'required|string',
                     'year' => 'required|string',
                     'section' => 'required|string',
-                    'student_number' => 'required|string|unique:users,student_number|min:5|max:20',
+                    'student_number' => array_merge(['required', 'unique:users,student_number'], is_array($studentRules) ? $studentRules : explode('|', $studentRules)),
                     'birthdate' => [
                         'required',
                         'date',
                         'before:today',
                         'after:1900-01-01',
                     ],
-                ]);
+                ];
+
+                // Add custom error message for student number
+                $customMessages = [];
+                if ($studentValidation) {
+                    $customMessages['student_number.regex'] = 'Student number ' . $studentValidation->getValidationMessage() . '.';
+                    $customMessages['student_number.min'] = 'Student number must be at least ' . $studentValidation->min_digits . ' characters.';
+                    $customMessages['student_number.max'] = 'Student number cannot exceed ' . $studentValidation->max_digits . ' characters.';
+                }
+
+                $studentData = $request->validate($studentValidationRules, $customMessages);
                 
                 // Age validation for students (must be at least 15)
                 $birthdate = new \DateTime($request->birthdate);

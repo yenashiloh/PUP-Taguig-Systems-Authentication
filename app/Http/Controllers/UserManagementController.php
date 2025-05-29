@@ -224,323 +224,323 @@ class UserManagementController extends Controller
     }
 
     // Import Faculty from CSV or Excel
-    // Import Faculty from CSV or Excel - UPDATED VALIDATION
-public function importFaculty(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
-    ]);
 
-    if ($validator->fails()) {
-        return redirect()->back()
-            ->with('import_error', 'Please upload a valid CSV or Excel file.')
-            ->withErrors($validator);
-    }
+    public function importFaculty(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
+        ]);
 
-    try {
-        $file = $request->file('import_file');
-        
-        // Additional file validation
-        if ($file->getSize() == 0) {
-            return redirect()->back()->with('import_error', 'The uploaded file is empty.');
-        }
-        
-        $spreadsheet = IOFactory::load($file->getPathname());
-        $worksheet = $spreadsheet->getActiveSheet();
-        $rows = $worksheet->toArray();
-        
-        // Check if file has data
-        if (empty($rows) || count($rows) < 2) {
-            return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
-        }
-        
-        // Check maximum rows limit
-        if (count($rows) > 1001) { // 1000 data rows + 1 header
-            return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
-        }
-
-        // The first row should be headers
-        $headers = array_map('strtolower', array_map('trim', $rows[0]));
-        
-        // Check for empty headers
-        if (in_array('', $headers) || in_array(null, $headers)) {
-            return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
-        }
-        
-        // Check if all required headers are present
-        $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
-        $missingHeaders = array_diff($requiredHeaders, $headers);
-        
-        if (!empty($missingHeaders)) {
+        if ($validator->fails()) {
             return redirect()->back()
-                ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
+                ->with('import_error', 'Please upload a valid CSV or Excel file.')
+                ->withErrors($validator);
         }
 
-        // Remove the header row
-        array_shift($rows);
-        
-        $imported = 0;
-        $failed = 0;
-        $emailsSent = 0;
-        $emailsFailed = 0;
-        $errors = [];
-        $totalRows = count($rows);
-        
-        // Pre-check for duplicates within the file
-        $fileEmails = [];
-        $fileEmployeeNumbers = [];
-        
-        foreach ($rows as $index => $row) {
-            if (empty(array_filter($row))) continue;
+        try {
+            $file = $request->file('import_file');
             
-            $rowData = [];
-            foreach ($headers as $colIndex => $header) {
-                $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+            // Additional file validation
+            if ($file->getSize() == 0) {
+                return redirect()->back()->with('import_error', 'The uploaded file is empty.');
             }
             
-            $email = strtolower($rowData['email'] ?? '');
-            $employeeNumber = $rowData['employee_number'] ?? '';
-            $rowNumber = $index + 2;
+            $spreadsheet = IOFactory::load($file->getPathname());
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
             
-            if ($email) {
-                if (in_array($email, $fileEmails)) {
-                    $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
-                } else {
-                    $fileEmails[] = $email;
+            // Check if file has data
+            if (empty($rows) || count($rows) < 2) {
+                return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
+            }
+            
+            // Check maximum rows limit
+            if (count($rows) > 1001) { // 1000 data rows + 1 header
+                return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
+            }
+
+            // The first row should be headers
+            $headers = array_map('strtolower', array_map('trim', $rows[0]));
+            
+            // Check for empty headers
+            if (in_array('', $headers) || in_array(null, $headers)) {
+                return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
+            }
+            
+            // Check if all required headers are present
+            $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
+            $missingHeaders = array_diff($requiredHeaders, $headers);
+            
+            if (!empty($missingHeaders)) {
+                return redirect()->back()
+                    ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
+            }
+
+            // Remove the header row
+            array_shift($rows);
+            
+            $imported = 0;
+            $failed = 0;
+            $emailsSent = 0;
+            $emailsFailed = 0;
+            $errors = [];
+            $totalRows = count($rows);
+            
+            // Pre-check for duplicates within the file
+            $fileEmails = [];
+            $fileEmployeeNumbers = [];
+            
+            foreach ($rows as $index => $row) {
+                if (empty(array_filter($row))) continue;
+                
+                $rowData = [];
+                foreach ($headers as $colIndex => $header) {
+                    $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
                 }
-            }
-            
-            if ($employeeNumber) {
-                if (in_array($employeeNumber, $fileEmployeeNumbers)) {
-                    $errors[] = "Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file";
-                } else {
-                    $fileEmployeeNumbers[] = $employeeNumber;
-                }
-            }
-        }
-        
-        // Process each row
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 2;
-            
-            // Skip empty rows
-            if (empty(array_filter($row))) {
-                continue;
-            }
-            
-            // Map columns to user fields
-            $rowData = [];
-            foreach ($headers as $colIndex => $header) {
-                $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                $rowData[str_replace(' ', '_', strtolower($header))] = $value;
-            }
-            
-            $hasError = false;
-            $rowErrors = [];
-            
-            // Validate email
-            $email = $rowData['email'] ?? '';
-            if (empty($email)) {
-                $rowErrors[] = "Email is required";
-                $hasError = true;
-            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $rowErrors[] = "Email '$email' is not a valid email format";
-                $hasError = true;
-            } elseif (User::where('email', strtolower($email))->exists()) {
-                $rowErrors[] = "Email '$email' already exists in the system";
-                $hasError = true;
-            }
-            
-            // Validate first name - UPDATED: Only letters and spaces
-            $firstName = $rowData['first_name'] ?? '';
-            if (empty($firstName)) {
-                $rowErrors[] = "First name is required";
-                $hasError = true;
-            } elseif (strlen($firstName) < 2) {
-                $rowErrors[] = "First name '$firstName' must be at least 2 characters";
-                $hasError = true;
-            } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
-                $rowErrors[] = "First name '$firstName' can only contain letters and spaces ";
-                $hasError = true;
-            }
-            
-            // Validate last name - UPDATED: Only letters and spaces
-            $lastName = $rowData['last_name'] ?? '';
-            if (empty($lastName)) {
-                $rowErrors[] = "Last name is required";
-                $hasError = true;
-            } elseif (strlen($lastName) < 2) {
-                $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
-                $hasError = true;
-            } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
-                $rowErrors[] = "Last name '$lastName' can only contain letters and spaces   ";
-                $hasError = true;
-            }
-            
-            // Validate middle name (optional) - UPDATED: Only letters and spaces
-            $middleName = $rowData['middle_name'] ?? '';
-            if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
-                $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces   ";
-                $hasError = true;
-            }
-            
-            // Validate employee number
-            $employeeNumber = $rowData['employee_number'] ?? '';
-            if (empty($employeeNumber)) {
-                $rowErrors[] = "Employee number is required";
-                $hasError = true;
-            } elseif (strlen($employeeNumber) < 3) {
-                $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
-                $hasError = true;
-            } elseif (User::where('employee_number', $employeeNumber)->exists()) {
-                $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
-                $hasError = true;
-            }
-            
-            // Validate phone number
-            $phoneNumber = $rowData['phone_number'] ?? '';
-            if (empty($phoneNumber)) {
-                $rowErrors[] = "Phone number is required";
-                $hasError = true;
-            } elseif (strlen($phoneNumber) < 10) {
-                $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
-                $hasError = true;
-            }
-            
-            // Validate department
-            $department = $rowData['department'] ?? '';
-            if (empty($department)) {
-                $rowErrors[] = "Department is required";
-                $hasError = true;
-            }
-            
-            // Validate employment status
-            $employmentStatus = $rowData['employment_status'] ?? '';
-            $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
-            if (empty($employmentStatus)) {
-                $rowErrors[] = "Employment status is required";
-                $hasError = true;
-            } elseif (!in_array($employmentStatus, $validStatuses)) {
-                $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
-                $hasError = true;
-            }
-            
-            // Validate birthdate (optional)
-            $birthdate = $rowData['birthdate'] ?? '';
-            if (!empty($birthdate)) {
-                try {
-                    $birthDate = Carbon::parse($birthdate);
-                    $age = $birthDate->age;
-                    if ($age < 18 || $age > 100) {
-                        $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
-                        $hasError = true;
+                
+                $email = strtolower($rowData['email'] ?? '');
+                $employeeNumber = $rowData['employee_number'] ?? '';
+                $rowNumber = $index + 2;
+                
+                if ($email) {
+                    if (in_array($email, $fileEmails)) {
+                        $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
+                    } else {
+                        $fileEmails[] = $email;
                     }
-                } catch (\Exception $e) {
-                    $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                }
+                
+                if ($employeeNumber) {
+                    if (in_array($employeeNumber, $fileEmployeeNumbers)) {
+                        $errors[] = "Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file";
+                    } else {
+                        $fileEmployeeNumbers[] = $employeeNumber;
+                    }
+                }
+            }
+            
+            // Process each row
+            foreach ($rows as $index => $row) {
+                $rowNumber = $index + 2;
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+                
+                // Map columns to user fields
+                $rowData = [];
+                foreach ($headers as $colIndex => $header) {
+                    $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                    $rowData[str_replace(' ', '_', strtolower($header))] = $value;
+                }
+                
+                $hasError = false;
+                $rowErrors = [];
+                
+                // Validate email
+                $email = $rowData['email'] ?? '';
+                if (empty($email)) {
+                    $rowErrors[] = "Email is required";
+                    $hasError = true;
+                } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $rowErrors[] = "Email '$email' is not a valid email format";
+                    $hasError = true;
+                } elseif (User::where('email', strtolower($email))->exists()) {
+                    $rowErrors[] = "Email '$email' already exists in the system";
                     $hasError = true;
                 }
-            }
-            
-            // If there are errors for this row, add them to the errors array
-            if ($hasError) {
-                foreach ($rowErrors as $error) {
-                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
+                
+                // Validate first name - UPDATED: Only letters and spaces
+                $firstName = $rowData['first_name'] ?? '';
+                if (empty($firstName)) {
+                    $rowErrors[] = "First name is required";
+                    $hasError = true;
+                } elseif (strlen($firstName) < 2) {
+                    $rowErrors[] = "First name '$firstName' must be at least 2 characters";
+                    $hasError = true;
+                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
+                    $rowErrors[] = "First name '$firstName' can only contain letters and spaces ";
+                    $hasError = true;
                 }
-                $failed++;
-                continue;
-            }
-            
-            // Create the user if all validations pass
-            try {
-                // Generate a password like in storeFaculty
-                $randomNumbers = rand(10000, 99999);
-                $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                 
-                $specialChars = "!@#$%^&*";
-                $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
-            
-                $password = $randomNumbers . $firstTwoLetters . $specialChar;
-                $hashedPassword = Hash::make($password);
-
-                $user = new User();
-                $user->role = 'Faculty';
-                $user->email = strtolower($email);
-                $user->password = $hashedPassword;
-                $user->first_name = ucwords(strtolower($firstName));
-                $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
-                $user->last_name = ucwords(strtolower($lastName));
-                $user->employee_number = strtoupper($employeeNumber);
-                $user->phone_number = $phoneNumber;
-                $user->department = $department;
-                $user->employment_status = ucfirst(strtolower($employmentStatus));
-                $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
-                $user->status = 'Active';
+                // Validate last name - UPDATED: Only letters and spaces
+                $lastName = $rowData['last_name'] ?? '';
+                if (empty($lastName)) {
+                    $rowErrors[] = "Last name is required";
+                    $hasError = true;
+                } elseif (strlen($lastName) < 2) {
+                    $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
+                    $hasError = true;
+                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+                    $rowErrors[] = "Last name '$lastName' can only contain letters and spaces   ";
+                    $hasError = true;
+                }
                 
-                $user->save();
-                $imported++;
-
-                // Send email notification with credentials
+                // Validate middle name (optional) - UPDATED: Only letters and spaces
+                $middleName = $rowData['middle_name'] ?? '';
+                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
+                    $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces   ";
+                    $hasError = true;
+                }
+                
+                // Validate employee number
+                $employeeNumber = $rowData['employee_number'] ?? '';
+                if (empty($employeeNumber)) {
+                    $rowErrors[] = "Employee number is required";
+                    $hasError = true;
+                } elseif (strlen($employeeNumber) < 3) {
+                    $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
+                    $hasError = true;
+                } elseif (User::where('employee_number', $employeeNumber)->exists()) {
+                    $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
+                    $hasError = true;
+                }
+                
+                // Validate phone number
+                $phoneNumber = $rowData['phone_number'] ?? '';
+                if (empty($phoneNumber)) {
+                    $rowErrors[] = "Phone number is required";
+                    $hasError = true;
+                } elseif (strlen($phoneNumber) < 10) {
+                    $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
+                    $hasError = true;
+                }
+                
+                // Validate department
+                $department = $rowData['department'] ?? '';
+                if (empty($department)) {
+                    $rowErrors[] = "Department is required";
+                    $hasError = true;
+                }
+                
+                // Validate employment status
+                $employmentStatus = $rowData['employment_status'] ?? '';
+                $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
+                if (empty($employmentStatus)) {
+                    $rowErrors[] = "Employment status is required";
+                    $hasError = true;
+                } elseif (!in_array($employmentStatus, $validStatuses)) {
+                    $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
+                    $hasError = true;
+                }
+                
+                // Validate birthdate (optional)
+                $birthdate = $rowData['birthdate'] ?? '';
+                if (!empty($birthdate)) {
+                    try {
+                        $birthDate = Carbon::parse($birthdate);
+                        $age = $birthDate->age;
+                        if ($age < 18 || $age > 100) {
+                            $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
+                            $hasError = true;
+                        }
+                    } catch (\Exception $e) {
+                        $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                        $hasError = true;
+                    }
+                }
+                
+                // If there are errors for this row, add them to the errors array
+                if ($hasError) {
+                    foreach ($rowErrors as $error) {
+                        $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
+                    }
+                    $failed++;
+                    continue;
+                }
+                
+                // Create the user if all validations pass
                 try {
-                    Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
-                        $message->to($user->email)
-                                ->subject('PUP-Taguig Systems - Your Account Details');
-                    });
-                    $emailsSent++;
-                } catch (\Exception $mailError) {
-                    \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
-                    $emailsFailed++;
-                    // Continue execution even if email fails
-                }
+                    // Generate a password like in storeFaculty
+                    $randomNumbers = rand(10000, 99999);
+                    $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
+                    
+                    $specialChars = "!@#$%^&*";
+                    $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
                 
-            } catch (\Exception $e) {
-                $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
-                $failed++;
-                continue;
+                    $password = $randomNumbers . $firstTwoLetters . $specialChar;
+                    $hashedPassword = Hash::make($password);
+
+                    $user = new User();
+                    $user->role = 'Faculty';
+                    $user->email = strtolower($email);
+                    $user->password = $hashedPassword;
+                    $user->first_name = ucwords(strtolower($firstName));
+                    $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
+                    $user->last_name = ucwords(strtolower($lastName));
+                    $user->employee_number = strtoupper($employeeNumber);
+                    $user->phone_number = $phoneNumber;
+                    $user->department = $department;
+                    $user->employment_status = ucfirst(strtolower($employmentStatus));
+                    $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
+                    $user->status = 'Active';
+                    
+                    $user->save();
+                    $imported++;
+
+                    // Send email notification with credentials
+                    try {
+                        Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
+                            $message->to($user->email)
+                                    ->subject('PUP-Taguig Systems - Your Account Details');
+                        });
+                        $emailsSent++;
+                    } catch (\Exception $mailError) {
+                        \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
+                        $emailsFailed++;
+                        // Continue execution even if email fails
+                    }
+                    
+                } catch (\Exception $e) {
+                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
+                    $failed++;
+                    continue;
+                }
             }
+            
+            // Prepare session data
+            $summary = [
+                'total' => $totalRows,
+                'success' => $imported,
+                'failed' => $failed,
+                'emails_sent' => $emailsSent,
+                'emails_failed' => $emailsFailed
+            ];
+            
+            // Set appropriate messages
+            if ($imported > 0 && $failed == 0) {
+                // All successful
+                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
+                return redirect()->back()
+                    ->with('import_success', "Successfully imported all $imported faculty member(s)!{$emailMessage}")
+                    ->with('import_summary', $summary);
+            } elseif ($imported > 0 && $failed > 0) {
+                // Partial success
+                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
+                return redirect()->back()
+                    ->with('import_success', "Successfully imported $imported faculty member(s). $failed row(s) had errors and were skipped.{$emailMessage}")
+                    ->with('import_errors', $errors)
+                    ->with('import_summary', $summary);
+            } elseif ($imported == 0 && $failed > 0) {
+                // All failed
+                return redirect()->back()
+                    ->with('import_error', "No faculty members were imported. All $failed row(s) contained errors.")
+                    ->with('import_errors', $errors)
+                    ->with('import_summary', $summary);
+            } else {
+                // No data processed
+                return redirect()->back()->with('import_error', 'No valid data found to import.');
+            }
+            
+        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+            Log::error('Spreadsheet reading error: ' . $e->getMessage());
+            return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
+        } catch (\Exception $e) {
+            Log::error('Import error: ' . $e->getMessage());
+            return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
         }
-        
-        // Prepare session data
-        $summary = [
-            'total' => $totalRows,
-            'success' => $imported,
-            'failed' => $failed,
-            'emails_sent' => $emailsSent,
-            'emails_failed' => $emailsFailed
-        ];
-        
-        // Set appropriate messages
-        if ($imported > 0 && $failed == 0) {
-            // All successful
-            $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
-            return redirect()->back()
-                ->with('import_success', "Successfully imported all $imported faculty member(s)!{$emailMessage}")
-                ->with('import_summary', $summary);
-        } elseif ($imported > 0 && $failed > 0) {
-            // Partial success
-            $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
-            return redirect()->back()
-                ->with('import_success', "Successfully imported $imported faculty member(s). $failed row(s) had errors and were skipped.{$emailMessage}")
-                ->with('import_errors', $errors)
-                ->with('import_summary', $summary);
-        } elseif ($imported == 0 && $failed > 0) {
-            // All failed
-            return redirect()->back()
-                ->with('import_error', "No faculty members were imported. All $failed row(s) contained errors.")
-                ->with('import_errors', $errors)
-                ->with('import_summary', $summary);
-        } else {
-            // No data processed
-            return redirect()->back()->with('import_error', 'No valid data found to import.');
-        }
-        
-    } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
-        Log::error('Spreadsheet reading error: ' . $e->getMessage());
-        return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
-    } catch (\Exception $e) {
-        Log::error('Import error: ' . $e->getMessage());
-        return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
     }
-}
 
     // Download a template file for faculty import
     public function downloadFacultyTemplate()

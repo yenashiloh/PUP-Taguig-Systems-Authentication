@@ -3,384 +3,68 @@ document.addEventListener('DOMContentLoaded', function() {
     const facultyFields = document.getElementById('facultyFields');
     const studentFields = document.getElementById('studentFields');
     const submitButton = document.getElementById('submitButton');
-    const form = document.querySelector('.signup-form');
-    
-    // Show/hide fields based on role selection
+    const signupForm = document.querySelector('.signup-form');
+
+    // Get validation settings from backend
+    const studentValidation = window.studentValidation || null;
+    const employeeValidation = window.employeeValidation || null;
+
+    // Role change handler
     roleSelect.addEventListener('change', function() {
-        if (this.value === 'Faculty') {
-            facultyFields.style.display = 'block';
-            studentFields.style.display = 'none';
-            submitButton.style.display = 'block';
-            
-            // Disable student fields to prevent them from being submitted
-            toggleFieldsDisabled(studentFields, true);
-            toggleFieldsDisabled(facultyFields, false);
-        } else if (this.value === 'Student') {
-            facultyFields.style.display = 'none';
-            studentFields.style.display = 'block';
-            submitButton.style.display = 'block';
-            
-            // Disable faculty fields to prevent them from being submitted
-            toggleFieldsDisabled(facultyFields, true);
-            toggleFieldsDisabled(studentFields, false);
-        } else {
-            facultyFields.style.display = 'none';
-            studentFields.style.display = 'none';
-            submitButton.style.display = 'none';
-            
-            // Disable all fields
-            toggleFieldsDisabled(facultyFields, true);
-            toggleFieldsDisabled(studentFields, true);
+        const selectedRole = this.value;
+        
+        // Hide all fields first and clear form inputs
+        hideAllFields();
+        clearFormInputs();
+        
+        if (selectedRole === 'Faculty') {
+            showFacultyFields();
+        } else if (selectedRole === 'Student') {
+            showStudentFields();
         }
     });
-    
-    // Form validation
-    form.addEventListener('submit', function(event) {
-        event.preventDefault();
+
+    // Function to hide all role-specific fields
+    function hideAllFields() {
+        facultyFields.style.display = 'none';
+        studentFields.style.display = 'none';
+        submitButton.style.display = 'none';
         
-        // Reset previous validation
-        clearValidationErrors();
-        
-        let isValid = true;
-        const role = roleSelect.value;
-        
-        // Common validations
-        isValid = validateField('email', /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please enter a valid email address') && isValid;
-        
-        // Role-specific validations
-        if (role === 'Faculty') {
-            // Name validations - only letters and spaces
-            isValid = validateField('facultyFirstName', /^[A-Za-z\s]{2,50}$/, 'First name can only contain letters and spaces (2-50 characters)') && isValid;
-            isValid = validateField('facultyMiddleName', /^[A-Za-z\s]*$/, 'Middle name can only contain letters and spaces', false) && isValid; // Optional
-            isValid = validateField('facultyLastName', /^[A-Za-z\s]{2,50}$/, 'Last name can only contain letters and spaces (2-50 characters)') && isValid;
-            
-            // Other faculty validations
-            isValid = validateField('facultyPhoneNumber', /^[0-9]{11}$/, 'Please enter a valid 11-digit phone number') && isValid;
-            isValid = validateField('employeeNumber', /^.{3,20}$/, 'Employee number must be 3-20 characters') && isValid;
-            isValid = validateField('department', null, 'Please select your department') && isValid;
-            isValid = validateField('employmentStatus', null, 'Please select employment status') && isValid;
-            
-            // Faculty birthdate validation (must be at least 18 years old)
-            const facultyBirthdateInput = document.getElementById('facultyBirthdate');
-            if (!facultyBirthdateInput.value) {
-                showError(facultyBirthdateInput, 'Please enter your birthdate');
-                isValid = false;
-            } else {
-                const birthdate = new Date(facultyBirthdateInput.value);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                if (birthdate >= today) {
-                    showError(facultyBirthdateInput, 'Birthdate cannot be today or a future date');
-                    isValid = false;
-                } else if (getAge(birthdate) < 18) {
-                    showError(facultyBirthdateInput, 'Faculty members must be at least 18 years old');
-                    isValid = false;
-                } else if (getAge(birthdate) > 100) {
-                    showError(facultyBirthdateInput, 'Please enter a valid birthdate');
-                    isValid = false;
-                }
-            }
-            
-        } else if (role === 'Student') {
-            // Name validations - only letters and spaces
-            isValid = validateField('studentFirstName', /^[A-Za-z\s]{2,50}$/, 'First name can only contain letters and spaces (2-50 characters)') && isValid;
-            isValid = validateField('studentMiddleName', /^[A-Za-z\s]*$/, 'Middle name can only contain letters and spaces', false) && isValid; // Optional
-            isValid = validateField('studentLastName', /^[A-Za-z\s]{2,50}$/, 'Last name can only contain letters and spaces (2-50 characters)') && isValid;
-            
-            // Other student validations
-            isValid = validateField('studentNumber', /^.{5,20}$/, 'Student number must be 5-20 characters') && isValid;
-            isValid = validateField('program', null, 'Please select your program/course') && isValid;
-            isValid = validateField('year', null, 'Please select your year') && isValid;
-            isValid = validateField('section', null, 'Please select your section') && isValid;
-            
-            // Student birthdate validation (must be at least 15 years old)
-            const birthdateInput = document.getElementById('birthdate');
-            if (!birthdateInput.value) {
-                showError(birthdateInput, 'Please enter your birthdate');
-                isValid = false;
-            } else {
-                const birthdate = new Date(birthdateInput.value);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                if (birthdate >= today) {
-                    showError(birthdateInput, 'Birthdate cannot be today or a future date');
-                    isValid = false;
-                } else if (getAge(birthdate) < 15) {
-                    showError(birthdateInput, 'You must be at least 15 years old');
-                    isValid = false;
-                } else if (getAge(birthdate) > 100) {
-                    showError(birthdateInput, 'Please enter a valid birthdate');
-                    isValid = false;
-                }
-            }
-        } else {
-            showError(roleSelect, 'Please select a role');
-            isValid = false;
-        }
-        
-        if (isValid) {
-            // Show loader and disable button
-            showLoader();
-            
-            // Create a FormData object
-            const formData = new FormData(form);
-            
-            // Submit via AJAX
-            fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json'
-                },
-                body: formData
-            })
-            .then(response => {
-                return response.json().then(data => {
-                    // Add status to the returned data for error handling
-                    return { ...data, status: response.status };
-                });
-            })
-            .then(data => {
-                // Hide loader regardless of result
-                hideLoader();
-                
-                if (data.status === 422) {
-                    // Handle validation errors
-                    if (data.errors) {
-                        // Log all the errors to console for debugging
-                        console.log("Validation Errors:", data.errors);
-                        
-                        Object.keys(data.errors).forEach(field => {
-                            const inputField = document.getElementById(field);
-                            if (inputField) {
-                                showError(inputField, data.errors[field][0]);
-                            } else {
-                                // Handle special cases for field matching
-                                if (field === 'first_name') {
-                                    const role = document.getElementById('role').value;
-                                    const fieldId = role === 'Faculty' ? 'facultyFirstName' : 'studentFirstName';
-                                    showError(document.getElementById(fieldId), data.errors[field][0]);
-                                } 
-                                else if (field === 'middle_name') {
-                                    const role = document.getElementById('role').value;
-                                    const fieldId = role === 'Faculty' ? 'facultyMiddleName' : 'studentMiddleName';
-                                    showError(document.getElementById(fieldId), data.errors[field][0]);
-                                }
-                                else if (field === 'last_name') {
-                                    const role = document.getElementById('role').value;
-                                    const fieldId = role === 'Faculty' ? 'facultyLastName' : 'studentLastName';
-                                    showError(document.getElementById(fieldId), data.errors[field][0]);
-                                }
-                                else if (field === 'phone_number') {
-                                    showError(document.getElementById('facultyPhoneNumber'), data.errors[field][0]);
-                                }
-                                else if (field === 'student_number') {
-                                    showError(document.getElementById('studentNumber'), data.errors[field][0]);
-                                }
-                                else if (field === 'employee_number') {
-                                    showError(document.getElementById('employeeNumber'), data.errors[field][0]);
-                                }
-                                else if (field === 'employment_status') {
-                                    showError(document.getElementById('employmentStatus'), data.errors[field][0]);
-                                }
-                                else if (field === 'birthdate') {
-                                    const role = document.getElementById('role').value;
-                                    const fieldId = role === 'Faculty' ? 'facultyBirthdate' : 'birthdate';
-                                    showError(document.getElementById(fieldId), data.errors[field][0]);
-                                }
-                                else {
-                                    // If field cannot be found, show a general error
-                                    showErrorMessage(`Error with ${field}: ${data.errors[field][0]}`);
-                                }
-                            }
-                        });
-                    }
-                } else if (data.status === 200 || data.status === 201) {
-                    // Show success message
-                    showSuccessMessage(data.message);
-                    form.reset();
-                    facultyFields.style.display = 'none';
-                    studentFields.style.display = 'none';
-                    submitButton.style.display = 'none';
-                } else {
-                    // Show general error message
-                    showErrorMessage(data.message || 'An error occurred. Please try again later.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                hideLoader();
-                showErrorMessage('An error occurred. Please try again later.');
-            });
-        }
-    });
-    
-    // Add real-time validation for name fields
-    function addRealTimeValidation() {
-        // Faculty name fields
-        const facultyFirstName = document.getElementById('facultyFirstName');
-        const facultyMiddleName = document.getElementById('facultyMiddleName');
-        const facultyLastName = document.getElementById('facultyLastName');
-        
-        // Student name fields
-        const studentFirstName = document.getElementById('studentFirstName');
-        const studentMiddleName = document.getElementById('studentMiddleName');
-        const studentLastName = document.getElementById('studentLastName');
-        
-        // Add event listeners for real-time validation
-        [facultyFirstName, facultyMiddleName, facultyLastName, studentFirstName, studentMiddleName, studentLastName].forEach(field => {
-            if (field) {
-                field.addEventListener('input', function() {
-                    // Remove characters that are not letters or spaces
-                    this.value = this.value.replace(/[^A-Za-z\s]/g, '');
-                });
-            }
-        });
+        // Disable all form elements in hidden sections
+        toggleFieldsDisabled(facultyFields, true);
+        toggleFieldsDisabled(studentFields, true);
     }
-    
-    // Call real-time validation setup
-    addRealTimeValidation();
-    
-    // Helper functions for validation
-    function validateField(id, pattern, errorMsg, required = true) {
-        const field = document.getElementById(id);
+
+    // Function to show faculty fields
+    function showFacultyFields() {
+        facultyFields.style.display = 'block';
+        submitButton.style.display = 'block';
         
-        if (!field) return true; // Skip if field doesn't exist
+        // Enable faculty fields and disable student fields
+        toggleFieldsDisabled(facultyFields, false);
+        toggleFieldsDisabled(studentFields, true);
         
-        // For select elements
-        if (field.tagName === 'SELECT') {
-            if (required && (!field.value || field.value === '')) {
-                showError(field, errorMsg);
-                return false;
-            }
-            return true;
-        }
+        // Remove name attributes from student fields to prevent conflicts
+        removeNameAttributes(studentFields);
         
-        // For regular input elements
-        if (required && (!field.value || field.value.trim() === '')) {
-            showError(field, errorMsg || 'This field is required');
-            return false;
-        }
-        
-        // If not required and empty, skip pattern validation
-        if (!required && (!field.value || field.value.trim() === '')) {
-            return true;
-        }
-        
-        // Pattern validation for text inputs
-        if (pattern && !pattern.test(field.value.trim())) {
-            showError(field, errorMsg);
-            return false;
-        }
-        
-        return true;
+        setupEmployeeNumberValidation();
     }
-    
-    function showError(field, message) {
-        if (!field) return; // Guard against null fields
+
+    // Function to show student fields
+    function showStudentFields() {
+        studentFields.style.display = 'block';
+        submitButton.style.display = 'block';
         
-        // Remove any existing error message
-        const existingFeedback = field.nextElementSibling;
-        if (existingFeedback && existingFeedback.classList.contains('invalid-feedback')) {
-            existingFeedback.remove();
-        }
+        // Enable student fields and disable faculty fields
+        toggleFieldsDisabled(studentFields, false);
+        toggleFieldsDisabled(facultyFields, true);
         
-        // Add error class to the field
-        field.classList.add('is-invalid');
+        // Remove name attributes from faculty fields to prevent conflicts
+        removeNameAttributes(facultyFields);
         
-        // Create and append the error message
-        const feedbackDiv = document.createElement('div');
-        feedbackDiv.classList.add('invalid-feedback');
-        feedbackDiv.innerText = message;
-        field.parentNode.appendChild(feedbackDiv);
+        setupStudentNumberValidation();
     }
-    
-    function clearValidationErrors() {
-        // Remove all validation error messages
-        const invalidFields = form.querySelectorAll('.is-invalid');
-        invalidFields.forEach(field => {
-            field.classList.remove('is-invalid');
-            const feedbackDiv = field.nextElementSibling;
-            if (feedbackDiv && feedbackDiv.classList.contains('invalid-feedback')) {
-                feedbackDiv.remove();
-            }
-        });
-        
-        // Remove any alert messages
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => alert.remove());
-    }
-    
-    function showLoader() {
-        // Disable the button
-        const button = submitButton.querySelector('button');
-        button.disabled = true;
-        
-        // Store original button content
-        const originalHTML = button.innerHTML;
-        button.setAttribute('data-original-html', originalHTML);
-        
-        // Replace with loader
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-    }
-    
-    function hideLoader() {
-        const button = submitButton.querySelector('button');
-        
-        // Re-enable the button
-        button.disabled = false;
-        
-        // Restore original content
-        const originalHTML = button.getAttribute('data-original-html');
-        if (originalHTML) {
-            button.innerHTML = originalHTML;
-        }
-    }
-    
-    function showSuccessMessage(message) {
-        clearValidationErrors();
-        
-        const alertDiv = document.createElement('div');
-        alertDiv.classList.add('alert', 'alert-success', 'mt-3');
-        alertDiv.innerText = message;
-        
-        // Insert before the form
-        form.parentNode.insertBefore(alertDiv, form);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-    
-    function showErrorMessage(message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.classList.add('alert', 'alert-danger', 'mt-3');
-        alertDiv.innerText = message;
-        
-        // Insert before the form
-        form.parentNode.insertBefore(alertDiv, form);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-    
-    function getAge(birthdate) {
-        const today = new Date();
-        let age = today.getFullYear() - birthdate.getFullYear();
-        const monthDiff = today.getMonth() - birthdate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdate.getDate())) {
-            age--;
-        }
-        
-        return age;
-    }
-    
+
     // Function to enable/disable all form elements within a container
     function toggleFieldsDisabled(container, disabled) {
         if (!container) return;
@@ -388,6 +72,317 @@ document.addEventListener('DOMContentLoaded', function() {
         const formElements = container.querySelectorAll('input, select, textarea');
         formElements.forEach(element => {
             element.disabled = disabled;
+            if (disabled) {
+                element.removeAttribute('required');
+            } else {
+                // Re-add required attribute where needed
+                if (element.hasAttribute('data-required')) {
+                    element.setAttribute('required', '');
+                }
+            }
         });
     }
+
+    // Function to remove name attributes from hidden fields to prevent form conflicts
+    function removeNameAttributes(container) {
+        if (!container) return;
+        
+        const formElements = container.querySelectorAll('input, select, textarea');
+        formElements.forEach(element => {
+            if (element.name) {
+                element.setAttribute('data-original-name', element.name);
+                element.removeAttribute('name');
+            }
+        });
+    }
+
+    // Function to restore name attributes
+    function restoreNameAttributes(container) {
+        if (!container) return;
+        
+        const formElements = container.querySelectorAll('input, select, textarea');
+        formElements.forEach(element => {
+            const originalName = element.getAttribute('data-original-name');
+            if (originalName) {
+                element.setAttribute('name', originalName);
+                element.removeAttribute('data-original-name');
+            }
+        });
+    }
+
+    // Function to clear form inputs
+    function clearFormInputs() {
+        const inputs = signupForm.querySelectorAll('input:not(#email):not(#role), select:not(#role)');
+        inputs.forEach(input => {
+            if (input.type === 'checkbox' || input.type === 'radio') {
+                input.checked = false;
+            } else {
+                input.value = '';
+            }
+            // Clear any validation styling
+            input.style.borderColor = '';
+        });
+        
+        // Clear any existing error messages
+        clearErrorMessages();
+    }
+
+    // Setup student number validation
+    function setupStudentNumberValidation() {
+        const studentNumberInput = document.getElementById('studentNumber');
+        if (studentNumberInput && studentValidation) {
+            // Set min and max length
+            studentNumberInput.setAttribute('minlength', studentValidation.min_digits);
+            studentNumberInput.setAttribute('maxlength', studentValidation.max_digits);
+            
+            // Set pattern based on allowed characters
+            let pattern = '';
+            let title = '';
+            
+            if (studentValidation.numbers_only) {
+                pattern = '[0-9]+';
+                title = `Student number must be ${studentValidation.min_digits}-${studentValidation.max_digits} digits (numbers only)`;
+            } else if (studentValidation.letters_only) {
+                pattern = '[A-Za-z]+';
+                title = `Student number must be ${studentValidation.min_digits}-${studentValidation.max_digits} characters (letters only)`;
+            } else {
+                pattern = '[A-Za-z0-9\\-_]+';
+                title = `Student number must be ${studentValidation.min_digits}-${studentValidation.max_digits} characters (letters, numbers, hyphens, underscores only)`;
+            }
+            
+            studentNumberInput.setAttribute('pattern', pattern);
+            studentNumberInput.setAttribute('title', title);
+            
+            // Remove existing event listeners to prevent duplicates
+            studentNumberInput.replaceWith(studentNumberInput.cloneNode(true));
+            const newStudentNumberInput = document.getElementById('studentNumber');
+            
+            // Add real-time validation
+            newStudentNumberInput.addEventListener('input', function() {
+                validateInput(this, studentValidation);
+            });
+        }
+    }
+
+    // Setup employee number validation
+    function setupEmployeeNumberValidation() {
+        const employeeNumberInput = document.getElementById('employeeNumber');
+        if (employeeNumberInput && employeeValidation) {
+            // Set min and max length
+            employeeNumberInput.setAttribute('minlength', employeeValidation.min_digits);
+            employeeNumberInput.setAttribute('maxlength', employeeValidation.max_digits);
+            
+            // Set pattern based on allowed characters
+            let pattern = '';
+            let title = '';
+            
+            if (employeeValidation.numbers_only) {
+                pattern = '[0-9]+';
+                title = `Employee number must be ${employeeValidation.min_digits}-${employeeValidation.max_digits} digits (numbers only)`;
+            } else if (employeeValidation.letters_only) {
+                pattern = '[A-Za-z]+';
+                title = `Employee number must be ${employeeValidation.min_digits}-${employeeValidation.max_digits} characters (letters only)`;
+            } else {
+                pattern = '[A-Za-z0-9\\-_]+';
+                title = `Employee number must be ${employeeValidation.min_digits}-${employeeValidation.max_digits} characters (letters, numbers, hyphens, underscores only)`;
+            }
+            
+            employeeNumberInput.setAttribute('pattern', pattern);
+            employeeNumberInput.setAttribute('title', title);
+            
+            // Remove existing event listeners to prevent duplicates
+            employeeNumberInput.replaceWith(employeeNumberInput.cloneNode(true));
+            const newEmployeeNumberInput = document.getElementById('employeeNumber');
+            
+            // Add real-time validation
+            newEmployeeNumberInput.addEventListener('input', function() {
+                validateInput(this, employeeValidation);
+            });
+        }
+    }
+
+    // Real-time input validation
+    function validateInput(input, validation) {
+        const value = input.value;
+        let isValid = true;
+        let errorMessage = '';
+
+        // Skip validation if input is empty (let HTML5 required handle it)
+        if (value.length === 0) {
+            showValidationError(input, true, '');
+            return;
+        }
+
+        // Check length
+        if (value.length < validation.min_digits) {
+            isValid = false;
+            errorMessage = `Must be at least ${validation.min_digits} characters`;
+        } else if (value.length > validation.max_digits) {
+            isValid = false;
+            errorMessage = `Cannot exceed ${validation.max_digits} characters`;
+        }
+
+        // Check character type
+        if (isValid) {
+            if (validation.numbers_only && !/^[0-9]+$/.test(value)) {
+                isValid = false;
+                errorMessage = 'Only numbers are allowed';
+            } else if (validation.letters_only && !/^[A-Za-z]+$/.test(value)) {
+                isValid = false;
+                errorMessage = 'Only letters are allowed';
+            } else if (validation.letters_symbols_numbers && !/^[A-Za-z0-9\-_]+$/.test(value)) {
+                isValid = false;
+                errorMessage = 'Only letters, numbers, hyphens and underscores are allowed';
+            }
+        }
+
+        // Show/hide error message
+        showValidationError(input, isValid, errorMessage);
+    }
+
+    // Show validation error message
+    function showValidationError(input, isValid, errorMessage) {
+        // Remove existing error message
+        const existingError = input.parentNode.querySelector('.validation-error');
+        if (existingError) {
+            existingError.remove();
+        }
+
+        if (!isValid && errorMessage) {
+            // Add error styling
+            input.style.borderColor = '#dc3545';
+            input.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+            
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'validation-error';
+            errorDiv.style.color = '#dc3545';
+            errorDiv.style.fontSize = '0.875rem';
+            errorDiv.style.marginTop = '0.25rem';
+            errorDiv.textContent = errorMessage;
+            
+            // Insert error message after input
+            input.parentNode.appendChild(errorDiv);
+        } else {
+            // Remove error styling
+            input.style.borderColor = '';
+            input.style.boxShadow = '';
+        }
+    }
+
+    // Form submission handler
+    signupForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Restore name attributes for the active section before submitting
+        const selectedRole = roleSelect.value;
+        if (selectedRole === 'Faculty') {
+            restoreNameAttributes(facultyFields);
+        } else if (selectedRole === 'Student') {
+            restoreNameAttributes(studentFields);
+        }
+        
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        
+        // Disable submit button and show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating Account...';
+        
+        // Clear any existing error messages
+        clearErrorMessages();
+        
+        fetch('/register', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message && !data.errors) {
+                // Success
+                showSuccessMessage(data.message);
+                signupForm.reset();
+                hideAllFields();
+                roleSelect.value = '';
+            } else {
+                // Validation errors
+                if (data.errors) {
+                    showValidationErrors(data.errors);
+                }
+                if (data.message) {
+                    showErrorMessage(data.message);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorMessage('An error occurred while creating your account. Please try again.');
+        })
+        .finally(() => {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        });
+    });
+
+    // Function to show success message
+    function showSuccessMessage(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.style.marginBottom = '1rem';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        signupForm.insertBefore(alertDiv, signupForm.firstChild);
+        
+        // Scroll to top to show message
+        signupForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Auto hide after 8 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 8000);
+    }
+    
+    // Function to show validation errors
+    function showValidationErrors(errors) {
+        for (const [field, messages] of Object.entries(errors)) {
+            const input = signupForm.querySelector(`[name="${field}"]`);
+            if (input && !input.disabled) {
+                showValidationError(input, false, messages[0]);
+                
+                // Focus on first error field
+                if (!signupForm.querySelector('.validation-error')) {
+                    input.focus();
+                }
+            }
+        }
+    }
+
+    // Function to clear error messages
+    function clearErrorMessages() {
+        const errorMessages = signupForm.querySelectorAll('.validation-error');
+        errorMessages.forEach(error => error.remove());
+        
+        const alerts = signupForm.querySelectorAll('.alert');
+        alerts.forEach(alert => alert.remove());
+        
+        const inputs = signupForm.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.style.borderColor = '';
+            input.style.boxShadow = '';
+        });
+    }
+
+    // Initialize form on page load
+    hideAllFields();
 });

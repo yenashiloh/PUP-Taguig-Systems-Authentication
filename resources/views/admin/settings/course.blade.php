@@ -1,5 +1,5 @@
 @include('admin.partials.link')
-<title> Department</title>
+<title>Course</title>
 
 @include('admin.partials.side-bar')
 
@@ -20,7 +20,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- end row -->
             </div>
 
             <div class="tables-wrapper">
@@ -58,16 +57,12 @@
                                                 <h6>Course Name</h6>
                                             </th>
                                             <th>
-                                                <h6>Department</h6>
-                                            </th>
-                                            <th>
                                                 <h6>Status</h6>
                                             </th>
                                             <th>
                                                 <h6>Actions</h6>
                                             </th>
                                         </tr>
-                                        <!-- end table row-->
                                     </thead>
                                     <tbody>
                                         @foreach ($courses as $course)
@@ -78,9 +73,6 @@
                                                     </div>
                                                 </td>
                                                 <td class="min-width">
-                                                    <p>{{ $course->department->dept_name ?? 'N/A' }}</p>
-                                                </td>
-                                                <td class="min-width">
                                                     <p class="status-text">
                                                         {{ ucfirst($course->status) }}
                                                     </p>
@@ -88,31 +80,31 @@
                                                 <td>
                                                     <div class="btn-group" role="group">
                                                         <button class="btn btn-outline-warning btn-sm edit-course-btn"
-                                                                data-id="{{ $course->course_id }}"
-                                                                data-name="{{ $course->course_name }}"
-                                                                data-department-id="{{ $course->department_id }}"
-                                                                data-status="{{ $course->status }}"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#editCourseModal">
+                                                            data-id="{{ $course->course_id }}"
+                                                            data-name="{{ $course->course_name }}"
+                                                            data-status="{{ $course->status }}" data-bs-toggle="modal"
+                                                            data-bs-target="#editCourseModal">
                                                             <i class="fas fa-edit me-1"></i> Edit
                                                         </button>
-                                                        
+
                                                         @if ($course->status === 'Active')
-                                                            <button class="btn btn-outline-danger btn-sm toggle-course-status-btn"
-                                                                    data-id="{{ $course->course_id }}"
-                                                                    data-current-status="{{ $course->status }}">
+                                                            <button
+                                                                class="btn btn-outline-danger btn-sm toggle-course-status-btn"
+                                                                data-id="{{ $course->course_id }}"
+                                                                data-current-status="{{ $course->status }}">
                                                                 <i class="fas fa-ban me-1"></i> Disable
                                                             </button>
                                                         @else
-                                                            <button class="btn btn-outline-success btn-sm toggle-course-status-btn"
-                                                                    data-id="{{ $course->course_id }}"
-                                                                    data-current-status="{{ $course->status }}">
+                                                            <button
+                                                                class="btn btn-outline-success btn-sm toggle-course-status-btn"
+                                                                data-id="{{ $course->course_id }}"
+                                                                data-current-status="{{ $course->status }}">
                                                                 <i class="fas fa-check-circle me-1"></i> Enable
                                                             </button>
                                                         @endif
-                                                        
+
                                                         <button class="btn btn-outline-danger btn-sm delete-course-btn"
-                                                                data-id="{{ $course->course_id }}">
+                                                            data-id="{{ $course->course_id }}">
                                                             <i class="fas fa-trash me-1"></i> Delete
                                                         </button>
                                                     </div>
@@ -120,14 +112,10 @@
                                             </tr>
                                         @endforeach
                                     </tbody>
-
                                 </table>
-                                <!-- end table -->
                             </div>
                         </div>
-                        <!-- end card -->
                     </div>
-                    <!-- end col -->
                 </div>
             </div>
 
@@ -147,17 +135,6 @@
                                 <div class="input-style-1">
                                     <label>Course Name</label>
                                     <input type="text" name="course_name" placeholder="Course Name" required />
-                                </div>
-                                <div class="select-style-1">
-                                    <label>Department</label>
-                                    <div class="select-position">
-                                        <select name="department_id" required>
-                                            <option value="" disabled selected>Select Department</option>
-                                            @foreach ($departments as $department)
-                                                <option value="{{ $department->department_id }}">{{ $department->dept_name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
                                 </div>
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
@@ -185,25 +162,13 @@
                                 @csrf
                                 @method('PUT')
                                 <input type="hidden" id="edit_course_id" name="course_id">
-                                
+
                                 <div class="input-style-1">
                                     <label>Course Name</label>
-                                    <input type="text" id="edit_course_name" name="course_name" 
+                                    <input type="text" id="edit_course_name" name="course_name"
                                         placeholder="Enter Course Name" required />
                                 </div>
-                                
-                                <div class="select-style-1">
-                                    <label>Department</label>
-                                    <div class="select-position">
-                                        <select id="edit_course_department" name="department_id" required>
-                                            <option value="" disabled>Select Department</option>
-                                            @foreach ($departments as $department)
-                                                <option value="{{ $department->department_id }}">{{ $department->dept_name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                
+
                                 <div class="select-style-1">
                                     <label>Status</label>
                                     <div class="select-position">
@@ -213,28 +178,23 @@
                                         </select>
                                     </div>
                                 </div>
-                                
+
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
                                         data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="main-button primary-btn btn-hover mb-1">Update</button>
+                                    <button type="submit"
+                                        class="main-button primary-btn btn-hover mb-1">Update</button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 </div>
             </div>
-            <!-- end row -->
-            <!-- end container -->
+        </div>
     </section>
-    <!-- ========== section end ========== -->
 </main>
-<!-- ======== main-wrapper end =========== -->
 <script src="../../assets/admin/js/course-department.js"></script>
 @include('admin.partials.footer')
-
-
-
 </body>
 
 </html>

@@ -11,33 +11,29 @@ use App\Models\Course;
 
 class CourseDepartmentController extends Controller
 {
-    //Show Course Department Page
+    // Show Course Department Page
     public function courseDepartmentPage()
     {
         $admin = Auth::guard('admin')->user();
-        
-        //Get all users
         $users = User::all();
         $departments = Department::all();
-        $courses = Course::with('department')->get();
+        $courses = Course::all(); // Removed 'with' since no department relation
 
         return view('admin.settings.course', compact('admin', 'users', 'departments', 'courses'));
     }
 
-    //Show Course Department Page
+    // Show Department Page
     public function DepartmentPage()
     {
         $admin = Auth::guard('admin')->user();
-        //Get all users
         $users = User::all();
-
         $departments = Department::all();
 
         return view('admin.settings.department', compact('admin', 'users', 'departments'));
     }
 
-    //Store Department
-      public function storeDepartment(Request $request)
+    // Store Department
+    public function storeDepartment(Request $request)
     {
         $request->validate([
             'dept_name' => 'required|string|max:255|unique:departments,dept_name',
@@ -45,16 +41,17 @@ class CourseDepartmentController extends Controller
             'dept_name.unique' => 'This department already exists.',
             'dept_name.required' => 'Please enter a department name.',
         ]);
-    
+
         Department::create([
             'dept_name' => $request->dept_name,
-            'status' => 'Active', // Set default status
+            'status' => 'Active',
         ]);
-    
+
         return redirect()->route('admin.settings.department')->with('success', 'Department added successfully!');
     }
-    
- public function updateDepartment(Request $request, $id)
+
+    // Update Department
+    public function updateDepartment(Request $request, $id)
     {
         try {
             $request->validate([
@@ -68,15 +65,14 @@ class CourseDepartmentController extends Controller
             ]);
 
             $department = Department::findOrFail($id);
-            
-            // Check if any changes were made
+
             if ($department->dept_name === $request->dept_name && $department->status === $request->status) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No changes were made to update.'
                 ]);
             }
-            
+
             $department->update([
                 'dept_name' => $request->dept_name,
                 'status' => $request->status,
@@ -102,7 +98,8 @@ class CourseDepartmentController extends Controller
         }
     }
 
-     public function toggleDepartmentStatus(Request $request, $id)
+    // Toggle Department Status
+    public function toggleDepartmentStatus(Request $request, $id)
     {
         try {
             $request->validate([
@@ -110,15 +107,14 @@ class CourseDepartmentController extends Controller
             ]);
 
             $department = Department::findOrFail($id);
-            
-            // Check if the status is actually changing
+
             if ($department->status === $request->status) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Department already has this status.'
                 ]);
             }
-            
+
             $department->update([
                 'status' => $request->status,
             ]);
@@ -138,88 +134,114 @@ class CourseDepartmentController extends Controller
             ], 500);
         }
     }
-    
 
-    //Store Course
+    // Store Course
     public function storeCourse(Request $request)
     {
         $request->validate([
-            'course_name' => 'required|string|max:255',
-            'department_id' => 'required|exists:departments,department_id', 
+            'course_name' => 'required|string|max:255|unique:courses,course_name',
+        ], [
+            'course_name.unique' => 'This course already exists.',
+            'course_name.required' => 'Please enter a course name.',
         ]);
-    
-        // Check if the combination already exists
-        $existingCourse = Course::where('course_name', $request->course_name)
-                                ->where('department_id', $request->department_id)
-                                ->first();
-    
-        if ($existingCourse) {
-            return redirect()->back()->withErrors(['duplicate' => 'The course already exists for this department.'])->withInput();
-        }
-    
+
         try {
             Course::create([
                 'course_name' => $request->course_name,
-                'department_id' => $request->department_id,
-                'status' => 'Active', 
+                'status' => 'Active',
             ]);
-    
+
             return redirect()->back()->with('success', 'Course added successfully!');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to add course. Please try again.');
         }
     }
 
-    //Destroy Course
-    public function destroyCourse($id)
+    // Toggle Course Status
+    public function toggleCourseStatus(Request $request, $id)
     {
-        $course = Course::findOrFail($id); 
-        $course->delete();
-    
-        return response()->json(['success' => true, 'message' => 'Course deleted successfully.']);
+        try {
+            $request->validate([
+                'status' => 'required|in:Active,Inactive',
+            ]);
+
+            $course = Course::findOrFail($id);
+
+            if ($course->status === $request->status) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course already has this status.'
+                ]);
+            }
+
+            $course->update([
+                'status' => $request->status,
+            ]);
+
+            $statusText = $request->status === 'Active' ? 'enabled' : 'disabled';
+
+            return response()->json([
+                'success' => true,
+                'message' => "Course {$statusText} successfully!"
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error toggling course status: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the course status.'
+            ], 500);
+        }
     }
 
-    //Destroy Department
-     public function destroyDepartment($id)
+    // Destroy Course
+    public function destroyCourse($id)
+    {
+        try {
+            $course = Course::findOrFail($id);
+            $course->delete();
+
+            return response()->json(['success' => true, 'message' => 'Course deleted successfully.']);
+        } catch (\Exception $e) {
+            \Log::error('Error deleting course: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while deleting the course.'
+            ], 500);
+        }
+    }
+
+    // Destroy Department
+    public function destroyDepartment($id)
     {
         try {
             $department = Department::findOrFail($id);
-            
-            // Check if any courses are associated with this department
-            $coursesCount = Course::where('department_id', $id)->count();
-            
-            if ($coursesCount > 0) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => "Cannot delete this department. {$coursesCount} course(s) are associated with it."
-                ]);
-            }
-            
+
             // Check if any faculty are in this department
             $facultyCount = User::where('department', $department->dept_name)
                                ->where('role', 'Faculty')
                                ->count();
-            
+
             if ($facultyCount > 0) {
                 return response()->json([
-                    'success' => false, 
+                    'success' => false,
                     'message' => "Cannot delete this department. {$facultyCount} faculty member(s) are assigned to it."
                 ]);
             }
-            
+
             $department->delete();
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Department deleted successfully.'
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error deleting department: ' . $e->getMessage());
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'An error occurred while deleting the department.'
-            ]);
+            ], 500);
         }
     }
 }

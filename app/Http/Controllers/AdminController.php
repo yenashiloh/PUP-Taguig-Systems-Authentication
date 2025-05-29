@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Course;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -59,40 +61,65 @@ class AdminController extends Controller
         $admin = Auth::guard('admin')->user();
         
         // Get users with the role "Faculty"
-        $users = User::where('role', 'Faculty')->get();
+        $users = User::faculty()->orderBy('last_name', 'asc')->get();
 
-        return view('admin.dashboard.total-faculty', compact('admin', 'users'));
+        // Get all active departments using scopes
+        $departments = Department::active()->ordered()->get();
+        
+        // Get all filter counts using the model method
+        $filterCounts = User::getFacultyFilterCounts();
+        $departmentCounts = $filterCounts['departments'];
+        $employmentStatusCounts = $filterCounts['employment_statuses'];
+        $statusCounts = $filterCounts['statuses'];
+
+        return view('admin.dashboard.total-faculty', compact('admin', 'users', 'departments', 'departmentCounts', 'employmentStatusCounts', 'statusCounts'));
     }
 
     //Show Total Faculty Details
     public function viewTotalFaculty($userId)
     {
         $admin = Auth::guard('admin')->user();
-        // Get the user with the given ID
+        
+        // Get the faculty member with the given ID
         $faculty = User::findOrFail($userId);
-    
-        return view('admin.dashboard.view-total-faculty', compact('admin', 'faculty'));
+        
+        // Get all active departments for the dropdown
+        $departments = Department::where('status', 'active')->orderBy('dept_name', 'asc')->get();
+
+        return view('admin.dashboard.view-total-faculty', compact('admin', 'faculty', 'departments'));
     }    
 
      //Show Total Student Details
-     public function viewTotalStudent($userId)
-     {
-         $admin = Auth::guard('admin')->user();
-         // Get the user with the given ID
-         $student = User::findOrFail($userId);
+    public function viewTotalStudent($userId)
+    {
+        $admin = Auth::guard('admin')->user();
+        // Get the user with the given ID
+        $student = User::findOrFail($userId);
+    
+        $courses = Course::where('status', 'active')->orderBy('course_name', 'asc')->get();
      
-         return view('admin.dashboard.view-total-student', compact('admin', 'student'));
+         return view('admin.dashboard.view-total-student', compact('admin', 'student',  'courses'));
      }    
 
     //Show Total Student Page
     public function totalStudentPage()
     {
-        $admin = Auth::guard('admin')->user();
-          
-        // Get users with the role "Student"
-        $users = User::where('role', 'Student')->get();
-  
-        return view('admin.dashboard.total-student', compact('admin', 'users'));
+       $admin = Auth::guard('admin')->user();
+        
+        // Get students sorted by last_name in ascending order
+        $users = User::students()->orderBy('last_name', 'asc')->get();
+        
+        // Get all active courses
+        $courses = Course::where('status', 'active')->orderBy('course_name', 'asc')->get();
+        
+        // Get all filter counts
+        $filterCounts = User::getAllFilterCounts();
+        $programCounts = $filterCounts['programs'];
+        $yearCounts = $filterCounts['years'];
+        $sectionCounts = $filterCounts['sections'];
+        $statusCounts = $filterCounts['statuses'];
+        
+        return view('admin.dashboard.total-student', compact('admin', 'users', 'courses', 'programCounts', 'yearCounts', 'sectionCounts', 'statusCounts'));
     }
 
     // Admin logout
