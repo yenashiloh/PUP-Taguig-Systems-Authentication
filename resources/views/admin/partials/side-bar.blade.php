@@ -32,13 +32,14 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a href="">
+                <a href="{{ route('admin.audit-trail.audit-trail') }}">
                     <span class="icon">
                         <i class="fas fa-history"></i>
                     </span>
                     <span class="text">Audit Trail</span>
                 </a>
             </li>
+
             <li
                 class="nav-item {{ request()->routeIs('admin.user-management.users') ||
                 request()->routeIs('admin.user-management.faculty') ||

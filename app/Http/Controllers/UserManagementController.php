@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Course;
+use App\Models\BatchUpload;
+use App\Models\AuditTrail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -69,7 +71,7 @@ class UserManagementController extends Controller
     }
 
     //Store Faculty
-    public function storeFaculty(Request $request)
+   public function storeFaculty(Request $request)
     {
         try {
             // Log the incoming request for debugging
@@ -188,6 +190,21 @@ class UserManagementController extends Controller
 
             \Log::info('Faculty user created successfully with ID: ' . $user->id);
 
+            // Log to audit trail
+            AuditTrail::log(
+                'add_faculty',
+                'Added new faculty member: ' . $user->first_name . ' ' . $user->last_name . ' (' . $user->employee_number . ')',
+                'User',
+                $user->id,
+                $user->first_name . ' ' . $user->last_name,
+                [
+                    'employee_number' => $user->employee_number,
+                    'email' => $user->email,
+                    'department' => $user->department,
+                    'employment_status' => $user->employment_status
+                ]
+            );
+
             try {
                 \Log::info('Attempting to send email to: ' . $user->email);
                 
@@ -224,8 +241,7 @@ class UserManagementController extends Controller
     }
 
     // Import Faculty from CSV or Excel
-
-    public function importFaculty(Request $request)
+       public function importFaculty(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
@@ -239,9 +255,30 @@ class UserManagementController extends Controller
 
         try {
             $file = $request->file('import_file');
+            $admin = Auth::guard('admin')->user();
             
+            // Generate batch ID
+            $batchId = BatchUpload::generateBatchId();
+            
+            // Store file
+            $fileName = $batchId . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('batch_uploads', $fileName);
+            
+            // Create batch upload record
+            $batchUpload = BatchUpload::create([
+                'batch_id' => $batchId,
+                'admin_email' => $admin->email,
+                'admin_name' => $admin->first_name . ' ' . $admin->last_name,
+                'upload_type' => 'faculty',
+                'file_name' => $fileName,
+                'file_path' => $filePath,
+                'status' => 'processing',
+                'started_at' => now()
+            ]);
+
             // Additional file validation
             if ($file->getSize() == 0) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'The uploaded file is empty.');
             }
             
@@ -251,11 +288,13 @@ class UserManagementController extends Controller
             
             // Check if file has data
             if (empty($rows) || count($rows) < 2) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
             }
             
             // Check maximum rows limit
             if (count($rows) > 1001) { // 1000 data rows + 1 header
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
             }
 
@@ -264,6 +303,7 @@ class UserManagementController extends Controller
             
             // Check for empty headers
             if (in_array('', $headers) || in_array(null, $headers)) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
             }
             
@@ -272,6 +312,7 @@ class UserManagementController extends Controller
             $missingHeaders = array_diff($requiredHeaders, $headers);
             
             if (!empty($missingHeaders)) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()
                     ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
             }
@@ -285,6 +326,10 @@ class UserManagementController extends Controller
             $emailsFailed = 0;
             $errors = [];
             $totalRows = count($rows);
+            $importedUsers = [];
+            
+            // Update batch upload with total rows
+            $batchUpload->update(['total_rows' => $totalRows]);
             
             // Pre-check for duplicates within the file
             $fileEmails = [];
@@ -478,6 +523,7 @@ class UserManagementController extends Controller
                     
                     $user->save();
                     $imported++;
+                    $importedUsers[] = $user;
 
                     // Send email notification with credentials
                     try {
@@ -498,6 +544,46 @@ class UserManagementController extends Controller
                     continue;
                 }
             }
+            
+            // Update batch upload with results
+            $batchUpload->update([
+                'successful_imports' => $imported,
+                'failed_imports' => $failed,
+                'import_summary' => [
+                    'total' => $totalRows,
+                    'success' => $imported,
+                    'failed' => $failed,
+                    'emails_sent' => $emailsSent,
+                    'emails_failed' => $emailsFailed
+                ],
+                'errors' => $errors,
+                'status' => 'completed',
+                'completed_at' => now()
+            ]);
+
+            // Log to audit trail for batch upload
+            AuditTrail::log(
+                'batch_upload_faculty',
+                "Batch uploaded $imported faculty members from file: $fileName",
+                'BatchUpload',
+                $batchUpload->id,
+                $batchId,
+                [
+                    'batch_id' => $batchId,
+                    'file_name' => $fileName,
+                    'total_rows' => $totalRows,
+                    'successful_imports' => $imported,
+                    'failed_imports' => $failed,
+                    'imported_users' => $importedUsers->map(function($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'employee_number' => $user->employee_number,
+                            'email' => $user->email
+                        ];
+                    })->toArray()
+                ]
+            );
             
             // Prepare session data
             $summary = [
@@ -541,6 +627,7 @@ class UserManagementController extends Controller
             return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
         }
     }
+
 
     // Download a template file for faculty import
     public function downloadFacultyTemplate()
@@ -1151,30 +1238,52 @@ class UserManagementController extends Controller
         return redirect()->back()->with('success', 'Student details updated successfully!');
     }
 
-    //Deactivate and reactivate faculty
+    // Deactivate and reactivate users with audit trail
     public function toggleUserStatus(Request $request, $userId)
     {
         $user = User::find($userId);
     
         if ($user) {
             $action = $request->input('action');
+            $oldStatus = $user->status;
     
             if ($action === 'deactivate') {
                 $user->status = 'Deactivated';
+                $auditAction = 'deactivate_user';
+                $description = 'Deactivated user: ' . $user->first_name . ' ' . $user->last_name;
             } elseif ($action === 'reactivate') {
                 $user->status = 'Active';
+                $auditAction = 'reactivate_user';
+                $description = 'Reactivated user: ' . $user->first_name . ' ' . $user->last_name;
             }
     
             $user->save();
+
+            // Log to audit trail
+            AuditTrail::log(
+                $auditAction,
+                $description . ' (' . ($user->student_number ?? $user->employee_number) . ')',
+                'User',
+                $user->id,
+                $user->first_name . ' ' . $user->last_name,
+                [
+                    'user_id' => $user->id,
+                    'user_type' => $user->role,
+                    'id_number' => $user->student_number ?? $user->employee_number,
+                    'email' => $user->email,
+                    'old_status' => $oldStatus,
+                    'new_status' => $user->status
+                ]
+            );
     
             return response()->json(['success' => true]);
         }
     
         return response()->json(['success' => false]);
-    } 
+    }
 
     //Store Student
-   public function storeStudent(Request $request)
+    public function storeStudent(Request $request)
     {
         try {
             $validated = $request->validate([
@@ -1277,6 +1386,22 @@ class UserManagementController extends Controller
                 'birthdate' => $validated['birthdate'],
             ]);
 
+            // Log to audit trail
+            AuditTrail::log(
+                'add_student',
+                'Added new student: ' . $user->first_name . ' ' . $user->last_name . ' (' . $user->student_number . ')',
+                'User',
+                $user->id,
+                $user->first_name . ' ' . $user->last_name,
+                [
+                    'student_number' => $user->student_number,
+                    'email' => $user->email,
+                    'program' => $user->program,
+                    'year' => $user->year,
+                    'section' => $user->section
+                ]
+            );
+
             // Send email notification with credentials
             try {
                 Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
@@ -1307,7 +1432,7 @@ class UserManagementController extends Controller
         }
     }
 
-    // Import Students from CSV or Excel
+        // Import Students from CSV or Excel with Batch Upload
     public function importStudents(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -1322,9 +1447,30 @@ class UserManagementController extends Controller
 
         try {
             $file = $request->file('import_file');
+            $admin = Auth::guard('admin')->user();
             
+            // Generate batch ID
+            $batchId = BatchUpload::generateBatchId();
+            
+            // Store file
+            $fileName = $batchId . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('batch_uploads', $fileName);
+            
+            // Create batch upload record
+            $batchUpload = BatchUpload::create([
+                'batch_id' => $batchId,
+                'admin_email' => $admin->email,
+                'admin_name' => $admin->first_name . ' ' . $admin->last_name,
+                'upload_type' => 'students',
+                'file_name' => $fileName,
+                'file_path' => $filePath,
+                'status' => 'processing',
+                'started_at' => now()
+            ]);
+
             // Additional file validation
             if ($file->getSize() == 0) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'The uploaded file is empty.');
             }
             
@@ -1334,11 +1480,13 @@ class UserManagementController extends Controller
             
             // Check if file has data
             if (empty($rows) || count($rows) < 2) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
             }
             
             // Check maximum rows limit
             if (count($rows) > 1001) { // 1000 data rows + 1 header
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 students per import.');
             }
 
@@ -1347,6 +1495,7 @@ class UserManagementController extends Controller
             
             // Check for empty headers
             if (in_array('', $headers) || in_array(null, $headers)) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
             }
             
@@ -1355,6 +1504,7 @@ class UserManagementController extends Controller
             $missingHeaders = array_diff($requiredHeaders, $headers);
             
             if (!empty($missingHeaders)) {
+                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
                 return redirect()->back()
                     ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
             }
@@ -1368,6 +1518,10 @@ class UserManagementController extends Controller
             $emailsFailed = 0;
             $errors = [];
             $totalRows = count($rows);
+            $importedUsers = [];
+            
+            // Update batch upload with total rows
+            $batchUpload->update(['total_rows' => $totalRows]);
             
             // Pre-check for duplicates within the file
             $fileEmails = [];
@@ -1564,6 +1718,7 @@ class UserManagementController extends Controller
                     
                     $user->save();
                     $imported++;
+                    $importedUsers[] = $user;
 
                     // Send email notification with credentials
                     try {
@@ -1584,6 +1739,46 @@ class UserManagementController extends Controller
                     continue;
                 }
             }
+            
+            // Update batch upload with results
+            $batchUpload->update([
+                'successful_imports' => $imported,
+                'failed_imports' => $failed,
+                'import_summary' => [
+                    'total' => $totalRows,
+                    'success' => $imported,
+                    'failed' => $failed,
+                    'emails_sent' => $emailsSent,
+                    'emails_failed' => $emailsFailed
+                ],
+                'errors' => $errors,
+                'status' => 'completed',
+                'completed_at' => now()
+            ]);
+
+            // Log to audit trail for batch upload
+            AuditTrail::log(
+                'batch_upload_students',
+                "Batch uploaded $imported students from file: $fileName",
+                'BatchUpload',
+                $batchUpload->id,
+                $batchId,
+                [
+                    'batch_id' => $batchId,
+                    'file_name' => $fileName,
+                    'total_rows' => $totalRows,
+                    'successful_imports' => $imported,
+                    'failed_imports' => $failed,
+                    'imported_users' => $importedUsers->map(function($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'student_number' => $user->student_number,
+                            'email' => $user->email
+                        ];
+                    })->toArray()
+                ]
+            );
             
             // Prepare session data
             $summary = [
@@ -1627,7 +1822,7 @@ class UserManagementController extends Controller
             return redirect()->back()->with('import_error', 'Failed to import students: ' . $e->getMessage());
         }
     }
- 
+
     // Download a template file for student import
     public function downloadTemplate()
     {
@@ -1901,6 +2096,7 @@ class UserManagementController extends Controller
         }
     }
 
+    // Bulk toggle user status with audit trail
     public function bulkToggleUserStatus(Request $request)
     {
         try {
@@ -1944,13 +2140,39 @@ class UserManagementController extends Controller
                 'updated_at' => now()
             ]);
             
-            // Log the bulk action
-            $adminEmail = Auth::guard('admin')->user()->email;
+            // Log bulk action to audit trail
+            $auditAction = $action === 'deactivate' ? 'bulk_deactivate_users' : 'bulk_reactivate_users';
             $userNames = $usersToUpdate->map(function ($user) {
                 return $user->first_name . ' ' . $user->last_name . ' (' . ($user->student_number ?? $user->employee_number) . ')';
-            })->join(', ');
+            })->toArray();
             
-            \Log::info("Bulk {$action} performed by admin: {$adminEmail} on users: {$userNames}");
+            AuditTrail::log(
+                $auditAction,
+                "Bulk " . ($action === 'deactivate' ? 'deactivated' : 'reactivated') . " $updatedCount user(s)",
+                'User',
+                null,
+                'Bulk Action',
+                [
+                    'action' => $action,
+                    'user_count' => $updatedCount,
+                    'new_status' => $newStatus,
+                    'affected_users' => $usersToUpdate->map(function($user) use ($newStatus) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'id_number' => $user->student_number ?? $user->employee_number,
+                            'email' => $user->email,
+                            'role' => $user->role,
+                            'old_status' => $user->status,
+                            'new_status' => $newStatus
+                        ];
+                    })->toArray()
+                ]
+            );
+            
+            // Log the bulk action
+            $adminEmail = Auth::guard('admin')->user()->email;
+            \Log::info("Bulk {$action} performed by admin: {$adminEmail} on users: " . implode(', ', $userNames));
             
             return response()->json([
                 'success' => true,

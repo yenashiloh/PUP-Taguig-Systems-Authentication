@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CourseDepartmentController;
 use App\Http\Controllers\UserValidationController;
+use App\Http\Controllers\AuditTrailController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
@@ -154,4 +155,21 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::get('/admin/profile', [AdminController::class, 'showProfile'])->name('admin.profile');
     Route::put('/admin/profile/update', [AdminController::class, 'updateProfile'])->name('admin.profile.update');
     Route::put('/admin/profile/update-password', [AdminController::class, 'updatePassword'])->name('admin.profile.update-password');
+
+     // Audit Trail Logs
+    Route::get('/audit-trails', [AuditTrailController::class, 'auditTrailPage'])->name('admin.audit-trail.audit-trail');
+    Route::get('/audit-trails/{id}', [AuditTrailController::class, 'show'])->name('audit.trails.show');
+
+    // Export Audit Logs
+    Route::get('/audit-trails-export', [AuditTrailController::class, 'export'])->name('audit.trails.export');
+
+    // Audit Trail Statistics (for dashboard)
+    Route::get('/audit-trails/statistics', [AuditTrailController::class, 'getStatistics'])->name('audit.trails.statistics');
+
+    // Cleanup Old Logs
+    Route::post('/audit-trails/cleanup', [AuditTrailController::class, 'cleanOldLogs'])->name('audit.trails.cleanup');
+
+    // Batch Upload Logs
+    Route::get('/batch-uploads', [AuditTrailController::class, 'batchUploads'])->name('batch.uploads.index');
+    Route::get('/batch-uploads/{id}', [AuditTrailController::class, 'showBatchUpload'])->name('batch.uploads.show');
 });

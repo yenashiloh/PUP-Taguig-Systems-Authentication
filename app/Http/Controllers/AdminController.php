@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Course;
+use App\Models\AuditTrail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -227,7 +228,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Reactivate User
+     * Reactivate User with Audit Trail
      */
     public function reactivateUser(Request $request, $userId)
     {
@@ -241,7 +242,25 @@ class AdminController extends Controller
                 ]);
             }
             
+            $oldStatus = $user->status;
             $user->update(['status' => 'Active']);
+            
+            // Log to audit trail
+            AuditTrail::log(
+                'reactivate_user',
+                'Reactivated user: ' . $user->first_name . ' ' . $user->last_name . ' (' . ($user->student_number ?? $user->employee_number) . ')',
+                'User',
+                $user->id,
+                $user->first_name . ' ' . $user->last_name,
+                [
+                    'user_id' => $user->id,
+                    'user_type' => $user->role,
+                    'id_number' => $user->student_number ?? $user->employee_number,
+                    'email' => $user->email,
+                    'old_status' => $oldStatus,
+                    'new_status' => 'Active'
+                ]
+            );
             
             // Log the reactivation
             \Log::info('User reactivated by admin: ' . Auth::guard('admin')->user()->email . ' | User: ' . $user->email);
@@ -261,7 +280,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Bulk Reactivate Users
+     * Bulk Reactivate Users with Audit Trail
      */
     public function bulkReactivateUsers(Request $request)
     {
@@ -291,6 +310,31 @@ class AdminController extends Controller
                                 'status' => 'Active',
                                 'updated_at' => now()
                             ]);
+            
+            // Log to audit trail
+            AuditTrail::log(
+                'bulk_reactivate_users',
+                "Bulk reactivated $updatedCount user(s)",
+                'User',
+                null,
+                'Bulk Action',
+                [
+                    'action' => 'bulk_reactivate',
+                    'user_count' => $updatedCount,
+                    'new_status' => 'Active',
+                    'affected_users' => $users->map(function($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'id_number' => $user->student_number ?? $user->employee_number,
+                            'email' => $user->email,
+                            'role' => $user->role,
+                            'old_status' => 'Deactivated',
+                            'new_status' => 'Active'
+                        ];
+                    })->toArray()
+                ]
+            );
             
             // Log the bulk action
             $adminEmail = Auth::guard('admin')->user()->email;
