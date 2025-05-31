@@ -92,12 +92,14 @@
                             <!-- Filter Section -->
                             <div class="row mb-3 align-items-center">
                                 <div class="col-12">
-                                    <form method="GET" action="{{ route('admin.audit-trail.audit-trail') }}" class="row g-3">
+                                    <form method="GET" action="{{ route('admin.audit-trail.audit-trail') }}"
+                                        class="row g-3">
                                         <div class="col-md-2">
                                             <select class="form-select" name="action">
                                                 <option value="">All Actions</option>
                                                 @foreach ($actions as $action)
-                                                    <option value="{{ $action }}" {{ request('action') == $action ? 'selected' : '' }}>
+                                                    <option value="{{ $action }}"
+                                                        {{ request('action') == $action ? 'selected' : '' }}>
                                                         {{ ucwords(str_replace('_', ' ', $action)) }}
                                                     </option>
                                                 @endforeach
@@ -107,7 +109,8 @@
                                             <select class="form-select" name="admin_email">
                                                 <option value="">All Admins</option>
                                                 @foreach ($adminEmails as $email)
-                                                    <option value="{{ $email }}" {{ request('admin_email') == $email ? 'selected' : '' }}>
+                                                    <option value="{{ $email }}"
+                                                        {{ request('admin_email') == $email ? 'selected' : '' }}>
                                                         {{ $email }}
                                                     </option>
                                                 @endforeach
@@ -117,26 +120,28 @@
                                             <select class="form-select" name="target_type">
                                                 <option value="">All Types</option>
                                                 @foreach ($targetTypes as $type)
-                                                    <option value="{{ $type }}" {{ request('target_type') == $type ? 'selected' : '' }}>
+                                                    <option value="{{ $type }}"
+                                                        {{ request('target_type') == $type ? 'selected' : '' }}>
                                                         {{ $type }}
                                                     </option>
                                                 @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <input type="date" class="form-control" name="date_from" 
-                                                   value="{{ request('date_from') }}" placeholder="From Date">
+                                            <input type="date" class="form-control" name="date_from"
+                                                value="{{ request('date_from') }}" placeholder="From Date">
                                         </div>
                                         <div class="col-md-2">
-                                            <input type="date" class="form-control" name="date_to" 
-                                                   value="{{ request('date_to') }}" placeholder="To Date">
+                                            <input type="date" class="form-control" name="date_to"
+                                                value="{{ request('date_to') }}" placeholder="To Date">
                                         </div>
                                         <div class="col-md-2">
                                             <div class="btn-group w-100" role="group">
                                                 <button type="submit" class="btn btn-primary btn-sm">
                                                     <i class="fas fa-filter me-1"></i> Filter
                                                 </button>
-                                                <a href="{{ route('admin.audit-trail.audit-trail') }}" class="btn btn-secondary btn-sm">
+                                                <a href="{{ route('admin.audit-trail.audit-trail') }}"
+                                                    class="btn btn-secondary btn-sm">
                                                     <i class="fas fa-times me-1"></i> Clear
                                                 </a>
                                             </div>
@@ -161,7 +166,7 @@
                                                 <h6>Date/Time</h6>
                                             </th>
                                             <th>
-                                                <h6>Admin</h6>
+                                                <h6>User</h6>
                                             </th>
                                             <th>
                                                 <h6>Action</h6>
@@ -172,9 +177,6 @@
                                             <th>
                                                 <h6>Target</h6>
                                             </th>
-                                            <th>
-                                                <h6>Actions</h6>
-                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -182,8 +184,10 @@
                                             <tr>
                                                 <td class="min-width">
                                                     <div>
-                                                        <p class="mb-0">{{ $trail->created_at->format('M d, Y') }}</p>
-                                                        <small class="text-muted">{{ $trail->created_at->format('h:i A') }}</small>
+                                                        <p class="mb-0">{{ $trail->created_at->format('M d, Y') }}
+                                                        </p>
+                                                        <small
+                                                            class="text-muted">{{ $trail->created_at->setTimezone('Asia/Manila')->format('h:i A') }}</small>
                                                     </div>
                                                 </td>
                                                 <td class="min-width">
@@ -203,20 +207,15 @@
                                                     </p>
                                                 </td>
                                                 <td class="min-width">
-                                                    @if($trail->target_type && $trail->target_name)
+                                                    @if ($trail->target_type && $trail->target_name)
                                                         <div>
                                                             <p class="mb-0 fw-medium">{{ $trail->target_type }}</p>
-                                                            <small class="text-muted">{{ Str::limit($trail->target_name, 30) }}</small>
+                                                            <small
+                                                                class="text-muted">{{ Str::limit($trail->target_name, 30) }}</small>
                                                         </div>
                                                     @else
                                                         <span class="text-muted">N/A</span>
                                                     @endif
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-outline-primary btn-sm" 
-                                                            onclick="viewAuditDetails({{ $trail->id }})">
-                                                        <i class="fas fa-eye me-1"></i> View
-                                                    </button>
                                                 </td>
                                             </tr>
                                         @empty
@@ -234,11 +233,11 @@
                             </div>
 
                             <!-- Pagination -->
-                            @if($auditTrails->hasPages())
+                            @if ($auditTrails->hasPages())
                                 <div class="d-flex justify-content-between align-items-center mt-4">
                                     <div>
                                         <p class="text-muted mb-0">
-                                            Showing {{ $auditTrails->firstItem() }} to {{ $auditTrails->lastItem() }} 
+                                            Showing {{ $auditTrails->firstItem() }} to {{ $auditTrails->lastItem() }}
                                             of {{ $auditTrails->total() }} results
                                         </p>
                                     </div>
@@ -266,7 +265,8 @@
             <div class="modal-body">
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Warning:</strong> This action will permanently delete old audit log entries and cannot be undone.
+                    <strong>Warning:</strong> This action will permanently delete old audit log entries and cannot be
+                    undone.
                 </div>
                 <form id="cleanupForm">
                     <div class="mb-3">
@@ -296,7 +296,8 @@
 </div>
 
 <!-- Audit Details Modal -->
-<div class="modal fade" id="auditDetailsModal" tabindex="-1" aria-labelledby="auditDetailsModalLabel" aria-hidden="true">
+<div class="modal fade" id="auditDetailsModal" tabindex="-1" aria-labelledby="auditDetailsModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -311,42 +312,41 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-submit form when filters change
-    const filterSelects = document.querySelectorAll('select[name="action"], select[name="admin_email"], select[name="target_type"]');
-    const dateInputs = document.querySelectorAll('input[name="date_from"], input[name="date_to"]');
-    
-    filterSelects.forEach(select => {
-        select.addEventListener('change', function() {
-            this.form.submit();
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-submit form when filters change
+        const filterSelects = document.querySelectorAll(
+            'select[name="action"], select[name="admin_email"], select[name="target_type"]');
+        const dateInputs = document.querySelectorAll('input[name="date_from"], input[name="date_to"]');
+
+        filterSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
+
+        dateInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                this.form.submit();
+            });
         });
     });
-    
-    dateInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            this.form.submit();
-        });
-    });
-});
 
-function viewAuditDetails(id) {
-    fetch(`{{ route('admin.audit-trail.audit-trail') }}/${id}`)
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('auditDetailsContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('auditDetailsModal')).show();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Error!', 'Failed to load audit details.', 'error');
-        });
-}
-
-
-
+    function viewAuditDetails(id) {
+        fetch(`{{ route('admin.audit-trail.audit-trail') }}/${id}`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('auditDetailsContent').innerHTML = html;
+                new bootstrap.Modal(document.getElementById('auditDetailsModal')).show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'Failed to load audit details.', 'error');
+            });
+    }
 </script>
 
 @include('admin.partials.footer')
 
 </body>
+
 </html>

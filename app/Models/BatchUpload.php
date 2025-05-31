@@ -20,6 +20,8 @@ class BatchUpload extends Model
         'import_summary',
         'errors',
         'status',
+        'batch_number',
+        'school_year',
         'started_at',
         'completed_at'
     ];
@@ -34,9 +36,11 @@ class BatchUpload extends Model
     /**
      * Generate a unique batch ID
      */
-    public static function generateBatchId()
+    public static function generateBatchId($type, $schoolYear, $batchNumber)
     {
-        return 'BATCH_' . strtoupper(Str::random(8)) . '_' . now()->format('YmdHis');
+        $typePrefix = strtoupper($type);
+        $batchStr = str_pad($batchNumber, 2, '0', STR_PAD_LEFT);
+        return "BATCH_{$typePrefix}_{$schoolYear}_B{$batchStr}_" . strtoupper(Str::random(6));
     }
 
     /**
@@ -94,6 +98,17 @@ class BatchUpload extends Model
     }
 
     /**
+     * Get formatted batch info
+     */
+    public function getFormattedBatchAttribute()
+    {
+        if ($this->batch_number && $this->school_year) {
+            return "Batch {$this->batch_number} ({$this->school_year})";
+        }
+        return 'N/A';
+    }
+
+    /**
      * Scope for recent uploads
      */
     public function scopeRecent($query, $days = 30)
@@ -115,5 +130,27 @@ class BatchUpload extends Model
     public function scopeByType($query, $type)
     {
         return $query->where('upload_type', $type);
+    }
+
+    /**
+     * Scope for specific batch
+     */
+    public function scopeByBatch($query, $batchNumber, $schoolYear = null)
+    {
+        $query->where('batch_number', $batchNumber);
+        
+        if ($schoolYear) {
+            $query->where('school_year', $schoolYear);
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Scope for specific school year
+     */
+    public function scopeBySchoolYear($query, $schoolYear)
+    {
+        return $query->where('school_year', $schoolYear);
     }
 }

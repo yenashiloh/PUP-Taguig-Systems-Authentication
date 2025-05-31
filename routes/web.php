@@ -76,9 +76,12 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::put('/admin/user-management/update-student/{id}', [UserManagementController::class, 'updateStudent'])->name('admin.user-management.update-student');
 
     // Deactivate and Activate Account
-    Route::post('/admin/toggle-user-status/{userId}', [UserManagementController::class, 'toggleUserStatus']);
 
+    Route::post('/admin/toggle-user-status/{userId}', [UserManagementController::class, 'toggleUserStatus']);
+        Route::post('/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])->name('bulk-toggle-user-status');
     // Show Course and Department Page
+
+    
     Route::get('/settings/course-department', [CourseDepartmentController::class, 'courseDepartmentPage'])->name('admin.settings.course');
     
     // Show Department Page
@@ -99,16 +102,17 @@ Route::middleware(['admin.auth'])->group(function () {
     // Update Course
     Route::put('/courses/{id}/update', [CourseDepartmentController::class, 'updateCourse'])->name('courses.update');
 
-    Route::post('/user-management/import-students', [UserManagementController::class, 'importStudents'])->name('admin.user-management.import-students');
-
     // Download template for student import
     Route::get('/user-management/download-template', [UserManagementController::class, 'downloadTemplate'])->name('admin.user-management.download-template');
 
     // Store Faculty
     Route::post('/faculty/store', [UserManagementController::class, 'storeFaculty'])->name('admin.user-management.store-faculty');
 
-    // Import Faculty
-    Route::post('/user-management/import-faculty', [UserManagementController::class, 'importFaculty'])->name('admin.user-management.import-faculty');
+    // Batch upload 
+    Route::post('/batch-upload-students', [UserManagementController::class, 'batchUploadStudents'])->name('batch-upload-students');
+    Route::post('/batch-upload-faculty', [UserManagementController::class, 'batchUploadFaculty'])->name('batch-upload-faculty');
+    Route::post('/batch-upload-faculty', [UserManagementController::class, 'batchUploadFaculty'])->name('batch-upload-faculty');
+    Route::post('/batch-upload-students', [UserManagementController::class, 'batchUploadStudents'])->name('batch-upload-students');
 
     // Download template for faculty import
     Route::get('/user-management/download-faculty-template', [UserManagementController::class, 'downloadFacultyTemplate'])->name('admin.user-management.download-faculty-template');
@@ -125,8 +129,7 @@ Route::middleware(['admin.auth'])->group(function () {
 
     // Export filtered students data
     Route::get('/user-management/export-filtered-students', [UserManagementController::class, 'exportFilteredStudents'])->name('admin.user-management.export-filtered-students');
-    Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])
-    ->name('admin.bulk-toggle-user-status');
+    Route::post('/admin/bulk-toggle-user-status', [UserManagementController::class, 'bulkToggleUserStatus'])->name('admin.bulk-toggle-user-status');
 
     //Update Department
     Route::put('/admin/settings/department/{id}/update', [CourseDepartmentController::class, 'updateDepartment'])->name('admin.settings.department.update');

@@ -22,6 +22,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Illuminate\Support\Facades\Log;
 
 class UserManagementController extends Controller
 {
@@ -240,29 +241,60 @@ class UserManagementController extends Controller
         }
     }
 
-    // Import Faculty from CSV or Excel
-       public function importFaculty(Request $request)
+    /**
+     * Batch Upload Faculty with School Year and Batch Number
+     */
+    public function batchUploadFaculty(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
+            'batch_number' => 'required|integer|min:1|max:10',
+            'school_year' => 'required|integer|min:2020|max:' . (date('Y') + 5),
+            'upload_files' => 'required|array|min:1|max:10',
+            'upload_files.*' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB limit
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()
-                ->with('import_error', 'Please upload a valid CSV or Excel file.')
-                ->withErrors($validator);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         try {
-            $file = $request->file('import_file');
             $admin = Auth::guard('admin')->user();
+            $batchNumber = $request->batch_number;
+            $schoolYear = $request->school_year;
+            $files = $request->file('upload_files');
             
-            // Generate batch ID
-            $batchId = BatchUpload::generateBatchId();
+            // Generate unique batch ID
+            $batchId = 'BATCH_FACULTY_' . $schoolYear . '_B' . str_pad($batchNumber, 2, '0', STR_PAD_LEFT) . '_' . strtoupper(Str::random(6));
             
-            // Store file
-            $fileName = $batchId . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('batch_uploads', $fileName);
+            $totalImported = 0;
+            $totalFailed = 0;
+            $totalRows = 0;
+            $allErrors = [];
+            $importedUsers = [];
+            $emailsSent = 0;
+            $emailsFailed = 0;
+            
+            // Validate total rows across all files first
+            foreach ($files as $fileIndex => $file) {
+                $spreadsheet = IOFactory::load($file->getPathname());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
+                
+                if (count($rows) > 1) { // Exclude header
+                    $totalRows += count($rows) - 1;
+                }
+            }
+            
+            if ($totalRows > 5000) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows."
+                ], 422);
+            }
             
             // Create batch upload record
             $batchUpload = BatchUpload::create([
@@ -270,310 +302,252 @@ class UserManagementController extends Controller
                 'admin_email' => $admin->email,
                 'admin_name' => $admin->first_name . ' ' . $admin->last_name,
                 'upload_type' => 'faculty',
-                'file_name' => $fileName,
-                'file_path' => $filePath,
+                'file_name' => count($files) . ' files uploaded',
+                'file_path' => 'batch_uploads/' . $batchId,
+                'total_rows' => $totalRows,
+                'batch_number' => $batchNumber,
+                'school_year' => $schoolYear,
                 'status' => 'processing',
                 'started_at' => now()
             ]);
-
-            // Additional file validation
-            if ($file->getSize() == 0) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'The uploaded file is empty.');
-            }
             
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-            
-            // Check if file has data
-            if (empty($rows) || count($rows) < 2) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
-            }
-            
-            // Check maximum rows limit
-            if (count($rows) > 1001) { // 1000 data rows + 1 header
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 faculty per import.');
-            }
-
-            // The first row should be headers
-            $headers = array_map('strtolower', array_map('trim', $rows[0]));
-            
-            // Check for empty headers
-            if (in_array('', $headers) || in_array(null, $headers)) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
-            }
-            
-            // Check if all required headers are present
-            $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
-            $missingHeaders = array_diff($requiredHeaders, $headers);
-            
-            if (!empty($missingHeaders)) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()
-                    ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
-            }
-
-            // Remove the header row
-            array_shift($rows);
-            
-            $imported = 0;
-            $failed = 0;
-            $emailsSent = 0;
-            $emailsFailed = 0;
-            $errors = [];
-            $totalRows = count($rows);
-            $importedUsers = [];
-            
-            // Update batch upload with total rows
-            $batchUpload->update(['total_rows' => $totalRows]);
-            
-            // Pre-check for duplicates within the file
-            $fileEmails = [];
-            $fileEmployeeNumbers = [];
-            
-            foreach ($rows as $index => $row) {
-                if (empty(array_filter($row))) continue;
+            // Process each file
+            foreach ($files as $fileIndex => $file) {
+                $fileName = $batchId . '_file_' . ($fileIndex + 1) . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('batch_uploads/' . $batchId, $fileName);
                 
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                }
+                $spreadsheet = IOFactory::load($file->getPathname());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
                 
-                $email = strtolower($rowData['email'] ?? '');
-                $employeeNumber = $rowData['employee_number'] ?? '';
-                $rowNumber = $index + 2;
-                
-                if ($email) {
-                    if (in_array($email, $fileEmails)) {
-                        $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
-                    } else {
-                        $fileEmails[] = $email;
-                    }
-                }
-                
-                if ($employeeNumber) {
-                    if (in_array($employeeNumber, $fileEmployeeNumbers)) {
-                        $errors[] = "Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file";
-                    } else {
-                        $fileEmployeeNumbers[] = $employeeNumber;
-                    }
-                }
-            }
-            
-            // Process each row
-            foreach ($rows as $index => $row) {
-                $rowNumber = $index + 2;
-                
-                // Skip empty rows
-                if (empty(array_filter($row))) {
+                if (empty($rows) || count($rows) < 2) {
+                    $allErrors[] = "File " . ($fileIndex + 1) . ": No data rows found";
                     continue;
                 }
                 
-                // Map columns to user fields
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                    $rowData[str_replace(' ', '_', strtolower($header))] = $value;
+                // Process file headers and data
+                $headers = array_map('strtolower', array_map('trim', $rows[0]));
+                $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
+                $missingHeaders = array_diff($requiredHeaders, $headers);
+                
+                if (!empty($missingHeaders)) {
+                    $allErrors[] = "File " . ($fileIndex + 1) . ": Missing required columns: " . implode(', ', $missingHeaders);
+                    continue;
                 }
                 
-                $hasError = false;
-                $rowErrors = [];
+                // Remove header row
+                array_shift($rows);
                 
-                // Validate email
-                $email = $rowData['email'] ?? '';
-                if (empty($email)) {
-                    $rowErrors[] = "Email is required";
-                    $hasError = true;
-                } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $rowErrors[] = "Email '$email' is not a valid email format";
-                    $hasError = true;
-                } elseif (User::where('email', strtolower($email))->exists()) {
-                    $rowErrors[] = "Email '$email' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate first name - UPDATED: Only letters and spaces
-                $firstName = $rowData['first_name'] ?? '';
-                if (empty($firstName)) {
-                    $rowErrors[] = "First name is required";
-                    $hasError = true;
-                } elseif (strlen($firstName) < 2) {
-                    $rowErrors[] = "First name '$firstName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
-                    $rowErrors[] = "First name '$firstName' can only contain letters and spaces ";
-                    $hasError = true;
-                }
-                
-                // Validate last name - UPDATED: Only letters and spaces
-                $lastName = $rowData['last_name'] ?? '';
-                if (empty($lastName)) {
-                    $rowErrors[] = "Last name is required";
-                    $hasError = true;
-                } elseif (strlen($lastName) < 2) {
-                    $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
-                    $rowErrors[] = "Last name '$lastName' can only contain letters and spaces   ";
-                    $hasError = true;
-                }
-                
-                // Validate middle name (optional) - UPDATED: Only letters and spaces
-                $middleName = $rowData['middle_name'] ?? '';
-                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
-                    $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces   ";
-                    $hasError = true;
-                }
-                
-                // Validate employee number
-                $employeeNumber = $rowData['employee_number'] ?? '';
-                if (empty($employeeNumber)) {
-                    $rowErrors[] = "Employee number is required";
-                    $hasError = true;
-                } elseif (strlen($employeeNumber) < 3) {
-                    $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
-                    $hasError = true;
-                } elseif (User::where('employee_number', $employeeNumber)->exists()) {
-                    $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate phone number
-                $phoneNumber = $rowData['phone_number'] ?? '';
-                if (empty($phoneNumber)) {
-                    $rowErrors[] = "Phone number is required";
-                    $hasError = true;
-                } elseif (strlen($phoneNumber) < 10) {
-                    $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
-                    $hasError = true;
-                }
-                
-                // Validate department
-                $department = $rowData['department'] ?? '';
-                if (empty($department)) {
-                    $rowErrors[] = "Department is required";
-                    $hasError = true;
-                }
-                
-                // Validate employment status
-                $employmentStatus = $rowData['employment_status'] ?? '';
-                $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
-                if (empty($employmentStatus)) {
-                    $rowErrors[] = "Employment status is required";
-                    $hasError = true;
-                } elseif (!in_array($employmentStatus, $validStatuses)) {
-                    $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
-                    $hasError = true;
-                }
-                
-                // Validate birthdate (optional)
-                $birthdate = $rowData['birthdate'] ?? '';
-                if (!empty($birthdate)) {
-                    try {
-                        $birthDate = Carbon::parse($birthdate);
-                        $age = $birthDate->age;
-                        if ($age < 18 || $age > 100) {
-                            $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
-                            $hasError = true;
-                        }
-                    } catch (\Exception $e) {
-                        $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                // Process each row in the file
+                foreach ($rows as $rowIndex => $row) {
+                    $actualRowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
+                    
+                    if (empty(array_filter($row))) continue;
+                    
+                    // Map columns to user fields
+                    $rowData = [];
+                    foreach ($headers as $colIndex => $header) {
+                        $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                        $rowData[str_replace(' ', '_', strtolower($header))] = $value;
+                    }
+                    
+                    $hasError = false;
+                    $rowErrors = [];
+                    
+                    // Validate email
+                    $email = $rowData['email'] ?? '';
+                    if (empty($email)) {
+                        $rowErrors[] = "Email is required";
+                        $hasError = true;
+                    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $rowErrors[] = "Email '$email' is not a valid email format";
+                        $hasError = true;
+                    } elseif (User::where('email', strtolower($email))->exists()) {
+                        $rowErrors[] = "Email '$email' already exists in the system";
                         $hasError = true;
                     }
-                }
-                
-                // If there are errors for this row, add them to the errors array
-                if ($hasError) {
-                    foreach ($rowErrors as $error) {
-                        $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
+                    
+                    // Validate first name
+                    $firstName = $rowData['first_name'] ?? '';
+                    if (empty($firstName)) {
+                        $rowErrors[] = "First name is required";
+                        $hasError = true;
+                    } elseif (strlen($firstName) < 2) {
+                        $rowErrors[] = "First name '$firstName' must be at least 2 characters";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
+                        $rowErrors[] = "First name '$firstName' can only contain letters and spaces";
+                        $hasError = true;
                     }
-                    $failed++;
-                    continue;
-                }
-                
-                // Create the user if all validations pass
-                try {
-                    // Generate a password like in storeFaculty
-                    $randomNumbers = rand(10000, 99999);
-                    $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                     
-                    $specialChars = "!@#$%^&*";
-                    $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
-                
-                    $password = $randomNumbers . $firstTwoLetters . $specialChar;
-                    $hashedPassword = Hash::make($password);
-
-                    $user = new User();
-                    $user->role = 'Faculty';
-                    $user->email = strtolower($email);
-                    $user->password = $hashedPassword;
-                    $user->first_name = ucwords(strtolower($firstName));
-                    $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
-                    $user->last_name = ucwords(strtolower($lastName));
-                    $user->employee_number = strtoupper($employeeNumber);
-                    $user->phone_number = $phoneNumber;
-                    $user->department = $department;
-                    $user->employment_status = ucfirst(strtolower($employmentStatus));
-                    $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
-                    $user->status = 'Active';
+                    // Validate last name
+                    $lastName = $rowData['last_name'] ?? '';
+                    if (empty($lastName)) {
+                        $rowErrors[] = "Last name is required";
+                        $hasError = true;
+                    } elseif (strlen($lastName) < 2) {
+                        $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+                        $rowErrors[] = "Last name '$lastName' can only contain letters and spaces";
+                        $hasError = true;
+                    }
                     
-                    $user->save();
-                    $imported++;
-                    $importedUsers[] = $user;
-
-                    // Send email notification with credentials
+                    // Validate middle name (optional)
+                    $middleName = $rowData['middle_name'] ?? '';
+                    if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
+                        $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
+                        $hasError = true;
+                    }
+                    
+                    // Validate employee number
+                    $employeeNumber = $rowData['employee_number'] ?? '';
+                    if (empty($employeeNumber)) {
+                        $rowErrors[] = "Employee number is required";
+                        $hasError = true;
+                    } elseif (strlen($employeeNumber) < 3) {
+                        $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
+                        $hasError = true;
+                    } elseif (User::where('employee_number', $employeeNumber)->exists()) {
+                        $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
+                        $hasError = true;
+                    }
+                    
+                    // Validate phone number
+                    $phoneNumber = $rowData['phone_number'] ?? '';
+                    if (empty($phoneNumber)) {
+                        $rowErrors[] = "Phone number is required";
+                        $hasError = true;
+                    } elseif (strlen($phoneNumber) < 10) {
+                        $rowErrors[] = "Phone number '$phoneNumber' must be at least 10 digits";
+                        $hasError = true;
+                    }
+                    
+                    // Validate department
+                    $department = $rowData['department'] ?? '';
+                    if (empty($department)) {
+                        $rowErrors[] = "Department is required";
+                        $hasError = true;
+                    }
+                    
+                    // Validate employment status
+                    $employmentStatus = $rowData['employment_status'] ?? '';
+                    $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
+                    if (empty($employmentStatus)) {
+                        $rowErrors[] = "Employment status is required";
+                        $hasError = true;
+                    } elseif (!in_array($employmentStatus, $validStatuses)) {
+                        $rowErrors[] = "Employment status '$employmentStatus' is not valid. Use: Full-Time or Part-Time";
+                        $hasError = true;
+                    }
+                    
+                    // Validate birthdate (optional)
+                    $birthdate = $rowData['birthdate'] ?? '';
+                    if (!empty($birthdate)) {
+                        try {
+                            $birthDate = Carbon::parse($birthdate);
+                            $age = $birthDate->age;
+                            if ($age < 18 || $age > 100) {
+                                $rowErrors[] = "Age based on birthdate '$birthdate' must be between 18 and 100 years";
+                                $hasError = true;
+                            }
+                        } catch (\Exception $e) {
+                            $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                            $hasError = true;
+                        }
+                    }
+                    
+                    // If there are errors for this row, add them to the errors array
+                    if ($hasError) {
+                        foreach ($rowErrors as $error) {
+                            $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): {$error}";
+                        }
+                        $totalFailed++;
+                        continue;
+                    }
+                    
+                    // Create the user if all validations pass
                     try {
-                        Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
-                            $message->to($user->email)
-                                    ->subject('PUP-Taguig Systems - Your Account Details');
-                        });
-                        $emailsSent++;
-                    } catch (\Exception $mailError) {
-                        \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
-                        $emailsFailed++;
-                        // Continue execution even if email fails
+                        // Generate password
+                        $randomNumbers = rand(10000, 99999);
+                        $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
+                        $specialChars = "!@#$%^&*";
+                        $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
+                        $password = $randomNumbers . $firstTwoLetters . $specialChar;
+                        $hashedPassword = Hash::make($password);
+
+                        $user = new User();
+                        $user->role = 'Faculty';
+                        $user->email = strtolower($email);
+                        $user->password = $hashedPassword;
+                        $user->first_name = ucwords(strtolower($firstName));
+                        $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
+                        $user->last_name = ucwords(strtolower($lastName));
+                        $user->employee_number = strtoupper($employeeNumber);
+                        $user->phone_number = $phoneNumber;
+                        $user->department = $department;
+                        $user->employment_status = ucfirst(strtolower($employmentStatus));
+                        $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
+                        $user->status = 'Active';
+                        $user->batch_number = $batchNumber;
+                        $user->school_year = $schoolYear;
+                        
+                        $user->save();
+                        $totalImported++;
+                        $importedUsers[] = $user;
+
+                        // Send email notification
+                        try {
+                            Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
+                                $message->to($user->email)
+                                        ->subject('PUP-Taguig Systems - Your Account Details');
+                            });
+                            $emailsSent++;
+                        } catch (\Exception $mailError) {
+                            $allErrors[] = "Email sending failed for '" . $user->email . "': " . $mailError->getMessage();
+                            $emailsFailed++;
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
+                        $totalFailed++;
+                        continue;
                     }
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
-                    $failed++;
-                    continue;
                 }
             }
             
             // Update batch upload with results
             $batchUpload->update([
-                'successful_imports' => $imported,
-                'failed_imports' => $failed,
+                'successful_imports' => $totalImported,
+                'failed_imports' => $totalFailed,
                 'import_summary' => [
                     'total' => $totalRows,
-                    'success' => $imported,
-                    'failed' => $failed,
+                    'success' => $totalImported,
+                    'failed' => $totalFailed,
                     'emails_sent' => $emailsSent,
-                    'emails_failed' => $emailsFailed
+                    'emails_failed' => $emailsFailed,
+                    'files_processed' => count($files)
                 ],
-                'errors' => $errors,
+                'errors' => $allErrors,
                 'status' => 'completed',
                 'completed_at' => now()
             ]);
 
-            // Log to audit trail for batch upload
+            // Log to audit trail
             AuditTrail::log(
                 'batch_upload_faculty',
-                "Batch uploaded $imported faculty members from file: $fileName",
+                "Batch uploaded $totalImported faculty members from " . count($files) . " files (Batch: $batchNumber, School Year: $schoolYear)",
                 'BatchUpload',
                 $batchUpload->id,
                 $batchId,
                 [
                     'batch_id' => $batchId,
-                    'file_name' => $fileName,
+                    'batch_number' => $batchNumber,
+                    'school_year' => $schoolYear,
+                    'files_count' => count($files),
                     'total_rows' => $totalRows,
-                    'successful_imports' => $imported,
-                    'failed_imports' => $failed,
+                    'successful_imports' => $totalImported,
+                    'failed_imports' => $totalFailed,
                     'imported_users' => $importedUsers->map(function($user) {
                         return [
                             'id' => $user->id,
@@ -585,46 +559,26 @@ class UserManagementController extends Controller
                 ]
             );
             
-            // Prepare session data
-            $summary = [
-                'total' => $totalRows,
-                'success' => $imported,
-                'failed' => $failed,
-                'emails_sent' => $emailsSent,
-                'emails_failed' => $emailsFailed
-            ];
+            return response()->json([
+                'success' => true,
+                'message' => "Batch upload completed! Successfully imported $totalImported faculty member(s) from " . count($files) . " file(s).",
+                'data' => [
+                    'batch_id' => $batchId,
+                    'total_processed' => $totalRows,
+                    'successful_imports' => $totalImported,
+                    'failed_imports' => $totalFailed,
+                    'emails_sent' => $emailsSent,
+                    'emails_failed' => $emailsFailed,
+                    'files_processed' => count($files)
+                ]
+            ]);
             
-            // Set appropriate messages
-            if ($imported > 0 && $failed == 0) {
-                // All successful
-                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
-                return redirect()->back()
-                    ->with('import_success', "Successfully imported all $imported faculty member(s)!{$emailMessage}")
-                    ->with('import_summary', $summary);
-            } elseif ($imported > 0 && $failed > 0) {
-                // Partial success
-                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
-                return redirect()->back()
-                    ->with('import_success', "Successfully imported $imported faculty member(s). $failed row(s) had errors and were skipped.{$emailMessage}")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
-            } elseif ($imported == 0 && $failed > 0) {
-                // All failed
-                return redirect()->back()
-                    ->with('import_error', "No faculty members were imported. All $failed row(s) contained errors.")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
-            } else {
-                // No data processed
-                return redirect()->back()->with('import_error', 'No valid data found to import.');
-            }
-            
-        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
-            Log::error('Spreadsheet reading error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
         } catch (\Exception $e) {
-            Log::error('Import error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Failed to import faculty: ' . $e->getMessage());
+            \Log::error('Batch upload error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process batch upload: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -1432,29 +1386,156 @@ class UserManagementController extends Controller
         }
     }
 
-        // Import Students from CSV or Excel with Batch Upload
-    public function importStudents(Request $request)
+    /**
+     * Batch Upload Students with School Year and Batch Number
+     */
+    public function batchUploadStudents(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'import_file' => 'required|file|mimes:csv,xlsx,xls|max:10240',
+            'batch_number' => 'required|integer|min:1|max:10',
+            'school_year' => 'required|integer|min:2020|max:' . (date('Y') + 5),
+            'upload_files' => 'required|array|min:1|max:10',
+            'upload_files.*' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB limit
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()
-                ->with('import_error', 'Please upload a valid CSV or Excel file.')
-                ->withErrors($validator);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         try {
-            $file = $request->file('import_file');
             $admin = Auth::guard('admin')->user();
+            $batchNumber = $request->batch_number;
+            $schoolYear = $request->school_year;
+            $files = $request->file('upload_files');
+
+            $totalSize = 0;
+            foreach ($files as $file) {
+                $totalSize += $file->getSize();
+            }
+
+            if ($totalSize > 10 * 1024 * 1024) {
+                return redirect()->back()
+                    ->with('batch_error', "Total combined file size exceeds the 10MB limit.");
+            }
             
-            // Generate batch ID
-            $batchId = BatchUpload::generateBatchId();
+            // Generate unique batch ID
+            $batchId = BatchUpload::generateBatchId('students', $schoolYear, $batchNumber);
             
-            // Store file
-            $fileName = $batchId . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('batch_uploads', $fileName);
+            $totalImported = 0;
+            $totalFailed = 0;
+            $totalRows = 0;
+            $allErrors = [];
+            $importedUsers = [];
+            $emailsSent = 0;
+            $emailsFailed = 0;
+            
+            // Pre-check for duplicates across all files
+            $allFileEmails = [];
+            $allFileStudentNumbers = [];
+            
+            // Validate total rows across all files first and check file structure
+            foreach ($files as $fileIndex => $file) {
+                // Additional file validation
+                if ($file->getSize() == 0) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " is empty.");
+                }
+                
+                $spreadsheet = IOFactory::load($file->getPathname());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
+                
+                // Check if file has data
+                if (empty($rows) || count($rows) < 2) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " must contain at least one data row besides the header.");
+                }
+                
+                // Check headers
+                $headers = array_map('strtolower', array_map('trim', $rows[0]));
+                
+                // Check for empty headers
+                if (in_array('', $headers) || in_array(null, $headers)) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " header row contains empty columns. Please ensure all columns have proper headers.");
+                }
+                
+                // Check if all required headers are present
+                $requiredHeaders = ['email', 'first name', 'last name', 'student number', 'program', 'year', 'section'];
+                $missingHeaders = array_diff($requiredHeaders, $headers);
+                
+                if (!empty($missingHeaders)) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " missing required columns: " . implode(', ', $missingHeaders));
+                }
+                
+                if (count($rows) > 1) { // Exclude header
+                    $totalRows += count($rows) - 1;
+                }
+                
+                // Pre-check for duplicates within each file
+                $fileEmails = [];
+                $fileStudentNumbers = [];
+                
+                // Remove header row for processing
+                $dataRows = array_slice($rows, 1);
+                
+                foreach ($dataRows as $index => $row) {
+                    if (empty(array_filter($row))) continue;
+                    
+                    $rowData = [];
+                    foreach ($headers as $colIndex => $header) {
+                        $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                    }
+                    
+                    $email = strtolower($rowData['email'] ?? '');
+                    $studentNumber = $rowData['student_number'] ?? '';
+                    $rowNumber = $index + 2;
+                    
+                    if ($email) {
+                        if (in_array($email, $fileEmails)) {
+                            return redirect()->back()
+                                ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Email '$email' is duplicated in the file");
+                        } else {
+                            $fileEmails[] = $email;
+                            
+                            // Check across all files
+                            if (in_array($email, $allFileEmails)) {
+                                return redirect()->back()
+                                    ->with('batch_error', "Email '$email' is duplicated across multiple files");
+                            } else {
+                                $allFileEmails[] = $email;
+                            }
+                        }
+                    }
+                    
+                    if ($studentNumber) {
+                        if (in_array($studentNumber, $fileStudentNumbers)) {
+                            return redirect()->back()
+                                ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Student number '$studentNumber' is duplicated in the file");
+                        } else {
+                            $fileStudentNumbers[] = $studentNumber;
+                            
+                            // Check across all files
+                            if (in_array($studentNumber, $allFileStudentNumbers)) {
+                                return redirect()->back()
+                                    ->with('batch_error', "Student number '$studentNumber' is duplicated across multiple files");
+                            } else {
+                                $allFileStudentNumbers[] = $studentNumber;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if ($totalRows > 5000) {
+                return redirect()->back()
+                    ->with('batch_error', "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows.");
+            }
             
             // Create batch upload record
             $batchUpload = BatchUpload::create([
@@ -1462,367 +1543,338 @@ class UserManagementController extends Controller
                 'admin_email' => $admin->email,
                 'admin_name' => $admin->first_name . ' ' . $admin->last_name,
                 'upload_type' => 'students',
-                'file_name' => $fileName,
-                'file_path' => $filePath,
+                'file_name' => count($files) . ' files uploaded',
+                'file_path' => 'batch_uploads/' . $batchId,
+                'total_rows' => $totalRows,
+                'batch_number' => $batchNumber,
+                'school_year' => $schoolYear,
                 'status' => 'processing',
                 'started_at' => now()
             ]);
-
-            // Additional file validation
-            if ($file->getSize() == 0) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'The uploaded file is empty.');
-            }
             
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-            
-            // Check if file has data
-            if (empty($rows) || count($rows) < 2) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'The file must contain at least one data row besides the header.');
-            }
-            
-            // Check maximum rows limit
-            if (count($rows) > 1001) { // 1000 data rows + 1 header
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'File contains too many rows. Maximum allowed is 1000 students per import.');
-            }
-
-            // The first row should be headers
-            $headers = array_map('strtolower', array_map('trim', $rows[0]));
-            
-            // Check for empty headers
-            if (in_array('', $headers) || in_array(null, $headers)) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()->with('import_error', 'Header row contains empty columns. Please ensure all columns have proper headers.');
-            }
-            
-            // Check if all required headers are present
-            $requiredHeaders = ['email', 'first name', 'last name', 'student number', 'program', 'year', 'section'];
-            $missingHeaders = array_diff($requiredHeaders, $headers);
-            
-            if (!empty($missingHeaders)) {
-                $batchUpload->update(['status' => 'failed', 'completed_at' => now()]);
-                return redirect()->back()
-                    ->with('import_error', 'Missing required columns: ' . implode(', ', $missingHeaders));
-            }
-
-            // Remove the header row
-            array_shift($rows);
-            
-            $imported = 0;
-            $failed = 0;
-            $emailsSent = 0;
-            $emailsFailed = 0;
-            $errors = [];
-            $totalRows = count($rows);
-            $importedUsers = [];
-            
-            // Update batch upload with total rows
-            $batchUpload->update(['total_rows' => $totalRows]);
-            
-            // Pre-check for duplicates within the file
-            $fileEmails = [];
-            $fileStudentNumbers = [];
-            
-            foreach ($rows as $index => $row) {
-                if (empty(array_filter($row))) continue;
+            // Process each file
+            foreach ($files as $fileIndex => $file) {
+                $fileName = $batchId . '_file_' . ($fileIndex + 1) . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('batch_uploads/' . $batchId, $fileName);
                 
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                }
+                $spreadsheet = IOFactory::load($file->getPathname());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
                 
-                $email = strtolower($rowData['email'] ?? '');
-                $studentNumber = $rowData['student_number'] ?? '';
-                $rowNumber = $index + 2;
+                // Process file headers and data
+                $headers = array_map('strtolower', array_map('trim', $rows[0]));
                 
-                if ($email) {
-                    if (in_array($email, $fileEmails)) {
-                        $errors[] = "Row $rowNumber: Email '$email' is duplicated in the file";
-                    } else {
-                        $fileEmails[] = $email;
+                // Remove header row
+                array_shift($rows);
+                
+                // Process each row in the file
+                foreach ($rows as $rowIndex => $row) {
+                    $actualRowNumber = $rowIndex + 2; 
+                    
+                    if (empty(array_filter($row))) continue;
+                    
+                    // Map columns to user fields
+                    $rowData = [];
+                    foreach ($headers as $colIndex => $header) {
+                        $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                        $rowData[str_replace(' ', '_', strtolower($header))] = $value;
                     }
-                }
-                
-                if ($studentNumber) {
-                    if (in_array($studentNumber, $fileStudentNumbers)) {
-                        $errors[] = "Row $rowNumber: Student number '$studentNumber' is duplicated in the file";
-                    } else {
-                        $fileStudentNumbers[] = $studentNumber;
-                    }
-                }
-            }
-            
-            // Process each row
-            foreach ($rows as $index => $row) {
-                $rowNumber = $index + 2;
-                
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-                
-                // Map columns to user fields
-                $rowData = [];
-                foreach ($headers as $colIndex => $header) {
-                    $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                    $rowData[str_replace(' ', '_', strtolower($header))] = $value;
-                }
-                
-                $hasError = false;
-                $rowErrors = [];
-                
-                // Validate email
-                $email = $rowData['email'] ?? '';
-                if (empty($email)) {
-                    $rowErrors[] = "Email is required";
-                    $hasError = true;
-                } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $rowErrors[] = "Email '$email' is not a valid email format";
-                    $hasError = true;
-                } elseif (User::where('email', strtolower($email))->exists()) {
-                    $rowErrors[] = "Email '$email' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate first name - UPDATED: Only letters and spaces
-                $firstName = $rowData['first_name'] ?? '';
-                if (empty($firstName)) {
-                    $rowErrors[] = "First name is required";
-                    $hasError = true;
-                } elseif (strlen($firstName) < 2) {
-                    $rowErrors[] = "First name '$firstName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
-                    $rowErrors[] = "First name '$firstName' can only contain letters and spaces";
-                    $hasError = true;
-                }
-                
-                // Validate last name - UPDATED: Only letters and spaces
-                $lastName = $rowData['last_name'] ?? '';
-                if (empty($lastName)) {
-                    $rowErrors[] = "Last name is required";
-                    $hasError = true;
-                } elseif (strlen($lastName) < 2) {
-                    $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
-                    $rowErrors[] = "Last name '$lastName' can only contain letters and spaces";
-                    $hasError = true;
-                }
-                
-                // Validate middle name (optional) - UPDATED: Only letters and spaces
-                $middleName = $rowData['middle_name'] ?? '';
-                if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
-                    $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
-                    $hasError = true;
-                }
-                
-                // Validate student number
-                $studentNumber = $rowData['student_number'] ?? '';
-                if (empty($studentNumber)) {
-                    $rowErrors[] = "Student number is required";
-                    $hasError = true;
-                } elseif (strlen($studentNumber) < 5) {
-                    $rowErrors[] = "Student number '$studentNumber' must be at least 5 characters";
-                    $hasError = true;
-                } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $studentNumber)) {
-                    $rowErrors[] = "Student number '$studentNumber' can only contain letters, numbers, and hyphens";
-                    $hasError = true;
-                } elseif (User::where('student_number', $studentNumber)->exists()) {
-                    $rowErrors[] = "Student number '$studentNumber' already exists in the system";
-                    $hasError = true;
-                }
-                
-                // Validate program
-                $program = $rowData['program'] ?? '';
-                if (empty($program)) {
-                    $rowErrors[] = "Program is required";
-                    $hasError = true;
-                }
-                
-                // Validate year
-                $year = $rowData['year'] ?? '';
-                $validYears = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '1', '2', '3', '4', '5'];
-                if (empty($year)) {
-                    $rowErrors[] = "Year is required";
-                    $hasError = true;
-                } elseif (!in_array($year, $validYears)) {
-                    $rowErrors[] = "Year '$year' is not valid. Use: 1st Year, 2nd Year, etc.";
-                    $hasError = true;
-                }
-                
-                // Validate section
-                $section = $rowData['section'] ?? '';
-                if (empty($section)) {
-                    $rowErrors[] = "Section is required";
-                    $hasError = true;
-                } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $section)) {
-                    $rowErrors[] = "Section '$section' contains invalid characters";
-                    $hasError = true;
-                }
-                
-                // Validate birthdate (optional)
-                $birthdate = $rowData['birthdate'] ?? '';
-                if (!empty($birthdate)) {
-                    try {
-                        $birthDate = Carbon::parse($birthdate);
-                        $age = $birthDate->age;
-                        if ($age < 15 || $age > 100) {
-                            $rowErrors[] = "Age based on birthdate '$birthdate' must be between 15 and 100 years";
-                            $hasError = true;
-                        }
-                    } catch (\Exception $e) {
-                        $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                    
+                    $hasError = false;
+                    $rowErrors = [];
+                    
+                    // Validate email
+                    $email = $rowData['email'] ?? '';
+                    if (empty($email)) {
+                        $rowErrors[] = "Email is required";
+                        $hasError = true;
+                    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $rowErrors[] = "Email '$email' is not a valid email format";
+                        $hasError = true;
+                    } elseif (User::where('email', strtolower($email))->exists()) {
+                        $rowErrors[] = "Email '$email' already exists in the system";
                         $hasError = true;
                     }
-                }
-                
-                // If there are errors for this row, add them to the errors array
-                if ($hasError) {
-                    foreach ($rowErrors as $error) {
-                        $errors[] = "Row $rowNumber ({$firstName} {$lastName}): {$error}";
+                    
+                    // Validate first name
+                    $firstName = $rowData['first_name'] ?? '';
+                    if (empty($firstName)) {
+                        $rowErrors[] = "First name is required";
+                        $hasError = true;
+                    } elseif (strlen($firstName) < 2) {
+                        $rowErrors[] = "First name '$firstName' must be at least 2 characters";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
+                        $rowErrors[] = "First name '$firstName' can only contain letters and spaces";
+                        $hasError = true;
                     }
-                    $failed++;
-                    continue;
-                }
-                
-                // Create the user if all validations pass
-                try {
-                    // Generate a password like in storeStudent
-                    $randomNumbers = rand(10000, 99999);
-                    $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                     
-                    $specialChars = "!@#$%^&*";
-                    $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
-                
-                    $password = $randomNumbers . $firstTwoLetters . $specialChar;
-                    $hashedPassword = Hash::make($password);
-
-                    $user = new User();
-                    $user->role = 'Student';
-                    $user->email = strtolower($email);
-                    $user->password = $hashedPassword;
-                    $user->first_name = ucwords(strtolower($firstName));
-                    $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
-                    $user->last_name = ucwords(strtolower($lastName));
-                    $user->student_number = strtoupper($studentNumber);
-                    $user->program = $program;
-                    $user->year = $year;
-                    $user->section = strtoupper($section);
-                    $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
-                    $user->status = 'Active';
+                    // Validate last name
+                    $lastName = $rowData['last_name'] ?? '';
+                    if (empty($lastName)) {
+                        $rowErrors[] = "Last name is required";
+                        $hasError = true;
+                    } elseif (strlen($lastName) < 2) {
+                        $rowErrors[] = "Last name '$lastName' must be at least 2 characters";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+                        $rowErrors[] = "Last name '$lastName' can only contain letters and spaces";
+                        $hasError = true;
+                    }
                     
-                    $user->save();
-                    $imported++;
-                    $importedUsers[] = $user;
-
-                    // Send email notification with credentials
+                    // Validate middle name (optional)
+                    $middleName = $rowData['middle_name'] ?? '';
+                    if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
+                        $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
+                        $hasError = true;
+                    }
+                    
+                    // Validate student number
+                    $studentNumber = $rowData['student_number'] ?? '';
+                    if (empty($studentNumber)) {
+                        $rowErrors[] = "Student number is required";
+                        $hasError = true;
+                    } elseif (strlen($studentNumber) < 5) {
+                        $rowErrors[] = "Student number '$studentNumber' must be at least 5 characters";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $studentNumber)) {
+                        $rowErrors[] = "Student number '$studentNumber' can only contain letters, numbers, and hyphens";
+                        $hasError = true;
+                    } elseif (User::where('student_number', $studentNumber)->exists()) {
+                        $rowErrors[] = "Student number '$studentNumber' already exists in the system";
+                        $hasError = true;
+                    }
+                    
+                    // Validate program
+                    $program = $rowData['program'] ?? '';
+                    if (empty($program)) {
+                        $rowErrors[] = "Program is required";
+                        $hasError = true;
+                    }
+                    
+                    // Validate year
+                    $year = $rowData['year'] ?? '';
+                    $validYears = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '1', '2', '3', '4', '5'];
+                    if (empty($year)) {
+                        $rowErrors[] = "Year is required";
+                        $hasError = true;
+                    } elseif (!in_array($year, $validYears)) {
+                        $rowErrors[] = "Year '$year' is not valid. Use: 1st Year, 2nd Year, etc.";
+                        $hasError = true;
+                    }
+                    
+                    // Validate section
+                    $section = $rowData['section'] ?? '';
+                    if (empty($section)) {
+                        $rowErrors[] = "Section is required";
+                        $hasError = true;
+                    } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $section)) {
+                        $rowErrors[] = "Section '$section' contains invalid characters";
+                        $hasError = true;
+                    }
+                    
+                    // Validate birthdate (optional)
+                    $birthdate = $rowData['birthdate'] ?? '';
+                    if (!empty($birthdate)) {
+                        try {
+                            $birthDate = Carbon::parse($birthdate);
+                            $age = $birthDate->age;
+                            if ($age < 15 || $age > 100) {
+                                $rowErrors[] = "Age based on birthdate '$birthdate' must be between 15 and 100 years";
+                                $hasError = true;
+                            }
+                        } catch (\Exception $e) {
+                            $rowErrors[] = "Birthdate '$birthdate' is not a valid date format";
+                            $hasError = true;
+                        }
+                    }
+                    
+                    // If there are errors for this row, add them to the errors array
+                    if ($hasError) {
+                        foreach ($rowErrors as $error) {
+                            $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): {$error}";
+                        }
+                        $totalFailed++;
+                        continue;
+                    }
+                    
+                    // Create the user if all validations pass
                     try {
-                        Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
-                            $message->to($user->email)
-                                    ->subject('PUP-Taguig Systems - Your Account Details');
-                        });
-                        $emailsSent++;
-                    } catch (\Exception $mailError) {
-                        \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
-                        $emailsFailed++;
-                        // Continue execution even if email fails
+                        // Generate a password
+                        $randomNumbers = rand(10000, 99999);
+                        $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
+                        $specialChars = "!@#$%^&*";
+                        $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
+                        $password = $randomNumbers . $firstTwoLetters . $specialChar;
+                        $hashedPassword = Hash::make($password);
+
+                        $user = new User();
+                        $user->role = 'Student';
+                        $user->email = strtolower($email);
+                        $user->password = $hashedPassword;
+                        $user->first_name = ucwords(strtolower($firstName));
+                        $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
+                        $user->last_name = ucwords(strtolower($lastName));
+                        $user->student_number = strtoupper($studentNumber);
+                        $user->program = $program;
+                        $user->year = $year;
+                        $user->section = strtoupper($section);
+                        $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
+                        $user->status = 'Active';
+                        
+                        $user->save();
+                        $totalImported++;
+                        $importedUsers[] = $user;
+
+                        // Send email notification with credentials
+                        try {
+                            Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
+                                $message->to($user->email)
+                                        ->subject('PUP-Taguig Systems - Your Account Details');
+                            });
+                            $emailsSent++;
+                        } catch (\Exception $mailError) {
+                            \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
+                            $emailsFailed++;
+                            // Log email failure
+                            AuditTrail::log(
+                                'batch_upload_students',
+                                "Failed to send email for student {$user->email} in batch {$batchId}",
+                                'User',
+                                $user->id,
+                                "{$user->first_name} {$user->last_name}",
+                                ['error' => $mailError->getMessage()]
+                            );
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
+                        $totalFailed++;
+                        continue;
                     }
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row $rowNumber ({$firstName} {$lastName}): Failed to save - " . $e->getMessage();
-                    $failed++;
-                    continue;
                 }
             }
             
-            // Update batch upload with results
+            // Update batch upload record
+            $status = 'completed';
+            if ($totalImported == 0 && $totalFailed > 0) {
+                $status = 'failed';
+            } elseif ($totalImported > 0) {
+                $status = 'completed';
+            }
+            
             $batchUpload->update([
-                'successful_imports' => $imported,
-                'failed_imports' => $failed,
+                'successful_imports' => $totalImported,
+                'failed_imports' => $totalFailed,
+                'status' => $status,
+                'completed_at' => now(),
+                'errors' => !empty($allErrors) ? $allErrors : null,
                 'import_summary' => [
+                    'batch_id' => $batchId,
                     'total' => $totalRows,
-                    'success' => $imported,
-                    'failed' => $failed,
+                    'success' => $totalImported,
+                    'failed' => $totalFailed,
                     'emails_sent' => $emailsSent,
                     'emails_failed' => $emailsFailed
-                ],
-                'errors' => $errors,
-                'status' => 'completed',
-                'completed_at' => now()
+                ]
             ]);
-
-            // Log to audit trail for batch upload
+            
+            // Log batch completion
             AuditTrail::log(
                 'batch_upload_students',
-                "Batch uploaded $imported students from file: $fileName",
+                "Completed batch {$batchNumber} upload with {$totalImported} successful and {$totalFailed} failed imports",
                 'BatchUpload',
-                $batchUpload->id,
                 $batchId,
+                "Batch {$batchNumber} ({$schoolYear})",
                 [
-                    'batch_id' => $batchId,
-                    'file_name' => $fileName,
                     'total_rows' => $totalRows,
-                    'successful_imports' => $imported,
-                    'failed_imports' => $failed,
-                    'imported_users' => $importedUsers->map(function($user) {
-                        return [
-                            'id' => $user->id,
-                            'name' => $user->first_name . ' ' . $user->last_name,
-                            'student_number' => $user->student_number,
-                            'email' => $user->email
-                        ];
-                    })->toArray()
+                    'successful_imports' => $totalImported,
+                    'failed_imports' => $totalFailed,
+                    'emails_sent' => $emailsSent,
+                    'emails_failed' => $emailsFailed,
+                    'errors' => $allErrors
                 ]
             );
             
-            // Prepare session data
+            // Prepare response
             $summary = [
+                'batch_id' => $batchId,
                 'total' => $totalRows,
-                'success' => $imported,
-                'failed' => $failed,
+                'success' => $totalImported,
+                'failed' => $totalFailed,
                 'emails_sent' => $emailsSent,
                 'emails_failed' => $emailsFailed
             ];
             
-            // Set appropriate messages
-            if ($imported > 0 && $failed == 0) {
+            if ($totalImported > 0 && $totalFailed == 0) {
                 // All successful
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
                 return redirect()->back()
-                    ->with('import_success', "Successfully imported all $imported student(s)!{$emailMessage}")
-                    ->with('import_summary', $summary);
-            } elseif ($imported > 0 && $failed > 0) {
+                    ->with('batch_success', "Successfully imported all $totalImported student(s)!{$emailMessage}");
+            } elseif ($totalImported > 0 && $totalFailed > 0) {
                 // Partial success
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
+                $mainMessage = "Successfully imported $totalImported student(s). $totalFailed row(s) had errors and were skipped.{$emailMessage}";
+                $errorList = '<div class="text-danger mb-0"><strong>Errors encountered:</strong></div>';
+                $errorList .= '<ul class="mt-1 mb-0 text-danger">';
+                foreach (array_slice($allErrors, 0, 8) as $error) {
+                    $errorList .= '<li>' . $error . '</li>';
+                }
+                if (count($allErrors) > 8) {
+                    $errorList .= '<li><em>... and ' . (count($allErrors) - 8) . ' more errors.</em></li>';
+                }
+                $errorList .= '</ul>';
+                
                 return redirect()->back()
-                    ->with('import_success', "Successfully imported $imported student(s). $failed row(s) had errors and were skipped.{$emailMessage}")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
-            } elseif ($imported == 0 && $failed > 0) {
+                    ->with('batch_success', $mainMessage . $errorList);
+            } elseif ($totalImported == 0 && $totalFailed > 0) {
                 // All failed
+                $mainMessage = "No students were imported. All $totalFailed row(s) contained errors:";
+                $errorList = '<ul class="mt-2 mb-0">';
+                foreach (array_slice($allErrors, 0, 10) as $error) {
+                    $errorList .= '<li>' . $error . '</li>';
+                }
+                if (count($allErrors) > 10) {
+                    $errorList .= '<li><em>... and ' . (count($allErrors) - 10) . ' more errors.</em></li>';
+                }
+                $errorList .= '</ul>';
+                
                 return redirect()->back()
-                    ->with('import_error', "No students were imported. All $failed row(s) contained errors.")
-                    ->with('import_errors', $errors)
-                    ->with('import_summary', $summary);
+                    ->with('batch_error', $mainMessage . $errorList);
             } else {
                 // No data processed
-                return redirect()->back()->with('import_error', 'No valid data found to import.');
+                return redirect()->back()
+                    ->with('batch_error', 'No valid data found to import.');
             }
             
         } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
-            Log::error('Spreadsheet reading error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
+            \Log::error('Spreadsheet reading error: ' . $e->getMessage());
+            // Log failure due to spreadsheet error
+            AuditTrail::log(
+                'batch_upload_students',
+                "Failed batch upload due to spreadsheet reading error",
+                'BatchUpload',
+                $batchId,
+                "Batch {$batchNumber} ({$schoolYear})",
+                ['error' => $e->getMessage()]
+            );
+            return redirect()->back()
+                ->with('batch_error', 'Unable to read one or more files. Please ensure they are valid Excel or CSV files.');
         } catch (\Exception $e) {
-            Log::error('Import error: ' . $e->getMessage());
-            return redirect()->back()->with('import_error', 'Failed to import students: ' . $e->getMessage());
+            \Log::error('Batch import error: ' . $e->getMessage());
+            // Log general failure
+            AuditTrail::log(
+                'batch_upload_students',
+                "Failed batch upload due to unexpected error",
+                'BatchUpload',
+                $batchId,
+                "Batch {$batchNumber} ({$schoolYear})",
+                ['error' => $e->getMessage()]
+            );
+            return redirect()->back()
+                ->with('batch_error', 'Failed to import students: ' . $e->getMessage());
         }
     }
-
     // Download a template file for student import
     public function downloadTemplate()
     {

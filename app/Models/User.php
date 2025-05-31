@@ -13,12 +13,13 @@ class User extends Authenticatable
     protected $fillable = [
         'role', 'email', 'password', 'first_name', 'middle_name', 'last_name',
         'phone_number', 'employee_number', 'department', 'student_number',
-        'program', 'year', 'section', 'birthdate', 'status',  'employment_status', 
+        'program', 'year', 'section', 'birthdate', 'status', 'employment_status',
+        'batch_number', 'school_year'
     ];
 
     protected $hidden = ['password'];
 
-    // Relationship with Course (assuming program field matches course_name)
+    // Relationship with Course
     public function course()
     {
         return $this->belongsTo(Course::class, 'program', 'course_name');
@@ -42,6 +43,18 @@ class User extends Authenticatable
                     ->whereNotNull('program')
                     ->whereNotNull('year')
                     ->whereNotNull('section');
+    }
+
+    // Scope for batch filtering
+    public function scopeByBatch($query, $batchNumber)
+    {
+        return $query->where('batch_number', $batchNumber);
+    }
+
+    // Scope for school year filtering
+    public function scopeBySchoolYear($query, $schoolYear)
+    {
+        return $query->where('school_year', $schoolYear);
     }
 
     // Static method to get program counts
@@ -80,6 +93,18 @@ class User extends Authenticatable
                    ->pluck('count', 'status');
     }
 
+    // Static method to get batch counts
+    public static function getBatchCounts()
+    {
+        return self::whereNotNull('batch_number')
+                   ->groupBy('batch_number', 'school_year')
+                   ->selectRaw('batch_number, school_year, COUNT(*) as count')
+                   ->get()
+                   ->mapWithKeys(function ($item) {
+                       return ["Batch {$item->batch_number} ({$item->school_year})" => $item->count];
+                   });
+    }
+
     // Static method to get all filter counts at once
     public static function getAllFilterCounts()
     {
@@ -88,6 +113,7 @@ class User extends Authenticatable
             'years' => self::getYearCounts(),
             'sections' => self::getSectionCounts(),
             'statuses' => self::getStatusCounts(),
+            'batches' => self::getBatchCounts(),
         ];
     }
 
@@ -107,6 +133,23 @@ class User extends Authenticatable
                             ->groupBy('status')
                             ->selectRaw('status, COUNT(*) as count')
                             ->pluck('count', 'status'),
+            'batches' => self::faculty()
+                            ->whereNotNull('batch_number')
+                            ->groupBy('batch_number', 'school_year')
+                            ->selectRaw('batch_number, school_year, COUNT(*) as count')
+                            ->get()
+                            ->mapWithKeys(function ($item) {
+                                return ["Batch {$item->batch_number} ({$item->school_year})" => $item->count];
+                            }),
         ];
+    }
+
+    // Get formatted batch display
+    public function getFormattedBatchAttribute()
+    {
+        if ($this->batch_number && $this->school_year) {
+            return "Batch {$this->batch_number} ({$this->school_year})";
+        }
+        return 'N/A';
     }
 }

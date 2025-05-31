@@ -36,74 +36,20 @@
             </div>
             <!-- ========== title-wrapper end ========== -->
 
-            <!-- Import Success Message -->
-            @if (session('import_success'))
+            <!-- Batch Upload Success Message -->
+            @if (session('batch_success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="fa fa-check-circle me-2"></i>
-                    {{ session('import_success') }}
+                    {{ session('batch_success') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
 
-            <!-- Import Error Message -->
-            @if (session('import_error'))
+            <!-- Batch Upload Error Message -->
+            @if (session('batch_error'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fa fa-exclamation-triangle me-2"></i>
-                    {{ session('import_error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <!-- Detailed Import Errors -->
-            @if (session('import_errors') && count(session('import_errors')) > 0)
-                <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="alert-heading mb-2">
-                                <i class="fa fa-exclamation-circle me-2"></i>
-                                Import Issues Found ({{ count(session('import_errors')) }} rows with errors)
-                            </h6>
-                            <div class="import-errors-container"
-                                style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px; background-color: #f8f9fa;">
-                                @foreach (session('import_errors') as $error)
-                                    <div class="error-item mb-2 p-2"
-                                        style="border-left: 3px solid #dc3545; background-color: white;">
-                                        <small class="text-danger fw-bold">{{ $error }}</small>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <div class="mt-2">
-                                <small class="text-muted">
-                                    <i class="fa fa-info-circle me-1"></i>
-                                    These rows were skipped. Please fix the errors and import again.
-                                </small>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"
-                            aria-label="Close"></button>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Import Summary -->
-            @if (session('import_summary'))
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
-                    <h6 class="alert-heading mb-2">
-                        <i class="fa fa-info-circle me-2"></i>
-                        Import Summary
-                    </h6>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <strong>Total Processed:</strong> {{ session('import_summary')['total'] ?? 0 }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong class="text-success">Successfully Imported:</strong>
-                            {{ session('import_summary')['success'] ?? 0 }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong class="text-danger">Failed:</strong> {{ session('import_summary')['failed'] ?? 0 }}
-                        </div>
-                    </div>
+                    {{ session('batch_error') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
@@ -152,8 +98,8 @@
 
                                     <button type="button"
                                         class="main-btn primary-btn-outline square-btn btn-hover me-2 btn-sm"
-                                        data-bs-toggle="modal" data-bs-target="#importModal">
-                                        <i class="fas fa-upload me-1"></i> Import
+                                        data-bs-toggle="modal" data-bs-target="#batchUploadModal">
+                                        <i class="fas fa-upload me-1"></i> Batch Upload
                                     </button>
                                     <!-- Export Dropdown -->
                                     <div class="dropdown">
@@ -243,6 +189,9 @@
                                                 <h6>Email</h6>
                                             </th>
                                             <th>
+                                                <h6>Batch Info</h6>
+                                            </th>
+                                            <th>
                                                 <h6>Account Status</h6>
                                             </th>
                                             <th>
@@ -288,6 +237,15 @@
                                                     <p><a href="#0">{{ $user->email }}</a></p>
                                                 </td>
                                                 <td class="min-width">
+                                                    @if($user->batch_number && $user->school_year)
+                                                        <span class="badge bg-info">
+                                                            Batch {{ $user->batch_number }} ({{ $user->school_year }})
+                                                        </span>
+                                                    @else
+                                                        <span class="text-muted"></span>
+                                                    @endif
+                                                </td>
+                                                <td class="min-width">
                                                     <p>
                                                         <a"> {{ $user->status }}</a>
                                                     </p>
@@ -323,6 +281,7 @@
                                                     No faculty members found
                                                 </td>
                                                 <td></td> <!-- Email column -->
+                                                <td></td> <!-- Batch Info column -->
                                                 <td></td> <!-- Status column -->
                                                 <td></td> <!-- Action column -->
                                             </tr>
@@ -446,68 +405,315 @@
         </div>
     </div>
 
-    <!-- Import Modal -->
-    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <form action="{{ route('admin.user-management.import-faculty') }}" method="POST"
-                enctype="multipart/form-data" id="importForm">
-                @csrf
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="importFacultyModalLabel">Import Faculty</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-                            id="closeModalBtn"></button>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="importFile" class="form-label">Upload CSV or Excel File</label>
-                            <input type="file" class="form-control" name="import_file" id="importFile"
-                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                                required>
-                            <small class="text-muted">Accepted formats: .csv, .xls, .xlsx</small>
+    <!-- Batch Upload Modal -->
+    <div class="modal fade" id="batchUploadModal" tabindex="-1" aria-labelledby="batchUploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchUploadModalLabel">
+                        <i class="fas fa-upload me-2"></i>Batch Upload Faculty
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="batchUploadForm" enctype="multipart/form-data">
+                        @csrf
+                        
+                        <!-- Progress Bar (Initially Hidden) -->
+                        <div id="uploadProgress" style="display: none;" class="mb-4">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    <span>Processing batch upload...</span>
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
                         </div>
 
+                        <!-- Batch Configuration -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="input-style-1">
+                                    <label>Select Batch Number <span class="text-danger">*</span></label>
+                                    <select class="form-control form-select" name="batch_number" required>
+                                        <option value="" disabled selected>Choose Batch Number</option>
+                                        @for ($i = 1; $i <= 10; $i++)
+                                            <option value="{{ $i }}">Batch {{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                    <div class="invalid-feedback">Please select a batch number.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-style-1">
+                                    <label>School Year <span class="text-danger">*</span></label>
+                                    <select class="form-control form-select" name="school_year" required>
+                                        <option value="" disabled selected>Choose School Year</option>
+                                        @php
+                                            $currentYear = date('Y');
+                                            $startYear = $currentYear - 5; // Show 5 years back
+                                            $endYear = $currentYear + 2;   // Show 2 years forward
+                                        @endphp
+                                        @for ($year = $endYear; $year >= $startYear; $year--)
+                                            <option value="{{ $year }}" {{ $year == $currentYear ? 'selected' : '' }}>
+                                                {{ $year }}
+                                            </option>
+                                        @endfor
+                                    </select>
+                                    <div class="invalid-feedback">Please select a school year.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Upload Section -->
+                        <div class="mb-4">
+                            <label class="form-label">Upload CSV/Excel Files <span class="text-danger">*</span></label>
+                            <div class="upload-container border rounded p-4" style="background-color: #f8f9fa;">
+                                <div class="text-center mb-3">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-2"></i>
+                                    <p class="mb-2">Drag and drop files here or click to browse</p>
+                                    <small class="text-muted">Multiple files supported (Max: 10 files, 10MB each)</small>
+                                </div>
+                                
+                                <input type="file" 
+                                       class="form-control" 
+                                       name="upload_files[]" 
+                                       id="batchUploadFiles"
+                                       multiple 
+                                       accept=".csv,.xlsx,.xls"
+                                       required>
+                                
+                                <div class="mt-3">
+                                    <div id="filesList" class="files-list"></div>
+                                    <div id="uploadValidation" class="validation-info mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upload Guidelines -->
                         <div class="alert alert-info">
-                            <p class="mb-1"><strong>Required columns:</strong></p>
-                            <ul class="mb-0">
-                                <li>Email</li>
-                                <li>First Name</li>
-                                <li>Middle Name (optional)</li>
-                                <li>Last Name</li>
-                                <li>Employee Number</li>
-                                <li>Phone Number</li>
-                                <li>Department</li>
-                                <li>Employment Status (Full-Time/Part-Time)</li>
-                                <li>Birthdate (format: MM/DD/YYYY)</li>
-                            </ul>
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-info-circle me-2"></i>Upload Guidelines
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>File Requirements:</strong></p>
+                                    <ul class="mb-2">
+                                        <li>Maximum 10 files per batch</li>
+                                        <li>Each file: 10MB maximum</li>
+                                        <li>Total rows: 5000 maximum</li>
+                                        <li>Formats: .csv, .xlsx, .xls</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Required Columns:</strong></p>
+                                    <ul class="mb-0">
+                                        <li>Email</li>
+                                        <li>First Name, Last Name</li>
+                                        <li>Employee Number</li>
+                                        <li>Phone Number</li>
+                                        <li>Department</li>
+                                        <li>Employment Status</li>
+                                        <li>Birthdate (optional)</li>
+                                    </ul>
+                                </div>
+                            </div>
                             <p class="mt-2 mb-0">
-                                <a href="{{ route('admin.user-management.download-faculty-template') }}"
-                                    class="text-primary">
-                                    <i class="fa fa-download me-1"></i> Download template
+                                <a href="{{ route('admin.user-management.download-faculty-template') }}" 
+                                   class="text-primary">
+                                    <i class="fa fa-download me-1"></i>Download Template
                                 </a>
                             </p>
                         </div>
 
-                        <div class="modal-footer">
-                            <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
-                                data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
-                            <button type="submit" class="main-button primary-btn" id="importBtn">
-                                <span id="importBtnText">Import</span>
-                                <span id="importBtnLoading" style="display: none;">
-                                    <span class="spinner-border spinner-border-sm me-1" role="status"
-                                        aria-hidden="true"></span>
-                                    Processing...
-                                </span>
-                            </button>
+                        <!-- Upload Summary (Initially Hidden) -->
+                        <div id="uploadSummary" style="display: none;" class="alert alert-success">
+                            <h6 class="alert-heading">Upload Summary</h6>
+                            <div id="summaryContent"></div>
                         </div>
-                    </div>
-            </form>
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="main-button light-btn btn-hover mb-1 me-2" 
+                            data-bs-dismiss="modal" id="cancelUploadBtn">Cancel</button>
+                    <button type="submit" class="main-button primary-btn btn-hover mb-1" 
+                            form="batchUploadForm" id="startUploadBtn">
+                        <i class="fas fa-upload me-1"></i>Start Batch Upload
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
 </main>
 <!-- ======== main-wrapper end =========== -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const batchUploadForm = document.getElementById('batchUploadForm');
+    const fileInput = document.getElementById('batchUploadFiles');
+    const filesList = document.getElementById('filesList');
+    const uploadValidation = document.getElementById('uploadValidation');
+    const startUploadBtn = document.getElementById('startUploadBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadSummary = document.getElementById('uploadSummary');
+
+    // File input change handler
+    fileInput.addEventListener('change', function() {
+        displaySelectedFiles();
+        validateUpload();
+    });
+
+    // Display selected files
+    function displaySelectedFiles() {
+        const files = fileInput.files;
+        filesList.innerHTML = '';
+        
+        if (files.length === 0) {
+            filesList.innerHTML = '<p class="text-muted mb-0">No files selected</p>';
+            return;
+        }
+
+        const filesContainer = document.createElement('div');
+        filesContainer.className = 'selected-files';
+
+        Array.from(files).forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item d-flex align-items-center justify-content-between p-2 mb-2 border rounded';
+            
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'd-flex align-items-center';
+            
+            const fileIcon = document.createElement('i');
+            fileIcon.className = getFileIcon(file.name);
+            
+            const fileName = document.createElement('span');
+            fileName.className = 'ms-2 fw-medium';
+            fileName.textContent = file.name;
+            
+            const fileSize = document.createElement('small');
+            fileSize.className = 'ms-2 text-muted';
+            fileSize.textContent = `(${formatFileSize(file.size)})`;
+            
+            fileInfo.appendChild(fileIcon);
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileSize);
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-outline-danger';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = () => removeFile(index);
+            
+            fileItem.appendChild(fileInfo);
+            fileItem.appendChild(removeBtn);
+            filesContainer.appendChild(fileItem);
+        });
+
+        filesList.appendChild(filesContainer);
+    }
+
+    // Validate upload
+    function validateUpload() {
+        const files = fileInput.files;
+        const validationMessages = [];
+        let isValid = true;
+
+        // Check file count
+        if (files.length > 10) {
+            validationMessages.push('⚠️ Maximum 10 files allowed');
+            isValid = false;
+        }
+
+        // Check individual file sizes and total size
+        let totalSize = 0;
+        Array.from(files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                validationMessages.push(`⚠️ ${file.name} exceeds 10MB limit`);
+                isValid = false;
+            }
+            totalSize += file.size;
+        });
+
+        // Check file types
+        const allowedTypes = ['.csv', '.xlsx', '.xls'];
+        Array.from(files).forEach(file => {
+            const extension = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(extension)) {
+                validationMessages.push(`⚠️ ${file.name} has unsupported format`);
+                isValid = false;
+            }
+        });
+
+        // Display validation results
+        if (validationMessages.length > 0) {
+            uploadValidation.innerHTML = `
+                <div class="alert alert-warning py-2">
+                    ${validationMessages.map(msg => `<div>${msg}</div>`).join('')}
+                </div>
+            `;
+        } else if (files.length > 0) {
+            uploadValidation.innerHTML = `
+                <div class="alert alert-success py-2">
+                    ✅ ${files.length} file(s) ready for upload (Total: ${formatFileSize(totalSize)})
+                </div>
+            `;
+        } else {
+            uploadValidation.innerHTML = '';
+        }
+
+        startUploadBtn.disabled = !isValid || files.length === 0;
+    }
+
+    // Remove file
+    function removeFile(index) {
+        const dt = new DataTransfer();
+        const files = fileInput.files;
+        
+        for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+                dt.items.add(files[i]);
+            }
+        }
+        
+        fileInput.files = dt.files;
+        displaySelectedFiles();
+        validateUpload();
+    }
+
+    // Get file icon
+    function getFileIcon(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        switch (extension) {
+            case 'csv':
+                return 'fas fa-file-csv text-success';
+            case 'xlsx':
+            case 'xls':
+                return 'fas fa-file-excel text-success';
+            default:
+                return 'fas fa-file text-secondary';
+        }
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle form submission
+    
+});
+</script>
+
 <script src="../../assets/admin/js/faculty.js"></script>
 @include('admin.partials.footer')
 

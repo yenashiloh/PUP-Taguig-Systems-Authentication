@@ -6115,3 +6115,10 @@ h6,
 button:disabled {
     cursor: not-allowed;
 }
+
+.eModalCenter {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
