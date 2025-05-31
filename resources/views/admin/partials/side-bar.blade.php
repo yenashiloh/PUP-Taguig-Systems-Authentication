@@ -31,7 +31,7 @@
                     <span class="text">Home</span>
                 </a>
             </li>
-            <li class="nav-item">
+            <li class="nav-item {{ request()->routeIs('admin.audit-trail.audit-trail') ? 'active' : '' }}">
                 <a href="{{ route('admin.audit-trail.audit-trail') }}">
                     <span class="icon">
                         <i class="fas fa-history"></i>

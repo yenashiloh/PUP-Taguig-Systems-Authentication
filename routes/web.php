@@ -110,8 +110,7 @@ Route::middleware(['admin.auth'])->group(function () {
 
     // Batch upload 
     Route::post('/batch-upload-students', [UserManagementController::class, 'batchUploadStudents'])->name('batch-upload-students');
-    Route::post('/batch-upload-faculty', [UserManagementController::class, 'batchUploadFaculty'])->name('batch-upload-faculty');
-    Route::post('/batch-upload-faculty', [UserManagementController::class, 'batchUploadFaculty'])->name('batch-upload-faculty');
+    Route::post('/admin/batch-upload-faculty', [UserManagementController::class, 'batchUploadFaculty'])->name('batch-upload-faculty');
     Route::post('/batch-upload-students', [UserManagementController::class, 'batchUploadStudents'])->name('batch-upload-students');
 
     // Download template for faculty import

@@ -36,74 +36,20 @@
             </div>
             <!-- ========== title-wrapper end ========== -->
 
-            <!-- Import Success Message -->
-            @if (session('import_success'))
+            <!-- Batch Upload Success Message -->
+            @if (session('batch_success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="fa fa-check-circle me-2"></i>
-                    {{ session('import_success') }}
+                    {!! session('batch_success') !!}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
 
-            <!-- Import Error Message -->
-            @if (session('import_error'))
+            <!-- Batch Upload Error Message -->
+            @if (session('batch_error'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fa fa-exclamation-triangle me-2"></i>
-                    {{ session('import_error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <!-- Detailed Import Errors -->
-            @if (session('import_errors') && count(session('import_errors')) > 0)
-                <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="alert-heading mb-2">
-                                <i class="fa fa-exclamation-circle me-2"></i>
-                                Import Issues Found ({{ count(session('import_errors')) }} rows with errors)
-                            </h6>
-                            <div class="import-errors-container"
-                                style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px; background-color: #f8f9fa;">
-                                @foreach (session('import_errors') as $error)
-                                    <div class="error-item mb-2 p-2"
-                                        style="border-left: 3px solid #dc3545; background-color: white;">
-                                        <small class="text-danger fw-bold">{{ $error }}</small>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <div class="mt-2">
-                                <small class="text-muted">
-                                    <i class="fa fa-info-circle me-1"></i>
-                                    These rows were skipped. Please fix the errors and import again.
-                                </small>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"
-                            aria-label="Close"></button>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Import Summary -->
-            @if (session('import_summary'))
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
-                    <h6 class="alert-heading mb-2">
-                        <i class="fa fa-info-circle me-2"></i>
-                        Import Summary
-                    </h6>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <strong>Total Processed:</strong> {{ session('import_summary')['total'] ?? 0 }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong class="text-success">Successfully Imported:</strong>
-                            {{ session('import_summary')['success'] ?? 0 }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong class="text-danger">Failed:</strong> {{ session('import_summary')['failed'] ?? 0 }}
-                        </div>
-                    </div>
+                    {!! session('batch_error') !!}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
@@ -152,8 +98,8 @@
 
                                     <button type="button"
                                         class="main-btn primary-btn-outline square-btn btn-hover me-2 btn-sm"
-                                        data-bs-toggle="modal" data-bs-target="#importModal">
-                                        <i class="fas fa-upload me-1"></i> Import
+                                        data-bs-toggle="modal" data-bs-target="#batchUploadModal">
+                                        <i class="fas fa-upload me-1"></i> Batch Upload
                                     </button>
                                     <!-- Export Dropdown -->
                                     <div class="dropdown">
@@ -289,7 +235,7 @@
                                                 </td>
                                                 <td class="min-width">
                                                     <p>
-                                                        <a"> {{ $user->status }}</a>
+                                                        <a> {{ $user->status }}</a>
                                                     </p>
                                                 </td>
                                                 <td>
@@ -446,68 +392,124 @@
         </div>
     </div>
 
-    <!-- Import Modal -->
-    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <!-- Batch Upload Modal -->
+    <div class="modal fade" id="batchUploadModal" tabindex="-1" aria-labelledby="batchUploadModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <form action="{{ route('admin.user-management.import-faculty') }}" method="POST"
-                enctype="multipart/form-data" id="importForm">
-                @csrf
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="importFacultyModalLabel">Import Faculty</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-                            id="closeModalBtn"></button>
-                    </div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchUploadModalLabel">
+                        <i class="fas fa-upload me-2"></i>Batch Upload Faculty
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-dialog-centered" style="max-height: 65vh; overflow-y: auto;">
+                    <form id="batchUploadForm" action="{{ route('batch-upload-faculty') }}" method="POST"
+                        enctype="multipart/form-data">
+                        @csrf
 
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="importFile" class="form-label">Upload CSV or Excel File</label>
-                            <input type="file" class="form-control" name="import_file" id="importFile"
-                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                                required>
-                            <small class="text-muted">Accepted formats: .csv, .xls, .xlsx</small>
-                        </div>
-
+                        <!-- Upload Guidelines -->
                         <div class="alert alert-info">
-                            <p class="mb-1"><strong>Required columns:</strong></p>
-                            <ul class="mb-0">
-                                <li>Email</li>
-                                <li>First Name</li>
-                                <li>Middle Name (optional)</li>
-                                <li>Last Name</li>
-                                <li>Employee Number</li>
-                                <li>Phone Number</li>
-                                <li>Department</li>
-                                <li>Employment Status (Full-Time/Part-Time)</li>
-                                <li>Birthdate (format: MM/DD/YYYY)</li>
-                            </ul>
-                            <p class="mt-2 mb-0">
-                                <a href="{{ route('admin.user-management.download-faculty-template') }}"
-                                    class="text-primary">
-                                    <i class="fa fa-download me-1"></i> Download template
-                                </a>
-                            </p>
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-info-circle me-2"></i>Upload Guidelines
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>File Requirements:</strong></p>
+                                    <ul class="mb-2">
+                                        <li>Maximum 10 files per batch</li>
+                                        <li>Total size: Maximum 10MB for all files combined</li>
+                                        <li>Total rows: 5000 maximum</li>
+                                        <li>Formats: .csv, .xlsx, .xls</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Required Columns:</strong></p>
+                                    <p class="mb-0">
+                                        Email, First Name, Middle Name (optional), Last Name, Employee Number, Phone
+                                        Number, Department, Employment Status, Birthdate
+                                    </p>
+                                    <!-- Template Download -->
+                                    <p class="mt-2 mb-0">
+                                        <a href="{{ route('admin.user-management.download-faculty-template') }}"
+                                            class="text-primary">
+                                            <i class="fa fa-download me-1"></i>Download Template
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="modal-footer">
-                            <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
-                                data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
-                            <button type="submit" class="main-button primary-btn" id="importBtn">
-                                <span id="importBtnText">Import</span>
-                                <span id="importBtnLoading" style="display: none;">
-                                    <span class="spinner-border spinner-border-sm me-1" role="status"
-                                        aria-hidden="true"></span>
-                                    Processing...
-                                </span>
-                            </button>
+                        <!-- Selections OUTSIDE the alert -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="input-style-1">
+                                    <label>Select Batch Number <span class="text-danger">*</span></label>
+                                    <select class="form-control form-select" name="batch_number" required>
+                                        <option value="" disabled selected>Choose Batch Number</option>
+                                        @for ($i = 1; $i <= 10; $i++)
+                                            <option value="{{ $i }}">Batch {{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                    <div class="invalid-feedback">Please select a batch number.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-style-1">
+                                    <label>School Year <span class="text-danger">*</span></label>
+                                    <select class="form-control form-select" name="school_year" required>
+                                        <option value="" disabled selected>Choose School Year</option>
+                                        @php
+                                            $currentYear = date('Y');
+                                            $startYear = $currentYear - 5;
+                                            $endYear = $currentYear;
+                                        @endphp
+                                        @for ($year = $endYear; $year >= $startYear; $year--)
+                                            <option value="{{ $year }}"
+                                                {{ $year == $currentYear ? 'selected' : '' }}>
+                                                {{ $year }}
+                                            </option>
+                                        @endfor
+                                    </select>
+                                    <div class="invalid-feedback">Please select a school year.</div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-            </form>
+
+                        <!-- File Upload Section -->
+                        <div class="mb-4">
+                            <label class="form-label">Upload CSV/Excel Files <span
+                                    class="text-danger">*</span></label>
+                            <div class="upload-container border rounded p-4" style="background-color: #f8f9fa;">
+                                <input type="file" class="form-control" name="upload_files[]"
+                                    id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
+                                <div class="text-center mb-1 mt-2">
+                                    <small class="text-muted">Multiple files supported (Max: 10 files, 10MB
+                                        each)</small>
+                                </div>
+                                <div class="">
+                                    <div id="filesList" class="files-list"></div>
+                                    <div id="uploadValidation" class="validation-info mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="main-button light-btn btn-hover mb-1 me-2" data-bs-dismiss="modal"
+                        id="cancelUploadBtn">Cancel</button>
+                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="batchUploadForm"
+                        id="startUploadBtn">
+                        <i class="fas fa-upload me-1"></i>Start Batch Upload
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
 </main>
 <!-- ======== main-wrapper end =========== -->
+
 <script src="../../assets/admin/js/faculty.js"></script>
 @include('admin.partials.footer')
 

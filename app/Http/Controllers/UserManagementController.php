@@ -254,11 +254,8 @@ class UserManagementController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $validator->errors()
-            ], 422);
+            return redirect()->back()
+                ->with('batch_error', 'Validation failed: ' . $validator->errors()->first());
         }
 
         try {
@@ -266,9 +263,19 @@ class UserManagementController extends Controller
             $batchNumber = $request->batch_number;
             $schoolYear = $request->school_year;
             $files = $request->file('upload_files');
+
+            $totalSize = 0;
+            foreach ($files as $file) {
+                $totalSize += $file->getSize();
+            }
+
+            if ($totalSize > 10 * 1024 * 1024) {
+                return redirect()->back()
+                    ->with('batch_error', "Total combined file size exceeds the 10MB limit.");
+            }
             
             // Generate unique batch ID
-            $batchId = 'BATCH_FACULTY_' . $schoolYear . '_B' . str_pad($batchNumber, 2, '0', STR_PAD_LEFT) . '_' . strtoupper(Str::random(6));
+            $batchId = BatchUpload::generateBatchId('faculty', $schoolYear, $batchNumber);
             
             $totalImported = 0;
             $totalFailed = 0;
@@ -278,22 +285,108 @@ class UserManagementController extends Controller
             $emailsSent = 0;
             $emailsFailed = 0;
             
-            // Validate total rows across all files first
+            // Pre-check for duplicates across all files
+            $allFileEmails = [];
+            $allFileEmployeeNumbers = [];
+            
+            // Validate total rows across all files first and check file structure
             foreach ($files as $fileIndex => $file) {
+                // Additional file validation
+                if ($file->getSize() == 0) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " is empty.");
+                }
+                
                 $spreadsheet = IOFactory::load($file->getPathname());
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
+                // Check if file has data
+                if (empty($rows) || count($rows) < 2) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " must contain at least one data row besides the header.");
+                }
+                
+                // Check headers
+                $headers = array_map('strtolower', array_map('trim', $rows[0]));
+                
+                // Check for empty headers
+                if (in_array('', $headers) || in_array(null, $headers)) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " header row contains empty columns. Please ensure all columns have proper headers.");
+                }
+                
+                // Check if all required headers are present
+                $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
+                $missingHeaders = array_diff($requiredHeaders, $headers);
+                
+                if (!empty($missingHeaders)) {
+                    return redirect()->back()
+                        ->with('batch_error', "File " . ($fileIndex + 1) . " missing required columns: " . implode(', ', $missingHeaders));
+                }
+                
                 if (count($rows) > 1) { // Exclude header
                     $totalRows += count($rows) - 1;
+                }
+                
+                // Pre-check for duplicates within each file
+                $fileEmails = [];
+                $fileEmployeeNumbers = [];
+                
+                // Remove header row for processing
+                $dataRows = array_slice($rows, 1);
+                
+                foreach ($dataRows as $index => $row) {
+                    if (empty(array_filter($row))) continue;
+                    
+                    $rowData = [];
+                    foreach ($headers as $colIndex => $header) {
+                        $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                    }
+                    
+                    $email = strtolower($rowData['email'] ?? '');
+                    $employeeNumber = $rowData['employee_number'] ?? '';
+                    $rowNumber = $index + 2;
+                    
+                    if ($email) {
+                        if (in_array($email, $fileEmails)) {
+                            return redirect()->back()
+                                ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Email '$email' is duplicated in the file");
+                        } else {
+                            $fileEmails[] = $email;
+                            
+                            // Check across all files
+                            if (in_array($email, $allFileEmails)) {
+                                return redirect()->back()
+                                    ->with('batch_error', "Email '$email' is duplicated across multiple files");
+                            } else {
+                                $allFileEmails[] = $email;
+                            }
+                        }
+                    }
+                    
+                    if ($employeeNumber) {
+                        if (in_array($employeeNumber, $fileEmployeeNumbers)) {
+                            return redirect()->back()
+                                ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file");
+                        } else {
+                            $fileEmployeeNumbers[] = $employeeNumber;
+                            
+                            // Check across all files
+                            if (in_array($employeeNumber, $allFileEmployeeNumbers)) {
+                                return redirect()->back()
+                                    ->with('batch_error', "Employee number '$employeeNumber' is duplicated across multiple files");
+                            } else {
+                                $allFileEmployeeNumbers[] = $employeeNumber;
+                            }
+                        }
+                    }
                 }
             }
             
             if ($totalRows > 5000) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows."
-                ], 422);
+                return redirect()->back()
+                    ->with('batch_error', "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows.");
             }
             
             // Create batch upload record
@@ -320,27 +413,15 @@ class UserManagementController extends Controller
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
-                if (empty($rows) || count($rows) < 2) {
-                    $allErrors[] = "File " . ($fileIndex + 1) . ": No data rows found";
-                    continue;
-                }
-                
                 // Process file headers and data
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
-                $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
-                $missingHeaders = array_diff($requiredHeaders, $headers);
-                
-                if (!empty($missingHeaders)) {
-                    $allErrors[] = "File " . ($fileIndex + 1) . ": Missing required columns: " . implode(', ', $missingHeaders);
-                    continue;
-                }
                 
                 // Remove header row
                 array_shift($rows);
                 
                 // Process each row in the file
                 foreach ($rows as $rowIndex => $row) {
-                    $actualRowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
+                    $actualRowNumber = $rowIndex + 2; 
                     
                     if (empty(array_filter($row))) continue;
                     
@@ -516,21 +597,29 @@ class UserManagementController extends Controller
                 }
             }
             
-            // Update batch upload with results
+            // Update batch upload record
+            $status = 'completed';
+            if ($totalImported == 0 && $totalFailed > 0) {
+                $status = 'failed';
+            } elseif ($totalImported > 0) {
+                $status = 'completed';
+            }
+            
             $batchUpload->update([
                 'successful_imports' => $totalImported,
                 'failed_imports' => $totalFailed,
+                'status' => $status,
+                'completed_at' => now(),
+                'errors' => !empty($allErrors) ? $allErrors : null,
                 'import_summary' => [
+                    'batch_id' => $batchId,
                     'total' => $totalRows,
                     'success' => $totalImported,
                     'failed' => $totalFailed,
                     'emails_sent' => $emailsSent,
                     'emails_failed' => $emailsFailed,
                     'files_processed' => count($files)
-                ],
-                'errors' => $allErrors,
-                'status' => 'completed',
-                'completed_at' => now()
+                ]
             ]);
 
             // Log to audit trail
@@ -548,37 +637,67 @@ class UserManagementController extends Controller
                     'total_rows' => $totalRows,
                     'successful_imports' => $totalImported,
                     'failed_imports' => $totalFailed,
-                    'imported_users' => $importedUsers->map(function($user) {
+                    'imported_users' => array_map(function($user) {
                         return [
                             'id' => $user->id,
                             'name' => $user->first_name . ' ' . $user->last_name,
                             'employee_number' => $user->employee_number,
                             'email' => $user->email
                         ];
-                    })->toArray()
+                    }, $importedUsers)
                 ]
             );
             
-            return response()->json([
-                'success' => true,
-                'message' => "Batch upload completed! Successfully imported $totalImported faculty member(s) from " . count($files) . " file(s).",
-                'data' => [
-                    'batch_id' => $batchId,
-                    'total_processed' => $totalRows,
-                    'successful_imports' => $totalImported,
-                    'failed_imports' => $totalFailed,
-                    'emails_sent' => $emailsSent,
-                    'emails_failed' => $emailsFailed,
-                    'files_processed' => count($files)
-                ]
-            ]);
+            // Prepare response messages exactly like student implementation
+            if ($totalImported > 0 && $totalFailed == 0) {
+                // All successful
+                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
+                return redirect()->back()
+                    ->with('batch_success', "Successfully imported all $totalImported faculty member(s)!{$emailMessage}");
+            } elseif ($totalImported > 0 && $totalFailed > 0) {
+                // Partial success
+                $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
+                $mainMessage = "Successfully imported $totalImported faculty member(s). $totalFailed row(s) had errors and were skipped.{$emailMessage}";
+                $errorList = '<div class="text-danger mb-0"><strong>Errors encountered:</strong></div>';
+                $errorList .= '<ul class="mt-1 mb-0 text-danger">';
+                foreach (array_slice($allErrors, 0, 8) as $error) {
+                    $errorList .= '<li>' . $error . '</li>';
+                }
+                if (count($allErrors) > 8) {
+                    $errorList .= '<li><em>... and ' . (count($allErrors) - 8) . ' more errors.</em></li>';
+                }
+                $errorList .= '</ul>';
+                
+                return redirect()->back()
+                    ->with('batch_success', $mainMessage . $errorList);
+            } elseif ($totalImported == 0 && $totalFailed > 0) {
+                // All failed
+                $mainMessage = "No faculty members were imported. All $totalFailed row(s) contained errors:";
+                $errorList = '<ul class="mt-2 mb-0">';
+                foreach (array_slice($allErrors, 0, 10) as $error) {
+                    $errorList .= '<li>' . $error . '</li>';
+                }
+                if (count($allErrors) > 10) {
+                    $errorList .= '<li><em>... and ' . (count($allErrors) - 10) . ' more errors.</em></li>';
+                }
+                $errorList .= '</ul>';
+                
+                return redirect()->back()
+                    ->with('batch_error', $mainMessage . $errorList);
+            } else {
+                // No data processed
+                return redirect()->back()
+                    ->with('batch_error', 'No valid data found to import.');
+            }
             
+        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+            \Log::error('Spreadsheet reading error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('batch_error', 'Unable to read one or more files. Please ensure they are valid Excel or CSV files.');
         } catch (\Exception $e) {
-            \Log::error('Batch upload error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to process batch upload: ' . $e->getMessage()
-            ], 500);
+            \Log::error('Batch import error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('batch_error', 'Failed to import faculty: ' . $e->getMessage());
         }
     }
 

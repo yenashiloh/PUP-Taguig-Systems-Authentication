@@ -829,3 +829,223 @@ function performBulkAction(userIds, action, actionPastTense) {
         );
     });
 }
+
+/**
+ * Batch Upload
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const batchUploadForm = document.getElementById('batchUploadForm');
+    const fileInput = document.getElementById('batchUploadFiles');
+    const filesList = document.getElementById('filesList');
+    const uploadValidation = document.getElementById('uploadValidation');
+    const startUploadBtn = document.getElementById('startUploadBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+
+    // File input change handler
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            displaySelectedFiles();
+            validateUpload();
+        });
+    }
+
+    // Display selected files
+    function displaySelectedFiles() {
+        const files = fileInput.files;
+        filesList.innerHTML = '';
+        
+        if (files.length === 0) {
+            filesList.innerHTML = '<p class="text-muted mb-0">No files selected</p>';
+            return;
+        }
+
+        const filesContainer = document.createElement('div');
+        filesContainer.className = 'selected-files';
+
+        Array.from(files).forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item d-flex align-items-center justify-content-between p-2 mb-2 border rounded';
+            
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'd-flex align-items-center';
+            
+            const fileIcon = document.createElement('i');
+            fileIcon.className = getFileIcon(file.name);
+            
+            const fileName = document.createElement('span');
+            fileName.className = 'ms-2 fw-medium';
+            fileName.textContent = file.name;
+            
+            const fileSize = document.createElement('small');
+            fileSize.className = 'ms-2 text-muted';
+            fileSize.textContent = `(${formatFileSize(file.size)})`;
+            
+            fileInfo.appendChild(fileIcon);
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileSize);
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-outline-danger';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = () => removeFile(index);
+            
+            fileItem.appendChild(fileInfo);
+            fileItem.appendChild(removeBtn);
+            filesContainer.appendChild(fileItem);
+        });
+
+        filesList.appendChild(filesContainer);
+    }
+
+    // Validate upload
+    function validateUpload() {
+        const files = fileInput.files;
+        const validationMessages = [];
+        let isValid = true;
+
+        // Check file count
+        if (files.length > 10) {
+            validationMessages.push('⚠️ Maximum 10 files allowed');
+            isValid = false;
+        }
+
+        // Check individual file sizes and total size
+        let totalSize = 0;
+        Array.from(files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                validationMessages.push(`⚠️ ${file.name} exceeds 10MB limit`);
+                isValid = false;
+            }
+            totalSize += file.size;
+        });
+
+        // Check total size limit (10MB combined)
+        if (totalSize > 10 * 1024 * 1024) {
+            validationMessages.push('⚠️ Total file size exceeds 10MB limit');
+            isValid = false;
+        }
+
+        // Check file types
+        const allowedTypes = ['.csv', '.xlsx', '.xls'];
+        Array.from(files).forEach(file => {
+            const extension = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(extension)) {
+                validationMessages.push(`⚠️ ${file.name} has unsupported format`);
+                isValid = false;
+            }
+        });
+
+        // Display validation results
+        if (validationMessages.length > 0) {
+            uploadValidation.innerHTML = `
+                <div class="alert alert-warning py-2">
+                    ${validationMessages.map(msg => `<div>${msg}</div>`).join('')}
+                </div>
+            `;
+        } else if (files.length > 0) {
+            uploadValidation.innerHTML = `
+                <div class="alert alert-success py-2">
+                    ✅ ${files.length} file(s) ready for upload (Total: ${formatFileSize(totalSize)})
+                </div>
+            `;
+        } else {
+            uploadValidation.innerHTML = '';
+        }
+
+        if (startUploadBtn) {
+            startUploadBtn.disabled = !isValid || files.length === 0;
+        }
+    }
+
+    // Remove file
+    function removeFile(index) {
+        const dt = new DataTransfer();
+        const files = fileInput.files;
+        
+        for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+                dt.items.add(files[i]);
+            }
+        }
+        
+        fileInput.files = dt.files;
+        displaySelectedFiles();
+        validateUpload();
+    }
+
+    // Get file icon
+    function getFileIcon(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        switch (extension) {
+            case 'csv':
+                return 'fas fa-file-csv text-success';
+            case 'xlsx':
+            case 'xls':
+                return 'fas fa-file-excel text-success';
+            default:
+                return 'fas fa-file text-secondary';
+        }
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle form submission
+    if (batchUploadForm) {
+        batchUploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                return;
+            }
+
+            // Show loading state
+            const originalText = startUploadBtn.innerHTML;
+            startUploadBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Processing...
+            `;
+            startUploadBtn.disabled = true;
+            cancelUploadBtn.disabled = true;
+
+            // Submit form normally
+            this.submit();
+        });
+    }
+
+    // Reset form when modal is closed
+    const modal = document.getElementById('batchUploadModal');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function () {
+            resetForm();
+        });
+    }
+
+    function resetForm() {
+        if (startUploadBtn) {
+            startUploadBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Start Batch Upload';
+            startUploadBtn.disabled = false;
+        }
+        if (cancelUploadBtn) {
+            cancelUploadBtn.disabled = false;
+        }
+        if (fileInput) {
+            fileInput.value = '';
+        }
+        if (filesList) {
+            filesList.innerHTML = '';
+        }
+        if (uploadValidation) {
+            uploadValidation.innerHTML = '';
+        }
+    }
+});

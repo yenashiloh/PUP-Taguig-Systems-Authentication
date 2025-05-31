@@ -13,111 +13,132 @@ class AuditTrailController extends Controller
     /**
      * Display audit trail logs
      */
-   public function auditTrailPage(Request $request)
-{
-    $admin = Auth::guard('admin')->user();
-    
-    // Build query for audit trails
-    $query = AuditTrail::query()->orderBy('created_at', 'desc');
-    
-    // Apply filters
-    if ($request->filled('action')) {
-        $query->where('action', $request->action);
-    }
-    
-    if ($request->filled('admin_email')) {
-        $query->where('admin_email', $request->admin_email);
-    }
-    
-    if ($request->filled('target_type')) {
-        $query->where('target_type', $request->target_type);
-    }
-    
-    // New batch filtering
-    if ($request->filled('batch_number')) {
-        $query->whereJsonContains('details->batch_number', (int)$request->batch_number);
-    }
-    
-    if ($request->filled('school_year')) {
-        $query->whereJsonContains('details->school_year', (int)$request->school_year);
-    }
-    
-    if ($request->filled('date_from')) {
-        $query->whereDate('created_at', '>=', $request->date_from);
-    }
-    
-    if ($request->filled('date_to')) {
-        $query->whereDate('created_at', '<=', $request->date_to);
-    }
-    
-    // Paginate results
-    $auditTrails = $query->paginate(50);
-    
-    // Get filter options
-    $actions = AuditTrail::select('action')
-                        ->distinct()
-                        ->orderBy('action')
-                        ->pluck('action');
-                        
-    $adminEmails = AuditTrail::select('admin_email')
+    public function auditTrailPage(Request $request)
+    {
+        $admin = Auth::guard('admin')->user();
+        
+        // Build query for audit trails - REMOVE PAGINATION FOR NOW
+        $query = AuditTrail::query()->orderBy('created_at', 'desc');
+        
+        // Only apply filters if they are specifically requested (not on initial load)
+        $hasFilters = $request->filled('action') || 
+                    $request->filled('admin_email') || 
+                    $request->filled('target_type') || 
+                    $request->filled('batch_number') || 
+                    $request->filled('school_year') || 
+                    $request->filled('date_from') || 
+                    $request->filled('date_to');
+        
+        if ($hasFilters) {
+            // Apply filters only when explicitly requested
+            if ($request->filled('action')) {
+                $query->where('action', $request->action);
+            }
+            
+            if ($request->filled('admin_email')) {
+                $query->where('admin_email', $request->admin_email);
+            }
+            
+            if ($request->filled('target_type')) {
+                $query->where('target_type', $request->target_type);
+            }
+            
+            if ($request->filled('batch_number')) {
+                $query->whereJsonContains('details->batch_number', (int)$request->batch_number);
+            }
+            
+            if ($request->filled('school_year')) {
+                $query->whereJsonContains('details->school_year', (int)$request->school_year);
+            }
+            
+            if ($request->filled('date_from')) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            
+            if ($request->filled('date_to')) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+            
+            // Get filtered results
+            $auditTrails = $query->get();
+        } else {
+            // Get all results for initial load - limit to reasonable amount
+            $auditTrails = $query->limit(100)->get(); // Increase limit or remove entirely
+        }
+        
+        // Add debugging - Remove this after fixing
+        \Log::info('Audit Trail Debug:', [
+            'total_in_db' => AuditTrail::count(),
+            'query_count' => $auditTrails->count(),
+            'has_filters' => $hasFilters,
+            'request_params' => $request->all()
+        ]);
+        
+        // Get filter options
+        $actions = AuditTrail::select('action')
                             ->distinct()
-                            ->orderBy('admin_email')
-                            ->pluck('admin_email');
+                            ->orderBy('action')
+                            ->pluck('action');
                             
-    $targetTypes = AuditTrail::select('target_type')
-                            ->whereNotNull('target_type')
-                            ->distinct()
-                            ->orderBy('target_type')
-                            ->pluck('target_type');
-    
-    // Get batch numbers and school years from batch uploads
-    $batchNumbers = BatchUpload::select('batch_number')
-                              ->distinct()
-                              ->whereNotNull('batch_number')
-                              ->orderBy('batch_number')
-                              ->pluck('batch_number');
-                              
-    $schoolYears = BatchUpload::select('school_year')
-                             ->distinct()
-                             ->whereNotNull('school_year')
-                             ->orderBy('school_year', 'desc')
-                             ->pluck('school_year');
-    
-    // Get summary statistics
-    $totalLogs = AuditTrail::count();
-    $logsToday = AuditTrail::whereDate('created_at', today())->count();
-    $logsThisWeek = AuditTrail::whereBetween('created_at', [
-        now()->startOfWeek(),
-        now()->endOfWeek()
-    ])->count();
-    $logsThisMonth = AuditTrail::whereMonth('created_at', now()->month)
-                             ->whereYear('created_at', now()->year)
-                             ->count();
-    
-    // Batch upload statistics
-    $totalBatchUploads = BatchUpload::count();
-    $batchUploadsToday = BatchUpload::whereDate('created_at', today())->count();
-    $successfulBatches = BatchUpload::where('status', 'completed')->count();
-    $failedBatches = BatchUpload::where('status', 'failed')->count();
-    
-    return view('admin.audit-trail.audit-trail', compact(
-        'admin',
-        'auditTrails',
-        'actions',
-        'adminEmails',
-        'targetTypes',
-        'batchNumbers',
-        'schoolYears',
-        'totalLogs',
-        'logsToday',
-        'logsThisWeek',
-        'logsThisMonth',
-        'totalBatchUploads',
-        'batchUploadsToday',
-        'successfulBatches',
-        'failedBatches'
-    ));
-}
+        $adminEmails = AuditTrail::select('admin_email')
+                                ->distinct()
+                                ->orderBy('admin_email')
+                                ->pluck('admin_email');
+                                
+        $targetTypes = AuditTrail::select('target_type')
+                                ->whereNotNull('target_type')
+                                ->distinct()
+                                ->orderBy('target_type')
+                                ->pluck('target_type');
+        
+        // Get batch numbers and school years from batch uploads
+        $batchNumbers = BatchUpload::select('batch_number')
+                                ->distinct()
+                                ->whereNotNull('batch_number')
+                                ->orderBy('batch_number')
+                                ->pluck('batch_number');
+                                
+        $schoolYears = BatchUpload::select('school_year')
+                                ->distinct()
+                                ->whereNotNull('school_year')
+                                ->orderBy('school_year', 'desc')
+                                ->pluck('school_year');
+        
+        // Get summary statistics
+        $totalLogs = AuditTrail::count();
+        $logsToday = AuditTrail::whereDate('created_at', today())->count();
+        $logsThisWeek = AuditTrail::whereBetween('created_at', [
+            now()->startOfWeek(),
+            now()->endOfWeek()
+        ])->count();
+        $logsThisMonth = AuditTrail::whereMonth('created_at', now()->month)
+                                ->whereYear('created_at', now()->year)
+                                ->count();
+        
+        // Batch upload statistics
+        $totalBatchUploads = BatchUpload::count();
+        $batchUploadsToday = BatchUpload::whereDate('created_at', today())->count();
+        $successfulBatches = BatchUpload::where('status', 'completed')->count();
+        $failedBatches = BatchUpload::where('status', 'failed')->count();
+        
+        return view('admin.audit-trail.audit-trail', compact(
+            'admin',
+            'auditTrails',
+            'actions',
+            'adminEmails',
+            'targetTypes',
+            'batchNumbers',
+            'schoolYears',
+            'totalLogs',
+            'logsToday',
+            'logsThisWeek',
+            'logsThisMonth',
+            'totalBatchUploads',
+            'batchUploadsToday',
+            'successfulBatches',
+            'failedBatches'
+        ));
+    }
     /**
      * Show detailed audit trail entry
      */
@@ -285,129 +306,5 @@ class AuditTrailController extends Controller
         ];
         
         return response()->json($stats);
-    }
-    
-    /**
-     * Clean old audit trail logs
-     */
-    public function cleanOldLogs(Request $request)
-    {
-        try {
-            $request->validate([
-                'days' => 'required|integer|min:30|max:365'
-            ]);
-            
-            $days = $request->days;
-            $cutoffDate = now()->subDays($days);
-            
-            $deletedCount = AuditTrail::where('created_at', '<', $cutoffDate)->delete();
-            
-            // Log the cleanup action
-            AuditTrail::log(
-                'cleanup_audit_logs',
-                "Cleaned up $deletedCount audit log entries older than $days days",
-                'AuditTrail',
-                null,
-                'System Cleanup',
-                [
-                    'deleted_count' => $deletedCount,
-                    'cutoff_date' => $cutoffDate->format('Y-m-d H:i:s'),
-                    'retention_days' => $days
-                ]
-            );
-            
-            return response()->json([
-                'success' => true,
-                'message' => "Successfully deleted $deletedCount old audit log entries.",
-                'deleted_count' => $deletedCount
-            ]);
-            
-        } catch (\Exception $e) {
-            \Log::error('Audit trail cleanup error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to clean up old audit logs.'
-            ], 500);
-        }
-    }
-    
-    /**
-     * Display batch upload history
-     */
-    public function batchUploads(Request $request)
-    {
-        $admin = Auth::guard('admin')->user();
-        
-        // Build query for batch uploads
-        $query = BatchUpload::query()->orderBy('created_at', 'desc');
-        
-        // Apply filters
-        if ($request->filled('upload_type')) {
-            $query->where('upload_type', $request->upload_type);
-        }
-        
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        
-        if ($request->filled('admin_email')) {
-            $query->where('admin_email', $request->admin_email);
-        }
-        
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-        
-        // Paginate results
-        $batchUploads = $query->paginate(20);
-        
-        // Get filter options
-        $uploadTypes = BatchUpload::select('upload_type')
-                                 ->distinct()
-                                 ->orderBy('upload_type')
-                                 ->pluck('upload_type');
-                                 
-        $statuses = BatchUpload::select('status')
-                              ->distinct()
-                              ->orderBy('status')
-                              ->pluck('status');
-                              
-        $adminEmails = BatchUpload::select('admin_email')
-                                 ->distinct()
-                                 ->orderBy('admin_email')
-                                 ->pluck('admin_email');
-        
-        // Get summary statistics
-        $totalUploads = BatchUpload::count();
-        $successfulUploads = BatchUpload::where('status', 'completed')->count();
-        $failedUploads = BatchUpload::where('status', 'failed')->count();
-        $processingUploads = BatchUpload::where('status', 'processing')->count();
-        
-        return view('admin.audit-trail.batch-uploads', compact(
-            'admin',
-            'batchUploads',
-            'uploadTypes',
-            'statuses',
-            'adminEmails',
-            'totalUploads',
-            'successfulUploads',
-            'failedUploads',
-            'processingUploads'
-        ));
-    }
-    
-    /**
-     * Show detailed batch upload information
-     */
-    public function showBatchUpload($id)
-    {
-        $admin = Auth::guard('admin')->user();
-        $batchUpload = BatchUpload::findOrFail($id);
-        
-        return view('admin.audit-trail.batch-upload-details', compact('admin', 'batchUpload'));
     }
 }
