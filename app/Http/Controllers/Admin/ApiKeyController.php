@@ -78,15 +78,12 @@ class ApiKeyController extends Controller
                 ]
             );
 
-            // TEMPORARY: Skip email sending
-            // Mail::to($validated['developer_email'])->send(new ApiKeyGenerated($result['api_key'], $result['raw_key']));
-
             $message = 'API key generated successfully! Please provide the key to the developer manually.';
 
             return redirect()->route('admin.api-keys.show', $result['api_key'])
                             ->with('success', $message)
                             ->with('raw_key', $result['raw_key']); // Show once
-                            
+
         } catch (\Exception $e) {
             Log::error('Error generating API key: ' . $e->getMessage());
             return redirect()->back()
@@ -212,42 +209,77 @@ class ApiKeyController extends Controller
     /**
      * Regenerate API key
      */
-   public function regenerate(ApiKey $apiKey)
-{
-    try {
-        // Generate new key but keep same settings
-        $result = ApiKey::generateKey(
-            $apiKey->application_name,
-            $apiKey->developer_name,
-            $apiKey->developer_email,
-            Auth::guard('admin')->id(),
-            [
-                'key_name' => $apiKey->key_name . '_regenerated_' . time(),
-                'description' => $apiKey->description,
-                'allowed_domains' => $apiKey->allowed_domains,
-                'permissions' => $apiKey->permissions,
-                'rate_limit' => $apiKey->request_limit_per_minute,
-                'expires_at' => $apiKey->expires_at,
-            ]
-        );
+    public function regenerate(Request $request, ApiKey $apiKey)
+    {
+        try {
+            // Generate new key but keep same settings
+            $result = ApiKey::generateKey(
+                $apiKey->application_name,
+                $apiKey->developer_name,
+                $apiKey->developer_email,
+                Auth::guard('admin')->id(),
+                [
+                    'key_name' => $apiKey->key_name . '_regenerated_' . time(),
+                    'description' => $apiKey->description,
+                    'allowed_domains' => $apiKey->allowed_domains,
+                    'permissions' => $apiKey->permissions,
+                    'rate_limit' => $apiKey->request_limit_per_minute,
+                    'expires_at' => $apiKey->expires_at,
+                ]
+            );
 
-        // Deactivate old key
-        $apiKey->update(['is_active' => false]);
+            // Deactivate old key
+            $apiKey->update(['is_active' => false]);
 
-        // TEMPORARY: Skip email sending
-        // Mail::to($apiKey->developer_email)->send(new ApiKeyGenerated($result['api_key'], $result['raw_key']));
+            $message = 'API key regenerated successfully! Please provide the new key to the developer manually.';
 
-        $message = 'API key regenerated successfully! Please provide the new key to the developer manually.';
-
-        return redirect()->route('admin.api-keys.show', $result['api_key'])
-                        ->with('success', $message)
-                        ->with('raw_key', $result['raw_key']);
-                        
-    } catch (\Exception $e) {
-        Log::error('Error regenerating API key: ' . $e->getMessage());
-        return redirect()->back()
-                        ->with('error', 'Failed to regenerate API key. Please try again.');
+            return redirect()->route('admin.api-keys.show', $result['api_key'])
+                            ->with('success', $message)
+                            ->with('raw_key', $result['raw_key']);
+                            
+        } catch (\Exception $e) {
+            Log::error('Error regenerating API key: ' . $e->getMessage());
+            return redirect()->back()
+                            ->with('error', 'Failed to regenerate API key. Please try again.');
+        }
     }
+
+    /**
+     * Send API key via email manually
+     */
+    public function sendByEmail(Request $request, ApiKey $apiKey)
+    {
+        try {
+            $validated = $request->validate([
+                'email' => 'required|email',
+                'message' => 'nullable|string|max:500'
+            ]);
+
+            // Create a temporary email with instructions (no raw key since it can't be retrieved)
+            $emailData = [
+                'apiKey' => $apiKey,
+                'customMessage' => $validated['message'] ?? null,
+                'adminName' => Auth::guard('admin')->user()->first_name . ' ' . Auth::guard('admin')->user()->last_name,
+            ];
+
+            // Send notification email (without the actual key)
+            Mail::send('emails.api-key-notification', $emailData, function($message) use ($validated, $apiKey) {
+                $message->to($validated['email'])
+                        ->subject('PUP-Taguig API Key Information - ' . $apiKey->application_name);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'API key information sent successfully! Note: For security, the actual key was not included. Please share it through a secure channel.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error sending API key email: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email. Please try again.'
+            ], 500);
+        }
     }
 
     /**

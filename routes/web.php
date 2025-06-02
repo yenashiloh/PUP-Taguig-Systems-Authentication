@@ -188,8 +188,10 @@ Route::middleware(['admin.auth'])->group(function () {
     Route::post('/admin/api-keys/{apiKey}/toggle', [ApiKeyController::class, 'toggle'])->name('admin.api-keys.toggle');
     Route::post('/admin/api-keys/{apiKey}/regenerate', [ApiKeyController::class, 'regenerate'])->name('admin.api-keys.regenerate');
     Route::post('/admin/api-keys/{apiKey}/test', [ApiKeyController::class, 'test'])->name('admin.api-keys.test');
+    Route::post('/{apiKey}/send-email', [ApiKeyController::class, 'sendByEmail'])->name('admin.api-keys.send-email');
     
     // Statistics and Export
     Route::get('/admin/api-keys-stats', [ApiKeyController::class, 'statistics'])->name('admin.api-keys.statistics');
     Route::get('/admin/api-keys-export', [ApiKeyController::class, 'export'])->name('admin.api-keys.export');
+    
 });

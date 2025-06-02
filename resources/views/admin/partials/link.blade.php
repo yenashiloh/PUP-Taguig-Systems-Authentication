@@ -8,16 +8,16 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
-    <link rel="shortcut icon" href="../../assets/images/PUPLogo.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="../../../assets/images/PUPLogo.png" type="image/x-icon" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- ========== All CSS files linkup ========= -->
-    <link rel="stylesheet" href="../../assets/admin/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="../../assets/admin/css/lineicons.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="../../assets/admin/css/materialdesignicons.min.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="../../assets/admin/css/fullcalendar.css" />
-    <link rel="stylesheet" href="../../assets/admin/css/fullcalendar.css" />
-    <link rel="stylesheet" href="../../assets/admin/css/main.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/lineicons.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/materialdesignicons.min.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/fullcalendar.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/fullcalendar.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/main.css" />
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">

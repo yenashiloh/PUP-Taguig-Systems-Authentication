@@ -3,7 +3,7 @@
     <div class="navbar-logo">
         <div class="d-flex align-items-center">
             <a href="index.html">
-                <img src="../../assets/images/PUPLogo.png" alt="logo" style="width: 50px; height: auto;" />
+                <img src="../../../assets/images/PUPLogo.png" alt="logo" style="width: 50px; height: auto;" />
             </a>
             <h6 class="ms-2 fw-bold mb-0" style="color:#7e0e09;">PUP-T Systems Authentication</h6>
         </div>
