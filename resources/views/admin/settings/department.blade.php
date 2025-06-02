@@ -28,7 +28,7 @@
                     <div class="col-lg-12">
                         <div class="card-style mb-30">
                             <div class="d-flex justify-content-start align-items-center mb-3">
-                                <button class="main-button primary-btn btn-hover mb-1" data-bs-toggle="modal"
+                                <button class="main-button primary-btn btn-hover mb-1 me-2 btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#addDepartmentModal"><i class="fas fa-plus"></i> Add
                                     Department</button>
                             </div>

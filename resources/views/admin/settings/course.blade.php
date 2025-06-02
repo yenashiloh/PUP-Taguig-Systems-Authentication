@@ -27,7 +27,7 @@
                     <div class="col-lg-12">
                         <div class="card-style mb-30">
                             <div class="d-flex justify-content-start align-items-center mb-3">
-                                <button class="main-button primary-btn btn-hover mb-1" data-bs-toggle="modal"
+                                <button class="main-button primary-btn btn-hover mb-1 me-2 btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#addCourseModal"><i class="fas fa-plus"></i> Add Course</button>
                             </div>
                             @if (session('success'))
@@ -142,13 +142,13 @@
                             <form action="{{ route('store.course') }}" method="POST">
                                 @csrf
                                 <div class="row">
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12">
                                         <div class="input-style-1">
                                             <label>Course Name <span class="text-danger">*</span></label>
                                             <input type="text" name="course_name" placeholder="Enter Course Name" required />
                                         </div>
                                     </div>
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12">
                                         <div class="select-style-1">
                                             <label>Department <span class="text-danger">*</span></label>
                                             <div class="select-position">
