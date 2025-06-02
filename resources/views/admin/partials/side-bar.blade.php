@@ -55,14 +55,6 @@
                     <span class="text">User Management</span>
                 </a>
             </li>
-            <li class="nav-item {{ request()->routeIs('admin.api-keys.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.api-keys.index') }}">
-                    <span class="icon">
-                        <i class="fas fa-key"></i>
-                    </span>
-                    <span class="text">API Keys</span>
-                </a>
-            </li>
             <li class="nav-item">
                 <a href="">
                     <span class="icon">
@@ -101,6 +93,14 @@
                         <i class="fas fa-user-check"></i>
                     </span>
                     <span class="text">User Validation</span>
+                </a>
+            </li>
+            <li class="nav-item {{ request()->routeIs('admin.api-keys.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.api-keys.index') }}">
+                    <span class="icon">
+                        <i class="fas fa-key"></i>
+                    </span>
+                    <span class="text">API Keys</span>
                 </a>
             </li>
             <span class="divider">

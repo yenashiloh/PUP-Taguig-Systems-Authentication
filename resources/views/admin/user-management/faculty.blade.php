@@ -99,7 +99,7 @@
                                     <button type="button"
                                         class="main-btn primary-btn-outline square-btn btn-hover me-2 btn-sm"
                                         data-bs-toggle="modal" data-bs-target="#batchUploadModal">
-                                        <i class="fas fa-upload me-1"></i> Batch Upload
+                                        <i class="fas fa-upload me-1"></i> Upload
                                     </button>
                                     <!-- Export Dropdown -->
                                     <div class="dropdown">

@@ -14,10 +14,14 @@ class User extends Authenticatable
         'role', 'email', 'password', 'first_name', 'middle_name', 'last_name',
         'phone_number', 'employee_number', 'department', 'student_number',
         'program', 'year', 'section', 'birthdate', 'status', 'employment_status',
-        'batch_number', 'school_year'
+        'batch_number', 'school_year',  'api_session_token','last_login_at',
+        'last_login_ip'
     ];
 
-    protected $hidden = ['password'];
+    protected $hidden = [
+        'password', 
+        'api_session_token' // Hide session token from JSON responses
+    ];
 
     // Relationship with Course
     public function course()
@@ -151,5 +155,43 @@ class User extends Authenticatable
             return "Batch {$this->batch_number} ({$this->school_year})";
         }
         return 'N/A';
+    }
+
+    // Verify API session token
+    public function verifySessionToken($token)
+    {
+        return $this->api_session_token && Hash::check($token, $this->api_session_token);
+    }
+
+    // Clear API session
+    public function clearApiSession()
+    {
+        $this->update(['api_session_token' => null]);
+    }
+
+    // Check if user has active API session
+    public function hasActiveApiSession()
+    {
+        return !is_null($this->api_session_token);
+    }
+
+    // Get user's full name
+    public function getFullNameAttribute()
+    {
+        $name = trim($this->first_name);
+        
+        if ($this->middle_name) {
+            $name .= ' ' . trim($this->middle_name);
+        }
+        
+        $name .= ' ' . trim($this->last_name);
+        
+        return $name;
+    }
+
+    // Get user's display ID (student number or employee number)
+    public function getDisplayIdAttribute()
+    {
+        return $this->student_number ?? $this->employee_number ?? 'No ID';
     }
 }

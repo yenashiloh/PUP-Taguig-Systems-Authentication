@@ -112,20 +112,20 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4 d-flex mb-2 justify-content-end">
-                                        <button class="main-button primary-btn me-2 btn-sm" data-bs-toggle="modal"
+                                        <button class="main-button primary-btn me-2 btn-sm d-flex align-items-center" data-bs-toggle="modal"
                                             data-bs-target="#addUserModal">
-                                            Add
+                                            <i class="fas fa-plus me-1"></i> Add
                                         </button>
                                         <button type="button"
                                             class="main-btn primary-btn-outline square-btn me-2 btn-hover btn-sm"
                                             data-bs-toggle="modal" data-bs-target="#batchUploadModal">
-                                            Batch Upload
+                                            <i class="fas fa-upload me-1"></i>Upload
                                         </button>
                                         <div class="dropdown me-2">
                                             <button class="main-btn primary-btn-outline square-btn btn-hover btn-sm"
                                                 type="button" id="exportDropdown" data-bs-toggle="dropdown"
                                                 aria-expanded="false">
-                                                Export
+                                                <i class="fas fa-file-export me-1"></i> Export
                                             </button>
                                             <ul class="dropdown-menu" aria-labelledby="exportDropdown">
                                                 <li>

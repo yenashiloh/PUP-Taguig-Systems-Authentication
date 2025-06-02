@@ -20,7 +20,7 @@
                              <div class="profile-info">
                                  <div class="info">
                                      <div class="image">
-                                         <img src="../../assets/admin/images/profile-picture.png" alt="" />
+                                         <img src="../../../assets/admin/images/profile-picture.png" alt="" />
                                      </div>
                                      <div>
                                          <h6 class="fw-500">{{ $admin->first_name }} </h6>
@@ -33,7 +33,7 @@
                                  <li>
                                      <div class="author-info flex items-center !p-1">
                                          <div class="image">
-                                             <img src="../../assets/admin/images/profile-picture.png" alt="image">
+                                             <img src="../../../assets/admin/images/profile-picture.png" alt="image">
                                          </div>
                                          <div class="content">
                                              <h4 class="text-sm">{{ $admin->first_name }} {{ $admin->last_name }}</h4>

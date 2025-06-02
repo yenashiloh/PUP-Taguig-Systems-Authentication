@@ -53,7 +53,7 @@
             <div class="card-style mb-30">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="mb-0">API Keys</h4>
-                    <a href="{{ route('admin.api-keys.create') }}" class="main-button primary-btn btn-hover">
+                    <a href="{{ route('admin.api-keys.create') }}" class="main-button primary-btn btn-hover btn-sm">
                         <i class="fas fa-plus me-1"></i> Generate New API Key
                     </a>
                 </div>

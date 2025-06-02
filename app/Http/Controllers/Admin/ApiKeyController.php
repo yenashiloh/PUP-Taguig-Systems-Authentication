@@ -47,14 +47,14 @@ class ApiKeyController extends Controller
             'description' => 'nullable|string|max:1000',
             'allowed_domains' => 'nullable|string',
             'permissions' => 'required|array|min:1',
-            'permissions.*' => 'in:basic_auth,user_profile,student_data,faculty_data,full_access',
+            'permissions.*' => 'in:add_user,update_user,deactivate_user,login_user,logout_user',
             'rate_limit' => 'required|integer|min:10|max:1000',
             'expires_at' => 'nullable|date|after:today',
         ], [
             'permissions.required' => 'Please select at least one permission.',
             'permissions.min' => 'Please select at least one permission.',
+            'permissions.*.in' => 'Invalid permission selected.',
         ]);
-
         try {
             // Process allowed domains
             $allowedDomains = [];
@@ -124,13 +124,14 @@ class ApiKeyController extends Controller
             'description' => 'nullable|string|max:1000',
             'allowed_domains' => 'nullable|string',
             'permissions' => 'required|array|min:1',
-            'permissions.*' => 'in:basic_auth,user_profile,student_data,faculty_data,full_access',
+            'permissions.*' => 'in:add_user,update_user,deactivate_user,login_user,logout_user',
             'rate_limit' => 'required|integer|min:10|max:1000',
             'expires_at' => 'nullable|date|after:today',
             'is_active' => 'boolean',
         ], [
             'permissions.required' => 'Please select at least one permission.',
             'permissions.min' => 'Please select at least one permission.',
+            'permissions.*.in' => 'Invalid permission selected.',
         ]);
 
         try {

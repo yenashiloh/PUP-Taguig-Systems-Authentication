@@ -52,7 +52,7 @@ class ApiKey extends Model
             'developer_email' => $developerEmail,
             'description' => $options['description'] ?? null,
             'allowed_domains' => $options['allowed_domains'] ?? [],
-            'permissions' => $options['permissions'] ?? ['basic_auth'],
+            'permissions' => $options['permissions'] ?? ['login_user'],
             'request_limit_per_minute' => $options['rate_limit'] ?? 100,
             'expires_at' => $options['expires_at'] ?? null,
             'created_by' => $createdBy,
@@ -101,6 +101,12 @@ class ApiKey extends Model
         return in_array($domain, $this->allowed_domains);
     }
 
+    // Check if API key has specific permission
+    public function hasPermission($permission)
+    {
+        return in_array($permission, $this->permissions ?? []);
+    }
+
     // Scope for active keys
     public function scopeActive($query)
     {
@@ -115,15 +121,27 @@ class ApiKey extends Model
     public function getFormattedPermissionsAttribute()
     {
         $permissionMap = [
-            'basic_auth' => 'Basic Authentication',
-            'user_profile' => 'User Profile Access',
-            'student_data' => 'Student Data Access',
-            'faculty_data' => 'Faculty Data Access',
-            'full_access' => 'Full Access'
+            'add_user' => 'Add User/Batch Upload',
+            'update_user' => 'Update User Information',
+            'deactivate_user' => 'Deactivate User',
+            'login_user' => 'Login User',
+            'logout_user' => 'Logout User',
         ];
 
         return collect($this->permissions)->map(function($perm) use ($permissionMap) {
             return $permissionMap[$perm] ?? ucwords(str_replace('_', ' ', $perm));
         })->toArray();
+    }
+
+    // Get available permissions list (for validation)
+    public static function getAvailablePermissions()
+    {
+        return [
+            'add_user' => 'Add User/Batch Upload',
+            'update_user' => 'Update User Information',
+            'deactivate_user' => 'Deactivate User',
+            'login_user' => 'Login User',
+            'logout_user' => 'Logout User',
+        ];
     }
 }

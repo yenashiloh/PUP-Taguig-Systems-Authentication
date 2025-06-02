@@ -8,6 +8,7 @@ use App\Http\Controllers\CourseDepartmentController;
 use App\Http\Controllers\UserValidationController;
 use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\Admin\ApiKeyController;
+use App\Http\Controllers\Auth\UserLoginController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
@@ -33,6 +34,19 @@ Route::post('loginPost', [PublicController::class, 'loginPost'])->name('loginPos
 Route::post('/register', [PublicController::class, 'store']);
 Route::post('forgot-password', [PublicController::class, 'sendResetLinkEmail'])->name('password.email');
 Route::post('reset-password', [PublicController::class, 'reset'])->name('password.update');
+
+Route::prefix('external')->name('external.')->group(function () {
+    // Show login form for external applications
+    Route::get('/login', [UserLoginController::class, 'showLoginForm'])->name('login');
+    
+    // Process login for external applications (via web form)
+    Route::post('/login', [UserLoginController::class, 'login'])->name('login.process');
+});
+
+// For testing purposes - direct access to login with API key
+Route::get('/test-login/{apiKey}', function($apiKey) {
+    return redirect()->route('external.login', ['api_key' => $apiKey]);
+})->name('test.login');
 
 // Admin protected routes
 Route::middleware(['admin.auth'])->group(function () {
