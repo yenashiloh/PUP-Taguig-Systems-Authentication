@@ -7,6 +7,7 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CourseDepartmentController;
 use App\Http\Controllers\UserValidationController;
 use App\Http\Controllers\AuditTrailController;
+use App\Http\Controllers\Admin\ApiKeyController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
@@ -174,4 +175,21 @@ Route::middleware(['admin.auth'])->group(function () {
     // Batch Upload Logs
     Route::get('/batch-uploads', [AuditTrailController::class, 'batchUploads'])->name('batch.uploads.index');
     Route::get('/batch-uploads/{id}', [AuditTrailController::class, 'showBatchUpload'])->name('batch.uploads.show');
+
+    Route::get('/admin/api-keys', [ApiKeyController::class, 'index'])->name('admin.api-keys.index');
+    Route::get('/admin/api-keys/create', [ApiKeyController::class, 'create'])->name('admin.api-keys.create');
+    Route::post('/admin/api-keys', [ApiKeyController::class, 'store'])->name('admin.api-keys.store');
+    Route::get('/admin/api-keys/{apiKey}', [ApiKeyController::class, 'show'])->name('admin.api-keys.show');
+    Route::get('/admin/api-keys/{apiKey}/edit', [ApiKeyController::class, 'edit'])->name('admin.api-keys.edit');
+    Route::put('/admin/api-keys/{apiKey}', [ApiKeyController::class, 'update'])->name('admin.api-keys.update');
+    Route::delete('/admin/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('admin.api-keys.destroy');
+    
+    // API Key Actions
+    Route::post('/admin/api-keys/{apiKey}/toggle', [ApiKeyController::class, 'toggle'])->name('admin.api-keys.toggle');
+    Route::post('/admin/api-keys/{apiKey}/regenerate', [ApiKeyController::class, 'regenerate'])->name('admin.api-keys.regenerate');
+    Route::post('/admin/api-keys/{apiKey}/test', [ApiKeyController::class, 'test'])->name('admin.api-keys.test');
+    
+    // Statistics and Export
+    Route::get('/admin/api-keys-stats', [ApiKeyController::class, 'statistics'])->name('admin.api-keys.statistics');
+    Route::get('/admin/api-keys-export', [ApiKeyController::class, 'export'])->name('admin.api-keys.export');
 });
