@@ -559,11 +559,17 @@
         // Initialize application
         async function initializeApp() {
             try {
+                // Add validation styles
+                addValidationStyles();
+
                 // Validate API key and load initial data
                 await validateAndLoadData();
 
                 // Set up form handlers
                 setupFormHandlers();
+
+                // Setup real-time validation
+                setupRealTimeValidation();
 
                 showAlert('Connected successfully to PUP-Taguig Systems!', 'success');
             } catch (error) {
@@ -571,6 +577,7 @@
                 showAlert('Failed to connect to the system. Please check your API key and try again.', 'danger');
             }
         }
+
 
         // Validate API key and load data
         async function validateAndLoadData() {
@@ -606,7 +613,6 @@
                 throw error;
             }
         }
-
         // Load courses from API
         async function loadCourses() {
             try {
@@ -661,6 +667,8 @@
 
             return await response.json();
         }
+
+
 
         // Render students table
         function renderStudentsTable() {
@@ -719,11 +727,11 @@
                         </button>
                         ${student.status === 'Active' ? 
                             `<button class="btn btn-outline-danger btn-sm" onclick="toggleAccountStatus(${student.id}, 'deactivate')">
-                                                                                    <i class="fas fa-ban me-1"></i> Deactivate
-                                                                                </button>` :
+                                                                                                                                <i class="fas fa-ban me-1"></i> Deactivate
+                                                                                                                            </button>` :
                             `<button class="btn btn-outline-success btn-sm" onclick="toggleAccountStatus(${student.id}, 'reactivate')">
-                                                                                    <i class="fas fa-check-circle me-1"></i> Reactivate
-                                                                                </button>`
+                                                                                                                                <i class="fas fa-check-circle me-1"></i> Reactivate
+                                                                                                                            </button>`
                         }
                     </div>
                 </td>
@@ -828,7 +836,7 @@
             e.preventDefault();
 
             // Clear previous validation errors
-            clearValidationErrors();
+            clearAllValidationErrors();
 
             const formData = new FormData(e.target);
 
@@ -836,6 +844,22 @@
             const studentData = {};
             for (let [key, value] of formData.entries()) {
                 studentData[key] = value;
+            }
+
+            // Client-side validation first
+            const clientValidationErrors = validateStudentData(studentData);
+            if (Object.keys(clientValidationErrors).length > 0) {
+                showInlineValidationErrors(clientValidationErrors);
+                // Focus on first error field
+                const firstErrorField = document.querySelector('.is-invalid');
+                if (firstErrorField) {
+                    firstErrorField.focus();
+                    firstErrorField.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }
+                return;
             }
 
             console.log('Adding student with data:', studentData);
@@ -849,15 +873,22 @@
                     showAlert('Student added successfully!', 'success');
                     await loadStudents(); // Reload students
                     e.target.reset();
-                    clearValidationErrors(); // Clear any remaining errors
+                    clearAllValidationErrors(); // Clear any remaining errors
                     bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
                 } else {
                     // Handle validation errors - show them in fields instead of alert
                     if (response.errors) {
-                        showFieldValidationErrors(response.errors);
+                        showInlineValidationErrors(response.errors);
 
-                        // Show a general message in alert but don't auto-hide modal
-                        showAlert('Please correct the highlighted errors below.', 'warning');
+                        // Focus on first error field
+                        const firstErrorField = document.querySelector('.is-invalid');
+                        if (firstErrorField) {
+                            firstErrorField.focus();
+                            firstErrorField.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
 
                         // Don't hide the modal - let user fix errors
                         return;
@@ -872,7 +903,6 @@
                 hideLoading();
             }
         }
-
         // Handle batch upload
         async function handleBatchUpload(e) {
             e.preventDefault();
@@ -1009,7 +1039,7 @@
             e.preventDefault();
 
             // Clear previous validation errors
-            clearValidationErrors();
+            clearAllValidationErrors();
 
             try {
                 const form = e.target;
@@ -1019,10 +1049,26 @@
                 // Remove student_id from the data to be sent
                 formData.delete('student_id');
 
-                // Convert FormData to regular object for JSON sending
+                // Convert FormData to regular object for validation and JSON sending
                 const studentData = {};
                 for (let [key, value] of formData.entries()) {
                     studentData[key] = value;
+                }
+
+                // Client-side validation first
+                const clientValidationErrors = validateStudentData(studentData, true); // true for update mode
+                if (Object.keys(clientValidationErrors).length > 0) {
+                    showInlineValidationErrors(clientValidationErrors);
+                    // Focus on first error field
+                    const firstErrorField = document.querySelector('.is-invalid');
+                    if (firstErrorField) {
+                        firstErrorField.focus();
+                        firstErrorField.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                    return;
                 }
 
                 console.log('Updating student:', studentId, 'with data:', studentData);
@@ -1047,15 +1093,22 @@
                 if (data.success) {
                     showAlert('Student updated successfully!', 'success');
                     await loadStudents();
-                    clearValidationErrors(); // Clear any remaining errors
+                    clearAllValidationErrors(); // Clear any remaining errors
                     bootstrap.Modal.getInstance(document.getElementById('viewStudentModal')).hide();
                 } else {
                     // Handle validation errors - show them in fields instead of alert
                     if (data.errors) {
-                        showFieldValidationErrors(data.errors);
+                        showInlineValidationErrors(data.errors);
 
-                        // Show a general message in alert but don't auto-hide modal
-                        showAlert('Please correct the highlighted errors below.', 'warning');
+                        // Focus on first error field
+                        const firstErrorField = document.querySelector('.is-invalid');
+                        if (firstErrorField) {
+                            firstErrorField.focus();
+                            firstErrorField.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
 
                         // Don't hide the modal - let user fix errors
                         return;
@@ -1070,6 +1123,150 @@
             }
         }
 
+        // Client-side validation function
+        function validateStudentData(data, isUpdate = false) {
+            const errors = {};
+
+            // Email validation
+            if (!data.email || !data.email.trim()) {
+                errors.email = ['Email address is required.'];
+            } else if (!isValidEmail(data.email.trim())) {
+                errors.email = ['Please enter a valid email address.'];
+            }
+
+            // First name validation
+            if (!data.first_name || !data.first_name.trim()) {
+                errors.first_name = ['First name is required.'];
+            } else if (data.first_name.trim().length < 2) {
+                errors.first_name = ['First name must be at least 2 characters long.'];
+            } else if (!/^[a-zA-Z\s]+$/.test(data.first_name.trim())) {
+                errors.first_name = ['First name can only contain letters and spaces.'];
+            }
+
+            // Middle name validation (optional but validate format if provided)
+            if (data.middle_name && data.middle_name.trim() && !/^[a-zA-Z\s]+$/.test(data.middle_name.trim())) {
+                errors.middle_name = ['Middle name can only contain letters and spaces.'];
+            }
+
+            // Last name validation
+            if (!data.last_name || !data.last_name.trim()) {
+                errors.last_name = ['Last name is required.'];
+            } else if (data.last_name.trim().length < 2) {
+                errors.last_name = ['Last name must be at least 2 characters long.'];
+            } else if (!/^[a-zA-Z\s]+$/.test(data.last_name.trim())) {
+                errors.last_name = ['Last name can only contain letters and spaces.'];
+            }
+
+            // Student number validation
+            if (!data.student_number || !data.student_number.trim()) {
+                errors.student_number = ['Student number is required.'];
+            } else if (data.student_number.trim().length < 5) {
+                errors.student_number = ['Student number must be at least 5 characters long.'];
+            } else if (!/^[A-Za-z0-9\-]+$/.test(data.student_number.trim())) {
+                errors.student_number = ['Student number can only contain letters, numbers, and hyphens.'];
+            }
+
+            // Program validation
+            if (!data.program || !data.program.trim()) {
+                errors.program = ['Program is required.'];
+            }
+
+            // Year validation
+            if (!data.year || !data.year.trim()) {
+                errors.year = ['Year is required.'];
+            } else if (!['1st Year', '2nd Year', '3rd Year', '4th Year'].includes(data.year)) {
+                errors.year = ['Please select a valid year.'];
+            }
+
+            // Section validation
+            if (!data.section || !data.section.trim()) {
+                errors.section = ['Section is required.'];
+            } else if (!['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(data.section)) {
+                errors.section = ['Please select a valid section.'];
+            }
+
+            // Birthdate validation (optional but validate if provided)
+            if (data.birthdate && data.birthdate.trim()) {
+                const birthDate = new Date(data.birthdate);
+                const today = new Date();
+
+                if (isNaN(birthDate.getTime())) {
+                    errors.birthdate = ['Please enter a valid birthdate.'];
+                } else if (birthDate > today) {
+                    errors.birthdate = ['Birthdate cannot be in the future.'];
+                } else {
+                    const age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+                    let actualAge = age;
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        actualAge--;
+                    }
+
+                    if (actualAge < 15) {
+                        errors.birthdate = ['Student must be at least 15 years old.'];
+                    } else if (actualAge > 100) {
+                        errors.birthdate = ['Please enter a valid birthdate.'];
+                    }
+                }
+            }
+
+            return errors;
+        }
+
+        // Email validation helper
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Function to clear all validation errors
+        function clearAllValidationErrors() {
+            // Remove all existing error styling and messages
+            document.querySelectorAll('.is-invalid').forEach(element => {
+                element.classList.remove('is-invalid');
+            });
+
+            document.querySelectorAll('.field-error-message').forEach(element => {
+                element.remove();
+            });
+
+            // Reset invalid-feedback display
+            document.querySelectorAll('.invalid-feedback').forEach(element => {
+                element.style.display = 'none';
+                element.textContent = '';
+            });
+        }
+
+        function showInlineValidationErrors(errors) {
+            Object.keys(errors).forEach(fieldName => {
+                const field = document.querySelector(`[name="${fieldName}"]`);
+                if (field) {
+                    // Add red border to the field
+                    field.classList.add('is-invalid');
+
+                    // Get the error message(s)
+                    const errorMessages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[
+                    fieldName]];
+                    const errorMessage = errorMessages[0]; // Use first error message
+
+                    // Remove any existing error message for this field
+                    const existingError = field.parentNode.querySelector('.field-error-message');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+
+                    // Create and add error message element
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'field-error-message text-danger mt-1';
+                    errorElement.style.fontSize = '0.875rem';
+                    errorElement.textContent = errorMessage;
+
+                    // Insert error message after the field
+                    field.parentNode.appendChild(errorElement);
+                }
+            });
+        }
         // Toggle account status
         async function toggleAccountStatus(studentId, action) {
             try {

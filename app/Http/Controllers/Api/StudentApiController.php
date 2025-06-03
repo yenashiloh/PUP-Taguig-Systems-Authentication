@@ -118,17 +118,18 @@ class StudentApiController extends Controller
                     'min:2',
                     'regex:/^[a-zA-Z\s]+$/'
                 ],
-                'student_number' => is_array($studentNumberRules) ? $studentNumberRules : explode('|', $studentNumberRules),
+                'student_number' => 'required|string|max:255|unique:users,student_number|min:5|regex:/^[A-Za-z0-9\-]+$/',
                 'program' => 'required|string|max:255',
                 'year' => 'required|string|in:1st Year,2nd Year,3rd Year,4th Year',
                 'section' => 'required|string|in:1,2,3,4,5,6,7,8,9,10',
-                'birthdate' => 'nullable|date|before:today',
+                'birthdate' => 'required|date|before:today',
             ], [
                 'email.required' => 'Email address is required.',
                 'email.email' => 'Please enter a valid email address.',
                 'email.unique' => 'This email address is already taken.',
                 'first_name.required' => 'First name is required.',
                 'first_name.regex' => 'First name can only contain letters and spaces.',
+                'first_name.min' => 'First name must be at least 2 characters long.',
                 'last_name.required' => 'Last name is required.',
                 'last_name.regex' => 'Last name can only contain letters and spaces.',
                 'student_number.required' => 'Student number is required.',
@@ -418,9 +419,12 @@ public function update(Request $request, $id)
 
         // Custom error messages
         $customMessages = [
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'This email address is already taken.',
             'first_name.required' => 'First name is required.',
             'first_name.regex' => 'First name can only contain letters and spaces.',
-            'first_name.min' => 'First name must be at least 2 characters.',
+            'first_name.min' => 'First name must be at least 2 characters long.',
             'last_name.required' => 'Last name is required.',
             'last_name.regex' => 'Last name can only contain letters and spaces.',
             'last_name.min' => 'Last name must be at least 2 characters.',
