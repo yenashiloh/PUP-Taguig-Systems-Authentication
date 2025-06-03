@@ -61,43 +61,39 @@ Route::middleware(['api.key', 'api.permission:login_user'])->group(function () {
 });
 
 // Student Management API Routes (requires API key)
-Route::middleware(['api.key'])->prefix('students')->group(function () {
+Route::group(['middleware' => ['api.key']], function () {
     
-    // Basic student operations (requires basic permissions)
-    Route::get('/', [StudentApiController::class, 'index']);
-    Route::get('/{id}', [StudentApiController::class, 'show']);
-    
-    // Student creation (requires add_user permission)
-    Route::middleware(['api.permission:add_user'])->group(function () {
+    // Student Management API Routes
+    Route::prefix('students')->group(function () {
+        // GET routes
+        Route::get('/', [StudentApiController::class, 'index']);
+        Route::get('/courses', [StudentApiController::class, 'getCourses']);
+        Route::get('/departments', [StudentApiController::class, 'getDepartments']);
+        Route::get('/download-template', [StudentApiController::class, 'downloadTemplate']);
+        Route::get('/export', [StudentApiController::class, 'export']);
+        Route::get('/export-filtered', [StudentApiController::class, 'exportFiltered']);
+        Route::get('/{id}', [StudentApiController::class, 'show']);
+        
+        // POST routes
         Route::post('/', [StudentApiController::class, 'store']);
         Route::post('/batch-upload', [StudentApiController::class, 'batchUpload']);
-    });
-    
-    // Download template (no additional permission required)
-    Route::get('/download-template', [StudentApiController::class, 'downloadTemplate']);
-    
-    // Student updates (requires update_user permission) - FIXED
-    Route::middleware(['api.permission:update_user'])->group(function () {
+        Route::post('/bulk-toggle-status', [StudentApiController::class, 'bulkToggleStatus']);
+        Route::post('/{id}/toggle-status', [StudentApiController::class, 'toggleStatus']);
+        
+        // PUT/PATCH routes for updates (both supported)
+        Route::put('/{id}', [StudentApiController::class, 'update']);
+        Route::patch('/{id}', [StudentApiController::class, 'update']);
+        
+        // Also support POST with _method=PUT for form submissions
         Route::post('/{id}', [StudentApiController::class, 'update']);
     });
-    
-    // Student deactivation (requires deactivate_user permission)
-    Route::middleware(['api.permission:deactivate_user'])->group(function () {
-        Route::post('/{id}/toggle-status', [StudentApiController::class, 'toggleStatus']);
-        Route::post('/bulk-toggle-status', [StudentApiController::class, 'bulkToggleStatus']);
-    });
-    
-    // Export functions (basic permissions required)
-    Route::get('/export', [StudentApiController::class, 'export']);
-    Route::get('/export-filtered', [StudentApiController::class, 'exportFiltered']);
-});
 
-// Helper data endpoints (requires API key only)
-Route::middleware(['api.key'])->group(function () {
-    Route::get('/courses', [StudentApiController::class, 'getCourses']);
-    Route::get('/departments', [StudentApiController::class, 'getDepartments']);
+    // Application info
     Route::get('/app-info', [StudentApiController::class, 'getAppInfo']);
 });
+
+Route::put('/students/{id}', [StudentApiController::class, 'update']);
+Route::patch('/students/{id}', [StudentApiController::class, 'update']);
 
 // Error handling for API routes
 Route::fallback(function () {

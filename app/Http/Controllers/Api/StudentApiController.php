@@ -292,22 +292,62 @@ class StudentApiController extends Controller
 public function update(Request $request, $id)
 {
     try {
-        // Log the API request
+        // Log the API request with more details
         \Log::info('API: Student update requested', [
             'student_id' => $id,
-            'data' => $request->except(['password']),
+            'method' => $request->method(),
+            'content_type' => $request->header('Content-Type'),
+            'has_json' => $request->isJson(),
+            'raw_input' => $request->getContent(),
+            'all_data' => $request->all(),
             'api_key_id' => $request->apiKeyModel->id ?? null,
             'application_name' => $request->apiKeyModel->application_name ?? 'External App'
         ]);
 
         $student = User::where('role', 'Student')->findOrFail($id);
         
+        // Handle different request methods and content types
+        $inputData = [];
+        
+        if ($request->isJson()) {
+            // Handle JSON input
+            $inputData = $request->json()->all();
+            \Log::info('API: Processing JSON input', ['json_data' => $inputData]);
+        } else {
+            // Handle form data input
+            $inputData = $request->all();
+            \Log::info('API: Processing form data input', ['form_data' => $inputData]);
+        }
+
+        // Remove non-student fields
+        unset($inputData['student_id'], $inputData['_method'], $inputData['_token']);
+
+        // Check if we have any input data
+        if (empty($inputData)) {
+            \Log::warning('API: No input data received for student update', [
+                'student_id' => $id,
+                'request_method' => $request->method(),
+                'content_type' => $request->header('Content-Type')
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'No data provided for update',
+                'debug' => [
+                    'method' => $request->method(),
+                    'content_type' => $request->header('Content-Type'),
+                    'is_json' => $request->isJson(),
+                    'all_data' => $request->all()
+                ]
+            ], 400);
+        }
+        
         // Get valid course names for validation
         $validCourses = Course::where('status', 'active')->pluck('course_name')->toArray();
         
-        // If no courses found, allow any string for program
+        // Build program validation rules
         if (empty($validCourses)) {
-            $programValidation = 'required|string|max:255';
+            $programValidation = ['required', 'string', 'max:255'];
         } else {
             $programValidation = [
                 'required',
@@ -317,51 +357,109 @@ public function update(Request $request, $id)
         }
 
         // Get student number validation rules
-        $studentNumberRules = UserValidation::getStudentNumberRules();
-        if (is_array($studentNumberRules)) {
-            $studentNumberRules[] = 'unique:users,student_number,' . $id;
+        $studentNumberValidationRules = UserValidation::getStudentNumberRules();
+        
+        if (is_string($studentNumberValidationRules)) {
+            $studentNumberRules = explode('|', $studentNumberValidationRules);
         } else {
-            $studentNumberRules = explode('|', $studentNumberRules);
-            $studentNumberRules[] = 'unique:users,student_number,' . $id;
+            $studentNumberRules = $studentNumberValidationRules;
         }
         
-        // Validate request
-        $validator = Validator::make($request->all(), [
-            'first_name' => ['required', 'string', 'max:255', 'min:2', 'regex:/^[a-zA-Z\s]+$/'],
-            'last_name' => ['required', 'string', 'max:255', 'min:2', 'regex:/^[a-zA-Z\s]+$/'],
-            'email' => 'required|email|max:255|unique:users,email,' . $id,
+        // Add unique rule that excludes current student
+        $studentNumberRules[] = 'unique:users,student_number,' . $id;
+        
+        // Build validation rules array
+        $validationRules = [
+            'first_name' => [
+                'required', 
+                'string', 
+                'max:255', 
+                'min:2', 
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
+            'last_name' => [
+                'required', 
+                'string', 
+                'max:255', 
+                'min:2', 
+                'regex:/^[a-zA-Z\s]+$/'
+            ],
+            'middle_name' => [
+                'nullable', 
+                'string', 
+                'max:255', 
+                'regex:/^[a-zA-Z\s]*$/'
+            ],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email,' . $id
+            ],
             'program' => $programValidation,
             'student_number' => $studentNumberRules,
-            'year' => ['required', 'string', 'in:1st Year,2nd Year,3rd Year,4th Year'],
-            'section' => ['required', 'string', 'in:1,2,3,4,5,6,7,8,9,10'],
-            'birthdate' => ['nullable', 'date', 'before:today', 'after:1900-01-01'],
-            'middle_name' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z\s]*$/'], // Added nullable middle_name
-        ], [
+            'year' => [
+                'required', 
+                'string', 
+                'in:1st Year,2nd Year,3rd Year,4th Year'
+            ],
+            'section' => [
+                'required', 
+                'string', 
+                'in:1,2,3,4,5,6,7,8,9,10'
+            ],
+            'birthdate' => [
+                'nullable', 
+                'date', 
+                'before:today', 
+                'after:1900-01-01'
+            ],
+        ];
+
+        // Custom error messages
+        $customMessages = [
             'first_name.required' => 'First name is required.',
             'first_name.regex' => 'First name can only contain letters and spaces.',
+            'first_name.min' => 'First name must be at least 2 characters.',
             'last_name.required' => 'Last name is required.',
             'last_name.regex' => 'Last name can only contain letters and spaces.',
+            'last_name.min' => 'Last name must be at least 2 characters.',
+            'middle_name.regex' => 'Middle name can only contain letters and spaces.',
             'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email address is already taken.',
             'program.required' => 'Program is required.',
-            'program.in' => 'Please select a valid program.',
+            'program.in' => 'Please select a valid program from the available options.',
             'student_number.required' => 'Student number is required.',
             'student_number.unique' => 'This student number is already taken.',
             'year.required' => 'Year is required.',
-            'year.in' => 'Please select a valid year.',
+            'year.in' => 'Please select a valid year (1st Year, 2nd Year, 3rd Year, or 4th Year).',
             'section.required' => 'Section is required.',
-            'section.in' => 'Please select a valid section.',
+            'section.in' => 'Please select a valid section (1-10).',
             'birthdate.before' => 'Birthdate must be before today.',
             'birthdate.after' => 'Birthdate must be after 1900.',
-            'middle_name.regex' => 'Middle name can only contain letters and spaces.',
-        ]);
+        ];
+
+        // Validate input data
+        $validator = Validator::make($inputData, $validationRules, $customMessages);
 
         if ($validator->fails()) {
-            \Log::warning('Validation failed', ['errors' => $validator->errors()]);
+            \Log::warning('API: Student update validation failed', [
+                'student_id' => $id,
+                'errors' => $validator->errors()->toArray(),
+                'input_data' => $inputData,
+                'validation_rules' => array_keys($validationRules)
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
+                'debug' => [
+                    'received_fields' => array_keys($inputData),
+                    'required_fields' => array_keys($validationRules),
+                    'available_courses' => array_slice($validCourses, 0, 5) // Show first 5 courses for debugging
+                ]
             ], 422);
         }
 
@@ -369,15 +467,23 @@ public function update(Request $request, $id)
 
         // Additional age validation if birthdate provided
         if (!empty($validated['birthdate'])) {
-            $birthDate = new \DateTime($validated['birthdate']);
-            $today = new \DateTime();
-            $age = $birthDate->diff($today)->y;
-            
-            if ($age < 15 || $age > 100) {
+            try {
+                $birthDate = new \DateTime($validated['birthdate']);
+                $today = new \DateTime();
+                $age = $birthDate->diff($today)->y;
+                
+                if ($age < 15 || $age > 100) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid birthdate',
+                        'errors' => ['birthdate' => ['Student must be between 15 and 100 years old']]
+                    ], 422);
+                }
+            } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid birthdate',
-                    'errors' => ['birthdate' => ['Student must be between 15 and 100 years old']]
+                    'message' => 'Invalid birthdate format',
+                    'errors' => ['birthdate' => ['Please provide a valid date']]
                 ], 422);
             }
         }
@@ -395,15 +501,17 @@ public function update(Request $request, $id)
                     break;
                 }
             } elseif ($field === 'middle_name') {
-                // Use null coalescing to handle missing middle_name
                 $requestValue = $validated['middle_name'] ?? null;
                 $studentValue = $student->$field ?? null;
+                // Normalize empty strings to null for comparison
+                $requestValue = empty($requestValue) ? null : $requestValue;
+                $studentValue = empty($studentValue) ? null : $studentValue;
                 if ($requestValue != $studentValue) {
                     $hasChanges = true;
                     break;
                 }
             } else {
-                if ($validated[$field] != $student->$field) {
+                if (isset($validated[$field]) && $validated[$field] != $student->$field) {
                     $hasChanges = true;
                     break;
                 }
@@ -413,25 +521,43 @@ public function update(Request $request, $id)
         if (!$hasChanges) {
             return response()->json([
                 'success' => false,
-                'message' => 'No changes were made to update'
+                'message' => 'No changes were made to update',
+                'data' => [
+                    'student' => $student
+                ]
             ], 400);
         }
 
         // Store old values for audit trail
         $oldValues = $student->only($fields);
 
-        // Update student
-        $student->update([
-            'first_name' => ucwords(strtolower($validated['first_name'])),
-            'middle_name' => isset($validated['middle_name']) && $validated['middle_name'] ? ucwords(strtolower($validated['middle_name'])) : null,
-            'last_name' => ucwords(strtolower($validated['last_name'])),
-            'email' => strtolower($validated['email']),
-            'program' => $validated['program'],
-            'student_number' => strtoupper($validated['student_number']),
-            'year' => $validated['year'],
-            'section' => $validated['section'],
-            'birthdate' => !empty($validated['birthdate']) ? Carbon::parse($validated['birthdate'])->format('Y-m-d') : null,
-        ]);
+        // Update student with proper data formatting
+        $updateData = [
+            'first_name' => ucwords(strtolower(trim($validated['first_name']))),
+            'last_name' => ucwords(strtolower(trim($validated['last_name']))),
+            'email' => strtolower(trim($validated['email'])),
+            'program' => trim($validated['program']),
+            'student_number' => strtoupper(trim($validated['student_number'])),
+            'year' => trim($validated['year']),
+            'section' => trim($validated['section']),
+        ];
+
+        // Handle middle name (nullable)
+        if (isset($validated['middle_name']) && !empty(trim($validated['middle_name']))) {
+            $updateData['middle_name'] = ucwords(strtolower(trim($validated['middle_name'])));
+        } else {
+            $updateData['middle_name'] = null;
+        }
+
+        // Handle birthdate (nullable)
+        if (!empty($validated['birthdate'])) {
+            $updateData['birthdate'] = Carbon::parse($validated['birthdate'])->format('Y-m-d');
+        } else {
+            $updateData['birthdate'] = null;
+        }
+
+        // Perform the update
+        $student->update($updateData);
 
         // Log to audit trail
         AuditTrail::log(
@@ -449,9 +575,15 @@ public function update(Request $request, $id)
                 'api_key_id' => $request->apiKeyModel->id ?? null,
                 'application_name' => $request->apiKeyModel->application_name ?? 'External App',
                 'old_values' => $oldValues,
-                'new_values' => $student->only($fields)
+                'new_values' => $student->fresh()->only($fields)
             ]
         );
+
+        \Log::info('API: Student updated successfully', [
+            'student_id' => $student->id,
+            'updated_fields' => array_keys($updateData),
+            'api_key_id' => $request->apiKeyModel->id ?? null
+        ]);
 
         return response()->json([
             'success' => true,
@@ -462,14 +594,17 @@ public function update(Request $request, $id)
         ]);
 
     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        \Log::error('Student not found', ['student_id' => $id]);
+        \Log::error('API: Student not found', ['student_id' => $id]);
         return response()->json([
             'success' => false,
             'message' => 'Student not found',
             'error' => 'The requested student does not exist'
         ], 404);
     } catch (\Exception $e) {
-        \Log::error('API: Error updating student: ' . $e->getMessage(), ['student_id' => $id]);
+        \Log::error('API: Error updating student: ' . $e->getMessage(), [
+            'student_id' => $id,
+            'trace' => $e->getTraceAsString()
+        ]);
         return response()->json([
             'success' => false,
             'message' => 'Failed to update student',

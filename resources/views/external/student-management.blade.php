@@ -610,7 +610,7 @@
         // Load courses from API
         async function loadCourses() {
             try {
-                const response = await makeApiCall('/api/courses', 'GET');
+                const response = await makeApiCall('/api/students/courses', 'GET');
 
                 if (response.success) {
                     coursesData = response.data.courses || [];
@@ -625,30 +625,37 @@
             }
         }
 
-        // Make API call
+        // Make API call - FIXED VERSION
         async function makeApiCall(endpoint, method = 'GET', data = null) {
             const url = BASE_URL + endpoint;
             const options = {
                 method: method,
                 headers: {
                     'X-API-Key': API_KEY,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Accept': 'application/json'
                 }
             };
 
             if (data && method !== 'GET') {
                 if (data instanceof FormData) {
-                    delete options.headers['Content-Type'];
+                    // Don't set Content-Type for FormData - let browser set it
                     options.body = data;
-                } else {
+                } else if (typeof data === 'object') {
+                    // Send as JSON
+                    options.headers['Content-Type'] = 'application/json';
                     options.body = JSON.stringify(data);
+                } else {
+                    options.body = data;
                 }
             }
+
+            console.log('Making API call:', method, url, options);
 
             const response = await fetch(url, options);
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -712,11 +719,11 @@
                         </button>
                         ${student.status === 'Active' ? 
                             `<button class="btn btn-outline-danger btn-sm" onclick="toggleAccountStatus(${student.id}, 'deactivate')">
-                                                            <i class="fas fa-ban me-1"></i> Deactivate
-                                                        </button>` :
+                                                                                    <i class="fas fa-ban me-1"></i> Deactivate
+                                                                                </button>` :
                             `<button class="btn btn-outline-success btn-sm" onclick="toggleAccountStatus(${student.id}, 'reactivate')">
-                                                            <i class="fas fa-check-circle me-1"></i> Reactivate
-                                                        </button>`
+                                                                                    <i class="fas fa-check-circle me-1"></i> Reactivate
+                                                                                </button>`
                         }
                     </div>
                 </td>
@@ -797,25 +804,41 @@
             });
         }
 
-        // Setup form handlers
+        // Setup form handlers - FIXED VERSION
         function setupFormHandlers() {
             document.getElementById('addUserForm').addEventListener('submit', handleAddStudent);
             document.getElementById('batchUploadForm').addEventListener('submit', handleBatchUpload);
             document.getElementById('batchUploadFiles').addEventListener('change', handleFileSelection);
 
-            // Fix: Make sure the form exists before adding event listener
+            // Use the enhanced update function
             const viewStudentForm = document.getElementById('viewStudentForm');
             if (viewStudentForm) {
                 viewStudentForm.addEventListener('submit', updateStudent);
             }
+
+            // Setup real-time validation
+            setupRealTimeValidation();
+
+            // Add validation styles
+            addValidationStyles();
         }
 
-        // Handle add student
+        // Handle add student - IMPROVED VERSION
         async function handleAddStudent(e) {
             e.preventDefault();
 
+            // Clear previous validation errors
+            clearValidationErrors();
+
             const formData = new FormData(e.target);
-            const studentData = Object.fromEntries(formData.entries());
+
+            // Convert to object for easier debugging
+            const studentData = {};
+            for (let [key, value] of formData.entries()) {
+                studentData[key] = value;
+            }
+
+            console.log('Adding student with data:', studentData);
 
             try {
                 showLoading();
@@ -826,13 +849,21 @@
                     showAlert('Student added successfully!', 'success');
                     await loadStudents(); // Reload students
                     e.target.reset();
+                    clearValidationErrors(); // Clear any remaining errors
                     bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
                 } else {
-                    // Display specific validation errors
-                    const errorMessage = response.errors ?
-                        Object.values(response.errors).flat().join(' ') :
-                        response.message || 'Failed to add student';
-                    throw new Error(errorMessage);
+                    // Handle validation errors - show them in fields instead of alert
+                    if (response.errors) {
+                        showFieldValidationErrors(response.errors);
+
+                        // Show a general message in alert but don't auto-hide modal
+                        showAlert('Please correct the highlighted errors below.', 'warning');
+
+                        // Don't hide the modal - let user fix errors
+                        return;
+                    } else {
+                        throw new Error(response.message || 'Failed to add student');
+                    }
                 }
             } catch (error) {
                 console.error('Error adding student:', error);
@@ -911,22 +942,22 @@
             }
         }
 
-        // Populate student modal
+        // Populate student modal - FIXED VERSION
         function populateStudentModal(student) {
             const container = document.getElementById('studentDetailsContainer');
             container.innerHTML = `
                 <div class="row">
                     <div class="col-md-6 mb-3 input-style-1">
                         <label class="form-label">Email <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" name="email" value="${student.email}" required>
+                        <input type="email" class="form-control" name="email" value="${student.email || ''}" required>
                     </div>
                     <div class="col-md-6 mb-3 input-style-1">
                         <label class="form-label">Student Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="student_number" value="${student.student_number}" required>
+                        <input type="text" class="form-control" name="student_number" value="${student.student_number || ''}" required>
                     </div>
                     <div class="col-md-4 mb-3 input-style-1">
                         <label class="form-label">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="first_name" value="${student.first_name}" required>
+                        <input type="text" class="form-control" name="first_name" value="${student.first_name || ''}" required>
                     </div>
                     <div class="col-md-4 mb-3 input-style-1">
                         <label class="form-label">Middle Name</label>
@@ -934,7 +965,7 @@
                     </div>
                     <div class="col-md-4 mb-3 input-style-1">
                         <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="last_name" value="${student.last_name}" required>
+                        <input type="text" class="form-control" name="last_name" value="${student.last_name || ''}" required>
                     </div>
                     <div class="col-md-6 mb-3 select-style-1">
                         <label>Program <span class="text-danger">*</span></label>
@@ -973,42 +1004,72 @@
             `;
         }
 
-        // Update student
+        // Update student - FIXED VERSION
         async function updateStudent(e) {
-            // IMPORTANT: Prevent default form submission
             e.preventDefault();
 
+            // Clear previous validation errors
+            clearValidationErrors();
+
             try {
-                const form = e.target; // Use the form from the event
+                const form = e.target;
                 const formData = new FormData(form);
-                const studentData = Object.fromEntries(formData.entries());
-                const studentId = studentData.student_id;
+                const studentId = formData.get('student_id');
 
                 // Remove student_id from the data to be sent
-                delete studentData.student_id;
+                formData.delete('student_id');
 
-                console.log('Updating student:', studentId, 'with data:', studentData); // Debug log
+                // Convert FormData to regular object for JSON sending
+                const studentData = {};
+                for (let [key, value] of formData.entries()) {
+                    studentData[key] = value;
+                }
+
+                console.log('Updating student:', studentId, 'with data:', studentData);
 
                 showLoading();
 
-                const response = await makeApiCall(`/api/students/${studentId}`, 'POST', studentData);
+                // Use PUT method for update and send as JSON
+                const response = await fetch(`${BASE_URL}/api/students/${studentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-API-Key': API_KEY,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(studentData)
+                });
 
-                if (response.success) {
+                const data = await response.json();
+
+                hideLoading();
+
+                if (data.success) {
                     showAlert('Student updated successfully!', 'success');
                     await loadStudents();
+                    clearValidationErrors(); // Clear any remaining errors
                     bootstrap.Modal.getInstance(document.getElementById('viewStudentModal')).hide();
                 } else {
-                    // Log the full response for debugging
-                    console.error('Update failed:', response);
-                    throw new Error(response.message || 'Failed to update student');
+                    // Handle validation errors - show them in fields instead of alert
+                    if (data.errors) {
+                        showFieldValidationErrors(data.errors);
+
+                        // Show a general message in alert but don't auto-hide modal
+                        showAlert('Please correct the highlighted errors below.', 'warning');
+
+                        // Don't hide the modal - let user fix errors
+                        return;
+                    } else {
+                        throw new Error(data.message || 'Failed to update student');
+                    }
                 }
             } catch (error) {
+                hideLoading();
                 console.error('Error updating student:', error);
                 showAlert('Failed to update student: ' + error.message, 'danger');
-            } finally {
-                hideLoading();
             }
         }
+
         // Toggle account status
         async function toggleAccountStatus(studentId, action) {
             try {
@@ -1078,7 +1139,7 @@
                     });
 
                     if (response.success) {
-                        showAlert(`Successfully ${actionText}d ${response.updated_count} student(s)!`, 'success');
+                        showAlert(`Successfully ${actionText}d ${response.data.updated_count} student(s)!`, 'success');
                         await loadStudents(); // Reload students
                         clearSelection();
                     } else {
@@ -1088,80 +1149,6 @@
             } catch (error) {
                 console.error(`Error ${action}ing students:`, error);
                 showAlert(`Failed to ${action} students: ` + error.message, 'danger');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Export functions
-        async function exportAllStudents() {
-            try {
-                showLoading();
-
-                const response = await fetch(`${BASE_URL}/api/students/export`, {
-                    method: 'GET',
-                    headers: {
-                        'X-API-Key': API_KEY
-                    }
-                });
-
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `students_data_${new Date().toISOString().split('T')[0]}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-
-                    showAlert('Students data exported successfully!', 'success');
-                } else {
-                    throw new Error('Failed to export students data');
-                }
-            } catch (error) {
-                console.error('Error exporting students:', error);
-                showAlert('Failed to export students data: ' + error.message, 'danger');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function exportFilteredStudents() {
-            try {
-                const filters = getActiveFilters();
-                const queryParams = new URLSearchParams(filters).toString();
-
-                showLoading();
-
-                const response = await fetch(`${BASE_URL}/api/students/export-filtered?${queryParams}`, {
-                    method: 'GET',
-                    headers: {
-                        'X-API-Key': API_KEY
-                    }
-                });
-
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `filtered_students_data_${new Date().toISOString().split('T')[0]}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-
-                    showAlert('Filtered students data exported successfully!', 'success');
-                } else {
-                    throw new Error('Failed to export filtered students data');
-                }
-            } catch (error) {
-                console.error('Error exporting filtered students:', error);
-                showAlert('Failed to export filtered students data: ' + error.message, 'danger');
             } finally {
                 hideLoading();
             }
@@ -1365,6 +1352,152 @@
             if (confirm('Are you sure you want to disconnect from the system?')) {
                 // Clear URL parameters and reload
                 window.location.href = window.location.pathname;
+            }
+        }
+
+        // Function to clear all validation errors
+        function clearValidationErrors() {
+            // Remove all existing error messages and red borders
+            document.querySelectorAll('.is-invalid').forEach(element => {
+                element.classList.remove('is-invalid');
+            });
+            document.querySelectorAll('.invalid-feedback').forEach(element => {
+                element.style.display = 'none';
+                element.textContent = '';
+            });
+            document.querySelectorAll('.text-danger.field-error').forEach(element => {
+                element.remove();
+            });
+        }
+
+        // Function to show field validation errors
+        function showFieldValidationErrors(errors) {
+            Object.keys(errors).forEach(fieldName => {
+                const field = document.querySelector(`[name="${fieldName}"]`);
+                if (field) {
+                    // Add red border to the field
+                    field.classList.add('is-invalid');
+
+                    // Find or create error message element
+                    let errorElement = field.parentNode.querySelector('.invalid-feedback');
+                    if (!errorElement) {
+                        // Create error element if it doesn't exist
+                        errorElement = document.createElement('div');
+                        errorElement.className = 'invalid-feedback text-danger field-error';
+                        field.parentNode.appendChild(errorElement);
+                    }
+
+                    // Show specific error messages
+                    errorElement.style.display = 'block';
+                    errorElement.innerHTML = errors[fieldName].join('<br>');
+                }
+            });
+        }
+
+        // Enhanced input validation with real-time feedback
+        function setupRealTimeValidation() {
+            // Add event listeners for real-time validation
+            document.addEventListener('input', function(e) {
+                if (e.target.classList.contains('is-invalid')) {
+                    // Clear error when user starts typing
+                    e.target.classList.remove('is-invalid');
+                    const errorElement = e.target.parentNode.querySelector('.invalid-feedback');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            });
+
+            // Add change listeners for select fields
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('is-invalid')) {
+                    // Clear error when user selects something
+                    e.target.classList.remove('is-invalid');
+                    const errorElement = e.target.parentNode.querySelector('.invalid-feedback');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Add CSS for better error styling
+        function addValidationStyles() {
+            const style = document.createElement('style');
+            style.textContent = `
+        .is-invalid {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+        }
+        
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+        
+        .invalid-feedback.show, 
+        .is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+        
+        .field-error {
+            background-color: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        
+        .modal .alert {
+            margin-bottom: 15px;
+        }
+        
+        /* Highlight required fields */
+        .form-label .text-danger {
+            color: #dc3545;
+        }
+        
+        /* Style for validation success */
+        .is-valid {
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+        }
+    `;
+            document.head.appendChild(style);
+        }
+
+        // Enhanced modal handling to prevent auto-close on validation errors
+        function preventModalCloseOnError() {
+            // Override modal hide behavior when there are validation errors
+            const addModal = document.getElementById('addUserModal');
+            const updateModal = document.getElementById('viewStudentModal');
+
+            [addModal, updateModal].forEach(modal => {
+                if (modal) {
+                    modal.addEventListener('hide.bs.modal', function(event) {
+                        // Check if there are validation errors
+                        const hasErrors = modal.querySelector('.is-invalid');
+                        if (hasErrors && !event.target.dataset.forceClose) {
+                            // Don't close modal if there are validation errors
+                            // unless specifically forced
+                            event.preventDefault();
+                            return false;
+                        }
+                    });
+                }
+            });
+        }
+
+        // Function to force close modal (for successful operations)
+        function forceCloseModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.dataset.forceClose = 'true';
+                bootstrap.Modal.getInstance(modal).hide();
+                delete modal.dataset.forceClose;
             }
         }
     </script>
