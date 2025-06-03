@@ -12,11 +12,19 @@
 
     <link rel="shortcut icon" href="assets/images/PUPLogo.png" type="image/x-icon" />
 
-    <!-- ========== All CSS files linkup ========= -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/lineicons.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/materialdesignicons.min.css" rel="stylesheet"
+        type="text/css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/fullcalendar.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/fullcalendar.css" />
+    <link rel="stylesheet" href="../../../assets/admin/css/main.css" />
+
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{{ asset('../../assets/admin/css/main.css') }}" />
 </head>
 
 <body>
@@ -24,8 +32,6 @@
     <div id="preloader">
         <div class="spinner"></div>
     </div>
-
-
 
     <!-- API Indicator -->
     <div class="api-indicator" id="apiIndicator" style="display: none;">
@@ -73,9 +79,6 @@
 
     <!-- ======== main-wrapper start =========== -->
     <main class="main-wrapper">
-        <!-- ========== header start ========== -->
-
-
         <!-- ========== section start ========== -->
         <section class="section">
             <div class="container-fluid">
@@ -159,37 +162,6 @@
                                             data-bs-toggle="modal" data-bs-target="#batchUploadModal">
                                             <i class="fas fa-upload me-1"></i>Upload
                                         </button>
-                                        {{-- <div class="dropdown me-2">
-                                            <button class="main-btn primary-btn-outline square-btn btn-hover btn-sm"
-                                                type="button" id="exportDropdown" data-bs-toggle="dropdown"
-                                                aria-expanded="false">
-                                                <i class="fas fa-file-export me-1"></i> Export
-                                            </button>
-                                            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                                                <li>
-                                                    <a class="dropdown-item" href="#"
-                                                        onclick="exportAllStudents()">
-                                                        <i class="fas fa-users me-2"></i> Export All Students
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="#"
-                                                        onclick="exportFilteredStudents()">
-                                                        <i class="fas fa-filter me-2"></i> Export Filtered Data
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item text-muted" href="#"
-                                                        style="cursor: default;">
-                                                        <small><i class="fas fa-info-circle me-2"></i> CSV
-                                                            format</small>
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div> --}}
                                     </div>
                                 </div>
 
@@ -279,96 +251,120 @@
                     <h5 class="modal-title" id="addUserModalLabel">Add New Student</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-x: auto; max-height: 70vh;">
                     <form id="addUserForm" novalidate>
                         <!-- Alert placed at the top of the form -->
                         <div id="formAlert" class="alert d-none mb-3" role="alert"></div>
+                        <div class="form-section">
+                            <div class="row">
+                                <!-- Email -->
+                                <div class="col-12 col-md-6">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_email" class="form-label">Email <span
+                                                class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="add_email" name="email"
+                                            required>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                <!-- Student Number -->
+                                <div class="col-12 col-md-6">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_student_number" class="form-label">Student Number <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="add_student_number"
+                                            name="student_number" required>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                <!-- First Name -->
+                                <div class="col-12 col-md-4">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_first_name" class="form-label">First Name <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="add_first_name"
+                                            name="first_name" required>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                <!-- Middle Name -->
+                                <div class="col-12 col-md-4">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_middle_name" class="form-label">Middle Name</label>
+                                        <input type="text" class="form-control" id="add_middle_name"
+                                            name="middle_name">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                <!-- Last Name -->
+                                <div class="col-12 col-md-4">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_last_name" class="form-label">Last Name <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="add_last_name"
+                                            name="last_name" required>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                <!-- Year -->
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3 input-style-1">
-                                <label for="email" class="form-label">Email <span
-                                        class="text-danger">*</span></label>
-                                <input type="email" class="form-control" id="email" name="email" required>
-                                <div class="invalid-feedback">Please enter a valid email address.</div>
-                            </div>
-                            <div class="col-md-6 mb-3 input-style-1">
-                                <label for="student_number" class="form-label">Student Number <span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="student_number" name="student_number"
-                                    required>
-                                <div class="invalid-feedback">Please enter a student number.</div>
-                            </div>
-                            <div class="col-md-4 mb-3 input-style-1">
-                                <label for="first_name" class="form-label">First Name <span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="first_name" name="first_name"
-                                    required>
-                                <div class="invalid-feedback">Please enter a first name.</div>
-                            </div>
-                            <div class="col-md-4 mb-3 input-style-1">
-                                <label for="middle_name" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="middle_name" name="middle_name"
-                                    required>
-                                <div class="invalid-feedback">Please enter a middle name.</div>
-                            </div>
-                            <div class="col-md-4 mb-3 input-style-1">
-                                <label for="last_name" class="form-label">Last Name <span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" required>
-                                <div class="invalid-feedback">Please enter a last name.</div>
-                            </div>
-                            <div class="col-md-6 mb-3 select-style-1">
-                                <label>Year <span class="text-danger">*</span></label>
-                                <div class="select-position">
-                                    <select id="year" class="form-control form-select select-position"
-                                        name="year" required>
-                                        <option value="" disabled selected>Select Year</option>
-                                        <option value="1st Year">1st Year</option>
-                                        <option value="2nd Year">2nd Year</option>
-                                        <option value="3rd Year">3rd Year</option>
-                                        <option value="4th Year">4th Year</option>
-                                    </select>
-                                    <div class="invalid-feedback">Please select a year.</div>
+                                <div class="col-md-6 mb-3 select-style-1">
+                                    <label>Year <span class="text-danger">*</span></label>
+                                    <div class="select-position">
+                                        <select id="add_year" class="form-control form-select select-position"
+                                            name="year" required>
+                                            <option value="" disabled selected>Select Year</option>
+                                            <option value="1st Year">1st Year</option>
+                                            <option value="2nd Year">2nd Year</option>
+                                            <option value="3rd Year">3rd Year</option>
+                                            <option value="4th Year">4th Year</option>
+                                        </select>
+                                          <div class="invalid-feedback"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6 mb-3 select-style-1">
-                                <label>Section <span class="text-danger">*</span></label>
-                                <div class="select-position">
-                                    <select id="section" class="form-control form-select select-position"
-                                        name="section" required>
-                                        <option value="" disabled selected>Select Section</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                    </select>
-                                    <div class="invalid-feedback">Please select a section.</div>
+                                <!-- Section -->
+                                <div class="col-md-6 mb-3 select-style-1">
+                                    <label>Section <span class="text-danger">*</span></label>
+                                    <div class="select-position">
+                                        <select id="add_section" class="form-control form-select select-position"
+                                            name="section" required>
+                                            <option value="">Select Section</option>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="7">7</option>
+                                            <option value="8">8</option>
+                                            <option value="9">9</option>
+                                            <option value="10">10</option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
                                 </div>
-                            </div>
+                                <!-- Program -->
 
-                            <div class="col-md-6 mb-3 select-style-1">
-                                <label>Program <span class="text-danger">*</span></label>
-                                <div class="select-position">
-                                    <select id="program" class="form-control form-select" name="program" required>
-                                        <option value="" disabled selected>Select your program/course</option>
-                                        <!-- Programs will be loaded dynamically -->
-                                    </select>
-                                    <div class="invalid-feedback">Please select a program.</div>
+                                <div class="col-md-6 mb-3 select-style-1">
+                                    <label>Program <span class="text-danger">*</span></label>
+                                    <div class="select-position">
+                                        <select id="add_program" class="form-control form-select" name="program"
+                                            required>
+                                            <option value="">Select Program</option>
+                                            <!-- Programs will be loaded dynamically -->
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="input-style-1">
-                                    <label>Birthdate <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" id="birthdate" name="birthdate"
-                                        required>
+                                <!-- Birthdate -->
+                                <div class="col-12 col-md-6">
+                                    <div class="input-group-validation input-style-1">
+                                        <label for="add_birthdate" class="form-label">Birthdate</label>
+                                        <input type="date" class="form-control" id="add_birthdate"
+                                            name="birthdate">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
                                 </div>
-                                <div class="invalid-feedback">Please enter a birthdate.</div>
                             </div>
                         </div>
                     </form>
@@ -376,8 +372,38 @@
                 <div class="modal-footer">
                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2"
                         data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="addUserForm">Add
-                        Student</button>
+                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="addUserForm"
+                        id="addStudentBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-plus me-1"></i>Add Student
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Student Modal -->
+    <div class="modal fade" id="viewStudentModal" tabindex="-1" aria-labelledby="viewStudentModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewStudentModalLabel">Student Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="viewStudentForm" novalidate>
+                        <div id="studentDetailsContainer"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" form="viewStudentForm" id="updateStudentBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-save me-1"></i>Update Student
+                        </span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -484,34 +510,13 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="main-button light-btn btn-hover mb-1 me-2" data-bs-dismiss="modal"
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
                         id="cancelUploadBtn">Cancel</button>
-                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="batchUploadForm"
-                        id="startUploadBtn">
-                        Start Batch Upload
+                    <button type="submit" class="btn btn-primary" form="batchUploadForm" id="startUploadBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-upload me-1"></i>Start Batch Upload
+                        </span>
                     </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- View Student Modal -->
-    <div class="modal fade" id="viewStudentModal" tabindex="-1" aria-labelledby="viewStudentModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewStudentModalLabel">Student Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="viewStudentForm">
-                        <div id="studentDetailsContainer"></div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-primary">Update Student</button>
-                        </div>
-                    </form>
                 </div>
             </div>
         </div>
@@ -519,6 +524,7 @@
 
     <!-- Scripts -->
     @include('admin.partials.footer')
+
 
     <script>
         // Global variables
@@ -559,9 +565,6 @@
         // Initialize application
         async function initializeApp() {
             try {
-                // Add validation styles
-                addValidationStyles();
-
                 // Validate API key and load initial data
                 await validateAndLoadData();
 
@@ -577,7 +580,6 @@
                 showAlert('Failed to connect to the system. Please check your API key and try again.', 'danger');
             }
         }
-
 
         // Validate API key and load data
         async function validateAndLoadData() {
@@ -613,6 +615,7 @@
                 throw error;
             }
         }
+
         // Load courses from API
         async function loadCourses() {
             try {
@@ -623,15 +626,13 @@
                     populateCoursesDropdown();
                 } else {
                     console.warn('Failed to load courses:', response.message);
-                    // Continue without courses if API doesn't support it
                 }
             } catch (error) {
                 console.warn('Error loading courses:', error);
-                // Continue without courses if API doesn't support it
             }
         }
 
-        // Make API call - FIXED VERSION
+        // Make API call
         async function makeApiCall(endpoint, method = 'GET', data = null) {
             const url = BASE_URL + endpoint;
             const options = {
@@ -644,10 +645,8 @@
 
             if (data && method !== 'GET') {
                 if (data instanceof FormData) {
-                    // Don't set Content-Type for FormData - let browser set it
                     options.body = data;
                 } else if (typeof data === 'object') {
-                    // Send as JSON
                     options.headers['Content-Type'] = 'application/json';
                     options.body = JSON.stringify(data);
                 } else {
@@ -667,8 +666,6 @@
 
             return await response.json();
         }
-
-
 
         // Render students table
         function renderStudentsTable() {
@@ -727,11 +724,11 @@
                         </button>
                         ${student.status === 'Active' ? 
                             `<button class="btn btn-outline-danger btn-sm" onclick="toggleAccountStatus(${student.id}, 'deactivate')">
-                                                                                                                                <i class="fas fa-ban me-1"></i> Deactivate
-                                                                                                                            </button>` :
+                                                            <i class="fas fa-ban me-1"></i> Deactivate
+                                                        </button>` :
                             `<button class="btn btn-outline-success btn-sm" onclick="toggleAccountStatus(${student.id}, 'reactivate')">
-                                                                                                                                <i class="fas fa-check-circle me-1"></i> Reactivate
-                                                                                                                            </button>`
+                                                            <i class="fas fa-check-circle me-1"></i> Reactivate
+                                                        </button>`
                         }
                     </div>
                 </td>
@@ -742,11 +739,11 @@
 
         // Populate courses dropdown
         function populateCoursesDropdown() {
-            const programSelect = document.getElementById('program');
+            const programSelect = document.getElementById('add_program');
             const programFilter = document.getElementById('programFilter');
 
             // Clear existing options
-            programSelect.innerHTML = '<option value="" disabled selected>Select your program/course</option>';
+            programSelect.innerHTML = '<option value="">Select your program/course</option>';
             programFilter.innerHTML = '<option value="" disabled selected>Programs</option>';
 
             coursesData.forEach(course => {
@@ -764,35 +761,26 @@
 
         // Update filter counts
         function updateFilterCounts() {
-            // Count by program
             const programCounts = {};
             const yearCounts = {};
             const sectionCounts = {};
             const statusCounts = {};
 
             studentsData.forEach(student => {
-                // Program counts
                 if (student.program) {
                     programCounts[student.program] = (programCounts[student.program] || 0) + 1;
                 }
-
-                // Year counts
                 if (student.year) {
                     yearCounts[student.year] = (yearCounts[student.year] || 0) + 1;
                 }
-
-                // Section counts
                 if (student.section) {
                     sectionCounts[student.section] = (sectionCounts[student.section] || 0) + 1;
                 }
-
-                // Status counts
                 if (student.status) {
                     statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
                 }
             });
 
-            // Update filter dropdowns with counts
             updateFilterOptions('programFilter', programCounts);
             updateFilterOptions('yearFilter', yearCounts);
             updateFilterOptions('sectionFilter', sectionCounts);
@@ -812,85 +800,57 @@
             });
         }
 
-        // Setup form handlers - FIXED VERSION
+        // Setup form handlers
         function setupFormHandlers() {
             document.getElementById('addUserForm').addEventListener('submit', handleAddStudent);
+            document.getElementById('viewStudentForm').addEventListener('submit', handleUpdateStudent);
             document.getElementById('batchUploadForm').addEventListener('submit', handleBatchUpload);
             document.getElementById('batchUploadFiles').addEventListener('change', handleFileSelection);
-
-            // Use the enhanced update function
-            const viewStudentForm = document.getElementById('viewStudentForm');
-            if (viewStudentForm) {
-                viewStudentForm.addEventListener('submit', updateStudent);
-            }
-
-            // Setup real-time validation
-            setupRealTimeValidation();
-
-            // Add validation styles
-            addValidationStyles();
         }
 
-        // Handle add student - IMPROVED VERSION
+        // Handle add student with loading state
         async function handleAddStudent(e) {
             e.preventDefault();
 
-            // Clear previous validation errors
-            clearAllValidationErrors();
+            const submitBtn = document.getElementById('addStudentBtn');
+            const btnText = submitBtn.querySelector('.btn-text');
 
-            const formData = new FormData(e.target);
-
-            // Convert to object for easier debugging
-            const studentData = {};
-            for (let [key, value] of formData.entries()) {
-                studentData[key] = value;
-            }
-
-            // Client-side validation first
-            const clientValidationErrors = validateStudentData(studentData);
-            if (Object.keys(clientValidationErrors).length > 0) {
-                showInlineValidationErrors(clientValidationErrors);
-                // Focus on first error field
-                const firstErrorField = document.querySelector('.is-invalid');
-                if (firstErrorField) {
-                    firstErrorField.focus();
-                    firstErrorField.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
-                }
-                return;
-            }
-
-            console.log('Adding student with data:', studentData);
+            // Start loading state
+            setButtonLoading(submitBtn, 'Processing...');
 
             try {
-                showLoading();
+                // Clear previous validation errors
+                clearAllValidationErrors();
+
+                const formData = new FormData(e.target);
+                const studentData = {};
+                for (let [key, value] of formData.entries()) {
+                    studentData[key] = value;
+                }
+
+                // Client-side validation
+                const clientValidationErrors = validateStudentData(studentData);
+                if (Object.keys(clientValidationErrors).length > 0) {
+                    showInlineValidationErrors(clientValidationErrors);
+                    focusFirstError();
+                    return;
+                }
+
+                console.log('Adding student with data:', studentData);
 
                 const response = await makeApiCall('/api/students', 'POST', studentData);
 
                 if (response.success) {
-                    showAlert('Student added successfully!', 'success');
-                    await loadStudents(); // Reload students
+                    showAlert('Student added successfully! Login credentials have been sent to their email.',
+                        'success');
+                    await loadStudents();
                     e.target.reset();
-                    clearAllValidationErrors(); // Clear any remaining errors
+                    clearAllValidationErrors();
                     bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
                 } else {
-                    // Handle validation errors - show them in fields instead of alert
                     if (response.errors) {
                         showInlineValidationErrors(response.errors);
-
-                        // Focus on first error field
-                        const firstErrorField = document.querySelector('.is-invalid');
-                        if (firstErrorField) {
-                            firstErrorField.focus();
-                            firstErrorField.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                        }
-
-                        // Don't hide the modal - let user fix errors
+                        focusFirstError();
                         return;
                     } else {
                         throw new Error(response.message || 'Failed to add student');
@@ -900,23 +860,85 @@
                 console.error('Error adding student:', error);
                 showAlert('Failed to add student: ' + error.message, 'danger');
             } finally {
-                hideLoading();
+                // Always reset button state
+                resetButtonLoading(submitBtn, '<i class="fas fa-plus me-1"></i>Add Student');
             }
         }
-        // Handle batch upload
+
+        // Handle update student with loading state
+        async function handleUpdateStudent(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('updateStudentBtn');
+
+            // Start loading state
+            setButtonLoading(submitBtn, 'Updating...');
+
+            try {
+                // Clear previous validation errors
+                clearAllValidationErrors();
+
+                const formData = new FormData(e.target);
+                const studentId = formData.get('student_id');
+                formData.delete('student_id');
+
+                const studentData = {};
+                for (let [key, value] of formData.entries()) {
+                    studentData[key] = value;
+                }
+
+                // Client-side validation
+                const clientValidationErrors = validateStudentData(studentData, true);
+                if (Object.keys(clientValidationErrors).length > 0) {
+                    showInlineValidationErrors(clientValidationErrors);
+                    focusFirstError();
+                    return;
+                }
+
+                console.log('Updating student:', studentId, 'with data:', studentData);
+
+                const response = await makeApiCall(`/api/students/${studentId}`, 'PUT', studentData);
+
+                if (response.success) {
+                    showAlert('Student updated successfully!', 'success');
+                    await loadStudents();
+                    clearAllValidationErrors();
+                    bootstrap.Modal.getInstance(document.getElementById('viewStudentModal')).hide();
+                } else {
+                    if (response.errors) {
+                        showInlineValidationErrors(response.errors);
+                        focusFirstError();
+                        return;
+                    } else {
+                        throw new Error(response.message || 'Failed to update student');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating student:', error);
+                showAlert('Failed to update student: ' + error.message, 'danger');
+            } finally {
+                // Always reset button state
+                resetButtonLoading(submitBtn, '<i class="fas fa-save me-1"></i>Update Student');
+            }
+        }
+
+        // Handle batch upload with loading state
         async function handleBatchUpload(e) {
             e.preventDefault();
 
-            const formData = new FormData(e.target);
+            const submitBtn = document.getElementById('startUploadBtn');
+
+            // Start loading state
+            setButtonLoading(submitBtn, 'Uploading...');
 
             try {
-                showLoading();
+                const formData = new FormData(e.target);
 
                 const response = await makeApiCall('/api/students/batch-upload', 'POST', formData);
 
                 if (response.success) {
                     showAlert('Batch upload completed successfully!', 'success');
-                    await loadStudents(); // Reload students
+                    await loadStudents();
                     e.target.reset();
                     bootstrap.Modal.getInstance(document.getElementById('batchUploadModal')).hide();
                 } else {
@@ -926,7 +948,36 @@
                 console.error('Error uploading batch:', error);
                 showAlert('Failed to upload batch: ' + error.message, 'danger');
             } finally {
-                hideLoading();
+                // Always reset button state
+                resetButtonLoading(submitBtn, '<i class="fas fa-upload me-1"></i>Start Batch Upload');
+            }
+        }
+
+        // Set button loading state
+        function setButtonLoading(button, loadingText) {
+            button.classList.add('btn-loading');
+            button.disabled = true;
+
+            // Update text if provided
+            if (loadingText) {
+                const textSpan = button.querySelector('.btn-text');
+                if (textSpan) {
+                    textSpan.textContent = loadingText;
+                }
+            }
+        }
+
+        // Reset button loading state
+        function resetButtonLoading(button, originalText) {
+            button.classList.remove('btn-loading');
+            button.disabled = false;
+
+            // Reset text
+            if (originalText) {
+                const textSpan = button.querySelector('.btn-text');
+                if (textSpan) {
+                    textSpan.innerHTML = originalText;
+                }
             }
         }
 
@@ -972,155 +1023,275 @@
             }
         }
 
-        // Populate student modal - FIXED VERSION
+        // Populate student modal with validation structure
         function populateStudentModal(student) {
             const container = document.getElementById('studentDetailsContainer');
             container.innerHTML = `
-                <div class="row">
-                    <div class="col-md-6 mb-3 input-style-1">
-                        <label class="form-label">Email <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" name="email" value="${student.email || ''}" required>
+                <div class="form-section">
+                    <h6><i class="fas fa-user me-2"></i>Personal Information</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="first_name" value="${student.first_name || ''}" required>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Middle Name</label>
+                                <input type="text" class="form-control" name="middle_name" value="${student.middle_name || ''}">
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="last_name" value="${student.last_name || ''}" required>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="email" value="${student.email || ''}" required>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Birthdate</label>
+                                <input type="date" class="form-control" name="birthdate" value="${student.birthdate || ''}">
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3 input-style-1">
-                        <label class="form-label">Student Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="student_number" value="${student.student_number || ''}" required>
-                    </div>
-                    <div class="col-md-4 mb-3 input-style-1">
-                        <label class="form-label">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="first_name" value="${student.first_name || ''}" required>
-                    </div>
-                    <div class="col-md-4 mb-3 input-style-1">
-                        <label class="form-label">Middle Name</label>
-                        <input type="text" class="form-control" name="middle_name" value="${student.middle_name || ''}">
-                    </div>
-                    <div class="col-md-4 mb-3 input-style-1">
-                        <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="last_name" value="${student.last_name || ''}" required>
-                    </div>
-                    <div class="col-md-6 mb-3 select-style-1">
-                        <label>Program <span class="text-danger">*</span></label>
-                        <select class="form-control form-select" name="program" required>
-                            <option value="">Select Program</option>
-                            ${coursesData.map(course => 
-                                `<option value="${course.course_name}" ${course.course_name === student.program ? 'selected' : ''}>${course.course_name}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3 select-style-1">
-                        <label>Year <span class="text-danger">*</span></label>
-                        <select class="form-control form-select" name="year" required>
-                            <option value="">Select Year</option>
-                            <option value="1st Year" ${student.year === '1st Year' ? 'selected' : ''}>1st Year</option>
-                            <option value="2nd Year" ${student.year === '2nd Year' ? 'selected' : ''}>2nd Year</option>
-                            <option value="3rd Year" ${student.year === '3rd Year' ? 'selected' : ''}>3rd Year</option>
-                            <option value="4th Year" ${student.year === '4th Year' ? 'selected' : ''}>4th Year</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3 select-style-1">
-                        <label>Section <span class="text-danger">*</span></label>
-                        <select class="form-control form-select" name="section" required>
-                            <option value="">Select Section</option>
-                            ${[1,2,3,4,5,6,7,8,9,10].map(num => 
-                                `<option value="${num}" ${student.section == num ? 'selected' : ''}>${num}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3 input-style-1">
-                        <label class="form-label">Birthdate</label>
-                        <input type="date" class="form-control" name="birthdate" value="${student.birthdate || ''}">
+                </div>
+
+                <div class="form-section">
+                    <h6><i class="fas fa-graduation-cap me-2"></i>Academic Information</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Student Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="student_number" value="${student.student_number || ''}" required>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Program <span class="text-danger">*</span></label>
+                                <select class="form-control form-select" name="program" required>
+                                    <option value="">Select Program</option>
+                                    ${coursesData.map(course => 
+                                        `<option value="${course.course_name}" ${course.course_name === student.program ? 'selected' : ''}>${course.course_name}</option>`
+                                    ).join('')}
+                                </select>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Year <span class="text-danger">*</span></label>
+                                <select class="form-control form-select" name="year" required>
+                                    <option value="">Select Year</option>
+                                    <option value="1st Year" ${student.year === '1st Year' ? 'selected' : ''}>1st Year</option>
+                                    <option value="2nd Year" ${student.year === '2nd Year' ? 'selected' : ''}>2nd Year</option>
+                                    <option value="3rd Year" ${student.year === '3rd Year' ? 'selected' : ''}>3rd Year</option>
+                                    <option value="4th Year" ${student.year === '4th Year' ? 'selected' : ''}>4th Year</option>
+                                </select>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group-validation">
+                                <label class="form-label">Section <span class="text-danger">*</span></label>
+                                <select class="form-control form-select" name="section" required>
+                                    <option value="">Select Section</option>
+                                    ${[1,2,3,4,5,6,7,8,9,10].map(num => 
+                                        `<option value="${num}" ${student.section == num ? 'selected' : ''}>${num}</option>`
+                                    ).join('')}
+                                </select>
+                                <div class="invalid-feedback"></di
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <input type="hidden" name="student_id" value="${student.id}">
             `;
+
+            // Setup real-time validation for the modal fields
+            setupModalValidation();
         }
 
-        // Update student - FIXED VERSION
-        async function updateStudent(e) {
-            e.preventDefault();
+        // Setup real-time validation for modal
+        function setupModalValidation() {
+            const modal = document.getElementById('viewStudentModal');
+            const inputs = modal.querySelectorAll('input[required], select[required]');
 
-            // Clear previous validation errors
-            clearAllValidationErrors();
-
-            try {
-                const form = e.target;
-                const formData = new FormData(form);
-                const studentId = formData.get('student_id');
-
-                // Remove student_id from the data to be sent
-                formData.delete('student_id');
-
-                // Convert FormData to regular object for validation and JSON sending
-                const studentData = {};
-                for (let [key, value] of formData.entries()) {
-                    studentData[key] = value;
-                }
-
-                // Client-side validation first
-                const clientValidationErrors = validateStudentData(studentData, true); // true for update mode
-                if (Object.keys(clientValidationErrors).length > 0) {
-                    showInlineValidationErrors(clientValidationErrors);
-                    // Focus on first error field
-                    const firstErrorField = document.querySelector('.is-invalid');
-                    if (firstErrorField) {
-                        firstErrorField.focus();
-                        firstErrorField.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
-                        });
-                    }
-                    return;
-                }
-
-                console.log('Updating student:', studentId, 'with data:', studentData);
-
-                showLoading();
-
-                // Use PUT method for update and send as JSON
-                const response = await fetch(`${BASE_URL}/api/students/${studentId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'X-API-Key': API_KEY,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(studentData)
+            inputs.forEach(input => {
+                // Add input event listeners
+                input.addEventListener('input', function() {
+                    validateField(this);
                 });
 
-                const data = await response.json();
+                input.addEventListener('blur', function() {
+                    validateField(this);
+                });
 
-                hideLoading();
+                input.addEventListener('change', function() {
+                    validateField(this);
+                });
+            });
+        }
 
-                if (data.success) {
-                    showAlert('Student updated successfully!', 'success');
-                    await loadStudents();
-                    clearAllValidationErrors(); // Clear any remaining errors
-                    bootstrap.Modal.getInstance(document.getElementById('viewStudentModal')).hide();
-                } else {
-                    // Handle validation errors - show them in fields instead of alert
-                    if (data.errors) {
-                        showInlineValidationErrors(data.errors);
+        // Real-time field validation
+        function validateField(field) {
+            const fieldName = field.name;
+            const value = field.value.trim();
+            const validationContainer = field.closest('.input-group-validation');
+            const errorElement = validationContainer.querySelector('.invalid-feedback');
+            const iconElement = validationContainer.querySelector('.validation-icon');
 
-                        // Focus on first error field
-                        const firstErrorField = document.querySelector('.is-invalid');
-                        if (firstErrorField) {
-                            firstErrorField.focus();
-                            firstErrorField.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                        }
+            // Clear previous states
+            field.classList.remove('is-valid', 'is-invalid');
+            errorElement.textContent = '';
+            iconElement.innerHTML = '';
 
-                        // Don't hide the modal - let user fix errors
-                        return;
-                    } else {
-                        throw new Error(data.message || 'Failed to update student');
+            let isValid = true;
+            let errorMessage = '';
+
+            // Validate based on field type
+            switch (fieldName) {
+                case 'first_name':
+                case 'last_name':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = fieldName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) + ' is required';
+                    } else if (value.length < 2) {
+                        isValid = false;
+                        errorMessage = fieldName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) +
+                            ' must be at least 2 characters';
+                    } else if (!/^[a-zA-Z\s]+$/.test(value)) {
+                        isValid = false;
+                        errorMessage = fieldName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) +
+                            ' can only contain letters and spaces';
                     }
-                }
-            } catch (error) {
-                hideLoading();
-                console.error('Error updating student:', error);
-                showAlert('Failed to update student: ' + error.message, 'danger');
+                    break;
+
+                case 'middle_name':
+                    if (value && !/^[a-zA-Z\s]+$/.test(value)) {
+                        isValid = false;
+                        errorMessage = 'Middle name can only contain letters and spaces';
+                    }
+                    break;
+
+                case 'email':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = 'Email is required';
+                    } else if (!isValidEmail(value)) {
+                        isValid = false;
+                        errorMessage = 'Please enter a valid email address';
+                    }
+                    break;
+
+                case 'student_number':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = 'Student number is required';
+                    } else if (value.length < 5) {
+                        isValid = false;
+                        errorMessage = 'Student number must be at least 5 characters';
+                    } else if (!/^[A-Za-z0-9\-]+$/.test(value)) {
+                        isValid = false;
+                        errorMessage = 'Student number can only contain letters, numbers, and hyphens';
+                    }
+                    break;
+
+                case 'program':
+                case 'year':
+                case 'section':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = fieldName.replace(/\b\w/g, l => l.toUpperCase()) + ' is required';
+                    }
+                    break;
+
+                case 'birthdate':
+                    if (value) {
+                        const birthDate = new Date(value);
+                        const today = new Date();
+
+                        if (isNaN(birthDate.getTime())) {
+                            isValid = false;
+                            errorMessage = 'Please enter a valid birthdate';
+                        } else if (birthDate > today) {
+                            isValid = false;
+                            errorMessage = 'Birthdate cannot be in the future';
+                        } else {
+                            const age = today.getFullYear() - birthDate.getFullYear();
+                            const monthDiff = today.getMonth() - birthDate.getMonth();
+
+                            let actualAge = age;
+                            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                                actualAge--;
+                            }
+
+                            if (actualAge < 15) {
+                                isValid = false;
+                                errorMessage = 'Student must be at least 15 years old';
+                            } else if (actualAge > 100) {
+                                isValid = false;
+                                errorMessage = 'Please enter a valid birthdate';
+                            }
+                        }
+                    }
+                    break;
             }
+
+            // Apply validation styling
+            if (!isValid) {
+                field.classList.add('is-invalid');
+                errorElement.textContent = errorMessage;
+                errorElement.style.display = 'block';
+                iconElement.innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
+            } else if (field.hasAttribute('required') || value) {
+                field.classList.add('is-valid');
+                iconElement.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+            }
+
+            return isValid;
+        }
+
+        // Setup real-time validation for all forms
+        function setupRealTimeValidation() {
+            // Add form validation
+            const addForm = document.getElementById('addUserForm');
+            const updateForm = document.getElementById('viewStudentForm');
+
+            [addForm, updateForm].forEach(form => {
+                if (form) {
+                    const inputs = form.querySelectorAll(
+                        'input[required], select[required], input[type="email"], input[name="birthdate"]');
+
+                    inputs.forEach(input => {
+                        input.addEventListener('input', function() {
+                            if (this.classList.contains('is-invalid')) {
+                                validateField(this);
+                            }
+                        });
+
+                        input.addEventListener('blur', function() {
+                            validateField(this);
+                        });
+
+                        input.addEventListener('change', function() {
+                            validateField(this);
+                        });
+                    });
+                }
+            });
         }
 
         // Client-side validation function
@@ -1220,53 +1391,77 @@
             return emailRegex.test(email);
         }
 
-        // Function to clear all validation errors
+        // Clear all validation errors
         function clearAllValidationErrors() {
-            // Remove all existing error styling and messages
             document.querySelectorAll('.is-invalid').forEach(element => {
                 element.classList.remove('is-invalid');
+            });
+
+            document.querySelectorAll('.is-valid').forEach(element => {
+                element.classList.remove('is-valid');
             });
 
             document.querySelectorAll('.field-error-message').forEach(element => {
                 element.remove();
             });
 
-            // Reset invalid-feedback display
             document.querySelectorAll('.invalid-feedback').forEach(element => {
                 element.style.display = 'none';
                 element.textContent = '';
             });
+
+            document.querySelectorAll('.validation-icon').forEach(element => {
+                element.innerHTML = '';
+            });
         }
 
+        // Show inline validation errors
         function showInlineValidationErrors(errors) {
             Object.keys(errors).forEach(fieldName => {
                 const field = document.querySelector(`[name="${fieldName}"]`);
                 if (field) {
+                    const validationContainer = field.closest('.input-group-validation');
+                    const errorElement = validationContainer ?
+                        validationContainer.querySelector('.invalid-feedback') :
+                        field.parentNode.querySelector('.invalid-feedback');
+                    const iconElement = validationContainer ?
+                        validationContainer.querySelector('.validation-icon') : null;
+
                     // Add red border to the field
                     field.classList.add('is-invalid');
+                    field.classList.remove('is-valid');
 
                     // Get the error message(s)
                     const errorMessages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[
-                    fieldName]];
-                    const errorMessage = errorMessages[0]; // Use first error message
+                        fieldName]];
+                    const errorMessage = errorMessages[0];
 
-                    // Remove any existing error message for this field
-                    const existingError = field.parentNode.querySelector('.field-error-message');
-                    if (existingError) {
-                        existingError.remove();
+                    // Show error message
+                    if (errorElement) {
+                        errorElement.style.display = 'block';
+                        errorElement.textContent = errorMessage;
                     }
 
-                    // Create and add error message element
-                    const errorElement = document.createElement('div');
-                    errorElement.className = 'field-error-message text-danger mt-1';
-                    errorElement.style.fontSize = '0.875rem';
-                    errorElement.textContent = errorMessage;
-
-                    // Insert error message after the field
-                    field.parentNode.appendChild(errorElement);
+                    // Show error icon
+                    if (iconElement) {
+                        iconElement.innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
+                    }
                 }
             });
         }
+
+        // Focus on first error field
+        function focusFirstError() {
+            const firstErrorField = document.querySelector('.is-invalid');
+            if (firstErrorField) {
+                firstErrorField.focus();
+                firstErrorField.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        }
+
         // Toggle account status
         async function toggleAccountStatus(studentId, action) {
             try {
@@ -1291,7 +1486,7 @@
 
                     if (response.success) {
                         showAlert(`Student ${actionText}d successfully!`, 'success');
-                        await loadStudents(); // Reload students
+                        await loadStudents();
                     } else {
                         throw new Error(response.message || `Failed to ${actionText} student`);
                     }
@@ -1337,7 +1532,7 @@
 
                     if (response.success) {
                         showAlert(`Successfully ${actionText}d ${response.data.updated_count} student(s)!`, 'success');
-                        await loadStudents(); // Reload students
+                        await loadStudents();
                         clearSelection();
                     } else {
                         throw new Error(response.message || `Failed to ${actionText} students`);
@@ -1392,22 +1587,18 @@
             rows.forEach(row => {
                 let shouldShow = true;
 
-                // Check program filter
                 if (filters.program && row.getAttribute('data-program') !== filters.program) {
                     shouldShow = false;
                 }
 
-                // Check year filter
                 if (filters.year && row.getAttribute('data-year') !== filters.year) {
                     shouldShow = false;
                 }
 
-                // Check section filter
                 if (filters.section && row.getAttribute('data-section') !== filters.section) {
                     shouldShow = false;
                 }
 
-                // Check status filter
                 if (filters.status && row.getAttribute('data-status') !== filters.status.toLowerCase()) {
                     shouldShow = false;
                 }
@@ -1460,8 +1651,6 @@
             if (checkedBoxes.length > 0) {
                 bulkActionsBar.style.display = 'block';
                 selectedCount.textContent = checkedBoxes.length;
-
-                // Update button states based on selection
                 updateBulkActionButtons(checkedBoxes);
             } else {
                 bulkActionsBar.style.display = 'none';
@@ -1481,7 +1670,6 @@
                 if (status === 'Deactivated') hasDeactivated = true;
             });
 
-            // Enable/disable buttons based on selection
             reactivateBtn.disabled = !hasDeactivated;
             deactivateBtn.disabled = !hasActive;
         }
@@ -1495,10 +1683,7 @@
 
         // Utility functions
         function updateApplicationInfo() {
-            // You can set application name from API response or URL params
             const appName = new URLSearchParams(window.location.search).get('app_name') || 'External Application';
-
-            // Update title
             document.title = `${appName} - Student Management`;
         }
 
@@ -1547,154 +1732,7 @@
 
         function disconnectApi() {
             if (confirm('Are you sure you want to disconnect from the system?')) {
-                // Clear URL parameters and reload
                 window.location.href = window.location.pathname;
-            }
-        }
-
-        // Function to clear all validation errors
-        function clearValidationErrors() {
-            // Remove all existing error messages and red borders
-            document.querySelectorAll('.is-invalid').forEach(element => {
-                element.classList.remove('is-invalid');
-            });
-            document.querySelectorAll('.invalid-feedback').forEach(element => {
-                element.style.display = 'none';
-                element.textContent = '';
-            });
-            document.querySelectorAll('.text-danger.field-error').forEach(element => {
-                element.remove();
-            });
-        }
-
-        // Function to show field validation errors
-        function showFieldValidationErrors(errors) {
-            Object.keys(errors).forEach(fieldName => {
-                const field = document.querySelector(`[name="${fieldName}"]`);
-                if (field) {
-                    // Add red border to the field
-                    field.classList.add('is-invalid');
-
-                    // Find or create error message element
-                    let errorElement = field.parentNode.querySelector('.invalid-feedback');
-                    if (!errorElement) {
-                        // Create error element if it doesn't exist
-                        errorElement = document.createElement('div');
-                        errorElement.className = 'invalid-feedback text-danger field-error';
-                        field.parentNode.appendChild(errorElement);
-                    }
-
-                    // Show specific error messages
-                    errorElement.style.display = 'block';
-                    errorElement.innerHTML = errors[fieldName].join('<br>');
-                }
-            });
-        }
-
-        // Enhanced input validation with real-time feedback
-        function setupRealTimeValidation() {
-            // Add event listeners for real-time validation
-            document.addEventListener('input', function(e) {
-                if (e.target.classList.contains('is-invalid')) {
-                    // Clear error when user starts typing
-                    e.target.classList.remove('is-invalid');
-                    const errorElement = e.target.parentNode.querySelector('.invalid-feedback');
-                    if (errorElement) {
-                        errorElement.style.display = 'none';
-                    }
-                }
-            });
-
-            // Add change listeners for select fields
-            document.addEventListener('change', function(e) {
-                if (e.target.classList.contains('is-invalid')) {
-                    // Clear error when user selects something
-                    e.target.classList.remove('is-invalid');
-                    const errorElement = e.target.parentNode.querySelector('.invalid-feedback');
-                    if (errorElement) {
-                        errorElement.style.display = 'none';
-                    }
-                }
-            });
-        }
-
-        // Add CSS for better error styling
-        function addValidationStyles() {
-            const style = document.createElement('style');
-            style.textContent = `
-        .is-invalid {
-            border-color: #dc3545 !important;
-            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
-        }
-        
-        .invalid-feedback {
-            display: none;
-            width: 100%;
-            margin-top: 0.25rem;
-            font-size: 0.875em;
-            color: #dc3545;
-        }
-        
-        .invalid-feedback.show, 
-        .is-invalid ~ .invalid-feedback {
-            display: block;
-        }
-        
-        .field-error {
-            background-color: rgba(220, 53, 69, 0.1);
-            border: 1px solid rgba(220, 53, 69, 0.3);
-            border-radius: 4px;
-            padding: 8px;
-            margin-top: 5px;
-        }
-        
-        .modal .alert {
-            margin-bottom: 15px;
-        }
-        
-        /* Highlight required fields */
-        .form-label .text-danger {
-            color: #dc3545;
-        }
-        
-        /* Style for validation success */
-        .is-valid {
-            border-color: #28a745;
-            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-        }
-    `;
-            document.head.appendChild(style);
-        }
-
-        // Enhanced modal handling to prevent auto-close on validation errors
-        function preventModalCloseOnError() {
-            // Override modal hide behavior when there are validation errors
-            const addModal = document.getElementById('addUserModal');
-            const updateModal = document.getElementById('viewStudentModal');
-
-            [addModal, updateModal].forEach(modal => {
-                if (modal) {
-                    modal.addEventListener('hide.bs.modal', function(event) {
-                        // Check if there are validation errors
-                        const hasErrors = modal.querySelector('.is-invalid');
-                        if (hasErrors && !event.target.dataset.forceClose) {
-                            // Don't close modal if there are validation errors
-                            // unless specifically forced
-                            event.preventDefault();
-                            return false;
-                        }
-                    });
-                }
-            });
-        }
-
-        // Function to force close modal (for successful operations)
-        function forceCloseModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.dataset.forceClose = 'true';
-                bootstrap.Modal.getInstance(modal).hide();
-                delete modal.dataset.forceClose;
             }
         }
     </script>
