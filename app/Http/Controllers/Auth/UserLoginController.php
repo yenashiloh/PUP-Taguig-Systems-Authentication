@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class UserLoginController extends Controller
@@ -73,12 +73,11 @@ class UserLoginController extends Controller
             return $this->errorResponse('Invalid or expired API key', 401);
         }
 
-        // Simple rate limiting (optional for testing)
+        // Simple rate limiting using Cache
         $key = 'login_attempts_' . $request->ip() . '_' . $apiKeyModel->id;
-        $attempts = 0;
         
         try {
-            $attempts = \Illuminate\Support\Facades\Cache::get($key, 0);
+            $attempts = Cache::get($key, 0);
             if ($attempts >= 10) { // Increased limit for testing
                 return $this->errorResponse('Too many login attempts. Try again later.', 429);
             }
@@ -193,7 +192,7 @@ class UserLoginController extends Controller
                     'name' => $apiKeyModel->application_name,
                     'developer' => $apiKeyModel->developer_name
                 ],
-                'redirect_url' => $redirectUrl // Domain to redirect after login
+                'redirect_url' => $redirectUrl
             ]
         ]);
     }
@@ -204,8 +203,8 @@ class UserLoginController extends Controller
     private function incrementLoginAttempts($key)
     {
         try {
-            $attempts = \Illuminate\Support\Facades\Cache::get($key, 0);
-            \Illuminate\Support\Facades\Cache::put($key, $attempts + 1, 300); // 5 minutes
+            $attempts = Cache::get($key, 0);
+            Cache::put($key, $attempts + 1, 300); // 5 minutes
         } catch (\Exception $e) {
             // Continue without rate limiting if cache fails
         }
@@ -217,7 +216,7 @@ class UserLoginController extends Controller
     private function clearLoginAttempts($key)
     {
         try {
-            \Illuminate\Support\Facades\Cache::forget($key);
+            Cache::forget($key);
         } catch (\Exception $e) {
             // Continue if cache fails
         }
@@ -319,15 +318,22 @@ class UserLoginController extends Controller
         
         foreach ($apiKeys as $key) {
             if ($key->verifyKey($apiKey)) {
-                // Check rate limiting for this API key
+                // Simple rate limiting using Cache
                 $rateLimitKey = 'api-requests:' . $key->id . ':' . now()->format('Y-m-d-H-i');
-                $requests = RateLimiter::attempts($rateLimitKey);
                 
-                if ($requests >= $key->request_limit_per_minute) {
-                    return null; // Rate limit exceeded
+                try {
+                    $requests = Cache::get($rateLimitKey, 0);
+                    
+                    if ($requests >= $key->request_limit_per_minute) {
+                        return null; // Rate limit exceeded
+                    }
+                    
+                    Cache::put($rateLimitKey, $requests + 1, 60); // 1 minute window
+                } catch (\Exception $e) {
+                    // Continue without rate limiting if cache fails
+                    \Log::warning('Rate limiting failed: ' . $e->getMessage());
                 }
                 
-                RateLimiter::hit($rateLimitKey, 60); // 1 minute window
                 return $key;
             }
         }
@@ -342,11 +348,11 @@ class UserLoginController extends Controller
     {
         $roles = [];
         
-        if (in_array('student_data', $permissions) || in_array('basic_auth', $permissions)) {
+        if (in_array('student_data', $permissions) || in_array('basic_auth', $permissions) || in_array('login_user', $permissions)) {
             $roles[] = 'Student';
         }
         
-        if (in_array('faculty_data', $permissions) || in_array('basic_auth', $permissions)) {
+        if (in_array('faculty_data', $permissions) || in_array('basic_auth', $permissions) || in_array('login_user', $permissions)) {
             $roles[] = 'Faculty';
         }
         

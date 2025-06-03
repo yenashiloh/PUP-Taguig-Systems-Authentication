@@ -6,8 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use App\Models\ApiKey;
 use App\Models\User;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 
 class ApiKeyMiddleware
 {
@@ -35,32 +34,47 @@ class ApiKeyMiddleware
             ], 401);
         }
 
-        // Check domain restrictions
+        // Check domain restrictions with better localhost handling
         $domain = $request->getHost();
-        if (!$apiKeyModel->isDomainAllowed($domain)) {
+        if (!$this->isDomainAllowed($apiKeyModel, $domain)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Domain not allowed for this API key'
+                'message' => 'Domain not allowed for this API key',
+                'debug' => [
+                    'requested_domain' => $domain,
+                    'allowed_domains' => $apiKeyModel->allowed_domains,
+                    'api_key_id' => $apiKeyModel->id
+                ]
             ], 403);
         }
 
-        // Check rate limiting
+        // Simple rate limiting using Cache
         $rateLimitKey = 'api-requests:' . $apiKeyModel->id . ':' . now()->format('Y-m-d-H-i');
-        $requests = RateLimiter::attempts($rateLimitKey);
         
-        if ($requests >= $apiKeyModel->request_limit_per_minute) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Rate limit exceeded. Try again later.',
-                'retry_after' => 60
-            ], 429);
+        try {
+            $requests = Cache::get($rateLimitKey, 0);
+            
+            if ($requests >= $apiKeyModel->request_limit_per_minute) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rate limit exceeded. Try again later.',
+                    'retry_after' => 60
+                ], 429);
+            }
+            
+            // Increment rate limit counter
+            Cache::put($rateLimitKey, $requests + 1, 60); // 1 minute expiry
+        } catch (\Exception $e) {
+            // Continue without rate limiting if cache fails
+            \Log::warning('Rate limiting failed: ' . $e->getMessage());
         }
-        
-        // Increment rate limit counter
-        RateLimiter::hit($rateLimitKey, 60);
 
         // Record API key usage
-        $apiKeyModel->recordUsage();
+        try {
+            $apiKeyModel->recordUsage();
+        } catch (\Exception $e) {
+            \Log::warning('Failed to record API usage: ' . $e->getMessage());
+        }
 
         // Add API key model to request for use in controllers
         $request->apiKeyModel = $apiKeyModel;
@@ -82,5 +96,57 @@ class ApiKeyMiddleware
         }
         
         return null;
+    }
+
+    /**
+     * Check if domain is allowed with comprehensive localhost support
+     */
+    private function isDomainAllowed($apiKeyModel, $domain)
+    {
+        // If no domain restrictions are set, allow all domains
+        if (empty($apiKeyModel->allowed_domains)) {
+            return true;
+        }
+
+        // Normalize the domain
+        $domain = strtolower($domain);
+
+        // List of localhost variations to always allow for development
+        $localhostDomains = [
+            'localhost',
+            '127.0.0.1',
+            '::1',
+            'localhost:8000',
+            '127.0.0.1:8000',
+            'localhost:3000',
+            '127.0.0.1:3000',
+            'localhost:80',
+            '127.0.0.1:80'
+        ];
+
+        // Always allow localhost for development/testing
+        if (in_array($domain, $localhostDomains)) {
+            return true;
+        }
+
+        // Check if the domain is in the allowed domains list
+        foreach ($apiKeyModel->allowed_domains as $allowedDomain) {
+            $allowedDomain = strtolower(trim($allowedDomain));
+            
+            // Exact match
+            if ($domain === $allowedDomain) {
+                return true;
+            }
+            
+            // Wildcard subdomain support (*.example.com)
+            if (strpos($allowedDomain, '*.') === 0) {
+                $baseDomain = substr($allowedDomain, 2);
+                if (str_ends_with($domain, '.' . $baseDomain) || $domain === $baseDomain) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

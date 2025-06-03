@@ -39,7 +39,7 @@ class ValidateApiKey
             return $this->errorResponse('Domain not allowed for this API key', 403);
         }
 
-        // Simple rate limiting using database or in-memory (fallback if cache fails)
+        // Simple rate limiting using Cache
         try {
             $rateLimitKey = 'api_requests_' . $apiKeyModel->id . '_' . now()->format('Y_m_d_H_i');
             $requests = Cache::get($rateLimitKey, 0);

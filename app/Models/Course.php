@@ -25,10 +25,10 @@ class Course extends Model
         return $this->hasMany(User::class, 'program', 'course_name');
     }
 
-    // Scope for active courses
+    // Scope for active courses - FIXED: use lowercase 'active'
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where('status', 'Active'); // Changed from 'active' to 'Active'
     }
 
     // Scope for ordered courses

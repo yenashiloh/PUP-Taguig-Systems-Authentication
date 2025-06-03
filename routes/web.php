@@ -9,6 +9,7 @@ use App\Http\Controllers\UserValidationController;
 use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\Admin\ApiKeyController;
 use App\Http\Controllers\Auth\UserLoginController;
+use App\Http\Controllers\External\ExternalStudentController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {
@@ -41,12 +42,52 @@ Route::prefix('external')->name('external.')->group(function () {
     
     // Process login for external applications (via web form)
     Route::post('/login', [UserLoginController::class, 'login'])->name('login.process');
+
+     Route::get('/student-management', [ExternalStudentController::class, 'index'])->name('student-management');
 });
+
+
 
 // For testing purposes - direct access to login with API key
 Route::get('/test-login/{apiKey}', function($apiKey) {
     return redirect()->route('external.login', ['api_key' => $apiKey]);
 })->name('test.login');
+
+// API documentation route (optional)
+Route::get('/api/docs', function () {
+    return response()->json([
+        'title' => 'PUP-Taguig Student Management API',
+        'version' => '1.0.0',
+        'description' => 'External API for student management operations',
+        'base_url' => url('/api'),
+        'authentication' => [
+            'type' => 'API Key',
+            'header' => 'X-API-Key',
+            'description' => 'Include your API key in the X-API-Key header for all requests'
+        ],
+        'test_endpoints' => [
+            'health_check' => url('/api/health'),
+            'verify_api_key' => url('/api/verify-api-key'),
+            'students_list' => url('/api/students'),
+            'courses_list' => url('/api/courses'),
+        ],
+        'external_interface' => [
+            'student_management' => url('/external/students'),
+            'login_form' => url('/external/login'),
+        ],
+        'usage_examples' => [
+            'direct_html_access' => url('/external/students') . '?api_key=YOUR_API_KEY',
+            'with_base_url' => url('/external/students') . '?api_key=YOUR_API_KEY&base_url=http://127.0.0.1:8000',
+            'with_app_name' => url('/external/students') . '?api_key=YOUR_API_KEY&app_name=Test App',
+        ],
+        'localhost_testing' => [
+            'generate_api_key' => 'Go to Admin Panel → API Keys → Generate New',
+            'test_health' => 'GET ' . url('/api/health'),
+            'test_students' => 'GET ' . url('/api/students') . ' (with X-API-Key header)',
+            'access_interface' => url('/external/students') . '?api_key=YOUR_GENERATED_KEY',
+        ]
+    ]);
+})->name('api.docs');
 
 // Admin protected routes
 Route::middleware(['admin.auth'])->group(function () {

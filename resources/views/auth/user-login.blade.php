@@ -114,12 +114,6 @@
             <p>Authenticating...</p>
         </div>
     </div>
-
-    <!-- API Indicator -->
-    <div class="api-indicator">
-        <i class="fas fa-key"></i> API Access
-    </div>
-
     <div class="main-container">
         <div class="bg-image"></div>
         <div class="diagonal-overlay"></div>
@@ -131,11 +125,6 @@
 
         <div class="login-form-container">
             <div class="login-form">
-                <!-- Application Info -->
-                <div class="app-info">
-                    <h3>{{ $appInfo['app_name'] }}</h3>
-                    <p>by {{ $appInfo['developer_name'] }}</p>
-                </div>
 
                 <div class="form-title">
                     <h2>Faculty & Student</h2>
