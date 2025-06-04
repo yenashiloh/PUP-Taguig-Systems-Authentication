@@ -10,16 +10,15 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="external-app">
 
-    <link rel="shortcut icon" href="assets/images/PUPLogo.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="../assets/images/PUPLogo.png" type="image/x-icon" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- ========== All CSS files linkup ========= -->
-    <link rel="stylesheet" href="../../../../assets/admin/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="../../../../assets/admin/css/lineicons.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="../../../../assets/admin/css/materialdesignicons.min.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="../../../../assets/admin/css/fullcalendar.css" />
-    <link rel="stylesheet" href="../../../../assets/admin/css/fullcalendar.css" />
-    <link rel="stylesheet" href="../../../../assets/admin/css/main.css" />
+    <link rel="stylesheet" href="../assets/admin/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../assets/admin/css/lineicons.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../assets/admin/css/materialdesignicons.min.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../assets/admin/css/fullcalendar.css" />
+    <link rel="stylesheet" href="../assets/admin/css/main.css" />
 
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -32,11 +31,6 @@
     <!-- ======== Preloader =========== -->
     <div id="preloader">
         <div class="spinner"></div>
-    </div>
-
-    <!-- API Indicator -->
-    <div class="api-indicator" id="apiIndicator" style="display: none;">
-        <i class="fas fa-shield-alt"></i> API Connected
     </div>
 
     <!-- ======== sidebar-nav start =========== -->
@@ -246,6 +240,7 @@
                     </div>
                 </div>
             </div>
+            </div>
         </section>
     </main>
 
@@ -382,7 +377,7 @@
                     <button type="submit" class="main-button primary-btn btn-hover mb-1" form="addUserForm"
                         id="addStudentBtn">
                         <span class="btn-text">
-                            <i class="fas fa-plus me-1"></i>Add Student
+                        Add Student
                         </span>
                     </button>
                 </div>
@@ -519,8 +514,7 @@
                                 <input type="file" class="form-control" name="upload_files[]"
                                     id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
                                 <div class="text-center mb-1 mt-2">
-                                    <small class="text-muted">Multiple files supported (Max: 10 files, 10MB
-                                        each)</small>
+                                         <small class="text-muted">Multiple files supported (Max: 10MB)</small>
                                 </div>
                                 <div class="">
                                     <div id="filesList" class="files-list"></div>
@@ -531,11 +525,10 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                    <button type="button" class="main-button light-btn btn-hover mb-1 me-2" data-bs-dismiss="modal"
                         id="cancelUploadBtn">Cancel</button>
-                    <button type="submit" class="btn btn-primary" form="batchUploadForm" id="startUploadBtn">
-                        <span class="btn-text">
-                            <i class="fas fa-upload me-1"></i>Start Batch Upload
+                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="batchUploadForm" id="startUploadBtn">
+                        <span class="btn-text">Start Batch Upload
                         </span>
                     </button>
                 </div>
@@ -543,9 +536,31 @@
         </div>
     </div>
 
-    @include('admin.partials.footer')
-    <script src="../../../../assets/external/student-management.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+
+
+    <script src="../assets/admin/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/admin/js/Chart.min.js"></script>
+    <script src="../assets/admin/js/dynamic-pie-chart.js"></script>
+    <script src="../assets/admin/js/moment.min.js"></script>
+    <script src="../assets/admin/js/fullcalendar.js"></script>
+    <script src="../assets/admin/js/jvectormap.min.js"></script>
+    <script src="../assets/admin/js/world-merc.js"></script>
+    <script src="../assets/admin/js/polyfill.js"></script>
+    <script src="../assets/admin/js/main.js"></script>
+
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- jQuery (necessary for DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+    <script src="../../../../assets/external/student-management.js"></script>
+  
 </body>
 
 </html>

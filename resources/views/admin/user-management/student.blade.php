@@ -514,8 +514,7 @@
                                 <input type="file" class="form-control" name="upload_files[]"
                                     id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
                                 <div class="text-center mb-1 mt-2">
-                                    <small class="text-muted">Multiple files supported (Max: 10 files, 10MB
-                                        each)</small>
+                                    <small class="text-muted">Multiple files supported (Max: 10MB)</small>
                                 </div>
                                 <div class="">
                                     <div id="filesList" class="files-list"></div>
