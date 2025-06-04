@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Admin;
 use App\Models\ApiKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -59,34 +60,27 @@ class UserLoginController extends Controller
      */
     public function login(Request $request)
     {
-        // Get the API key
-        $apiKey = $request->header('X-API-Key') ?? $request->get('api_key');
-        
+         $apiKey = $request->header('X-API-Key') ?? $request->get('api_key');
         if (!$apiKey) {
-            return $this->errorResponse('API key is required', 401);
+            return redirect()->route('api-key-required');
         }
 
-        // Verify API key
         $apiKeyModel = $this->validateApiKey($apiKey, $request);
-        
         if (!$apiKeyModel) {
-            return $this->errorResponse('Invalid or expired API key', 401);
+            return redirect()->route('invalid-api-key');
         }
 
-        // Simple rate limiting using Cache
         $key = 'login_attempts_' . $request->ip() . '_' . $apiKeyModel->id;
-        
+
         try {
             $attempts = Cache::get($key, 0);
-            if ($attempts >= 10) { // Increased limit for testing
+            if ($attempts >= 10) {
                 return $this->errorResponse('Too many login attempts. Try again later.', 429);
             }
         } catch (\Exception $e) {
-            // Continue without rate limiting if cache fails
             \Log::warning('Login rate limiting failed: ' . $e->getMessage());
         }
 
-        // Validate input
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|min:8',
@@ -97,87 +91,131 @@ class UserLoginController extends Controller
             return $this->errorResponse('Invalid credentials provided', 422, $validator->errors());
         }
 
-        // Attempt to find and authenticate user
-        $user = User::where('email', $request->email)
-                   ->where('status', 'Active')
-                   ->whereIn('role', ['Student', 'Faculty'])
-                   ->first();
+        $user = null;
+        $userType = null;
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        // Check Admin
+        $admin = Admin::where('email', $request->email)->first();
+        if ($admin && Hash::check($request->password, $admin->password)) {
+            $user = $admin;
+            $userType = 'admin';
+        }
+
+        // Check Regular Users
+        if (!$user) {
+            $regularUser = User::where('email', $request->email)
+                ->whereIn('role', ['Student', 'Faculty'])
+                ->first();
+
+            if ($regularUser && Hash::check($request->password, $regularUser->password)) {
+                $user = $regularUser;
+                $userType = 'user';
+
+                if ($regularUser->status === 'Deactivated') {
+                    $this->incrementLoginAttempts($key);
+                    return $this->errorResponse('Your account has been deactivated. Please contact the administrator for assistance.', 403);
+                }
+
+                if ($regularUser->status !== 'Active') {
+                    $this->incrementLoginAttempts($key);
+                    return $this->errorResponse('Your account is not active. Please contact the administrator.', 403);
+                }
+            }
+        }
+
+        if (!$user) {
             $this->incrementLoginAttempts($key);
             return $this->errorResponse('Invalid email or password', 401);
         }
 
-        // Check if user role is allowed by API key permissions
-        $allowedRoles = $this->getAllowedRoles($apiKeyModel->permissions);
-        if (!in_array($user->role, $allowedRoles)) {
-            $this->incrementLoginAttempts($key);
-            return $this->errorResponse('User role not allowed for this application', 403);
+        // Role validation
+        if ($userType === 'user') {
+            $allowedRoles = $this->getAllowedRoles($apiKeyModel->permissions);
+            if (!in_array($user->role, $allowedRoles)) {
+                $this->incrementLoginAttempts($key);
+                return $this->errorResponse('User role not allowed for this application', 403);
+            }
         }
 
-        // Clear rate limiting on successful login
         $this->clearLoginAttempts($key);
 
-        // Record API key usage
         try {
             $apiKeyModel->recordUsage();
         } catch (\Exception $e) {
             \Log::warning('Failed to record API usage: ' . $e->getMessage());
         }
 
-        // Generate session token for the user
         $sessionToken = Str::random(60);
-        $user->update([
-            'api_session_token' => Hash::make($sessionToken),
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip()
-        ]);
 
-        // Prepare response data
+        if ($userType === 'admin') {
+            $user->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+            ]);
+            Cache::put("admin_session_{$user->id}", Hash::make($sessionToken), 60 * 24 * 7); // 7 days
+        } else {
+            $user->update([
+                'api_session_token' => Hash::make($sessionToken),
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip()
+            ]);
+        }
+
         $userData = [
             'id' => $user->id,
             'email' => $user->email,
             'first_name' => $user->first_name,
-            'middle_name' => $user->middle_name,
             'last_name' => $user->last_name,
-            'role' => $user->role,
-            'status' => $user->status,
-            'last_login_at' => $user->last_login_at,
+            'role' => $userType === 'admin' ? 'Admin' : $user->role,
+            'status' => $user->status ?? 'Active',
+            'last_login_at' => $user->last_login_at ?? now(),
+            'user_type' => $userType,
         ];
 
-        // Add role-specific data based on permissions
-        if (in_array('student_data', $apiKeyModel->permissions) && $user->role === 'Student') {
-            $userData = array_merge($userData, [
-                'student_number' => $user->student_number,
-                'program' => $user->program,
-                'year' => $user->year,
-                'section' => $user->section,
-                'birthdate' => $user->birthdate,
-            ]);
+        if ($userType === 'user') {
+            $userData['middle_name'] = $user->middle_name;
+
+            if (in_array('student_data', $apiKeyModel->permissions) && $user->role === 'Student') {
+                $userData = array_merge($userData, [
+                    'student_number' => $user->student_number,
+                    'program' => $user->program,
+                    'year' => $user->year,
+                    'section' => $user->section,
+                    'birthdate' => $user->birthdate,
+                ]);
+            }
+
+            if (in_array('faculty_data', $apiKeyModel->permissions) && $user->role === 'Faculty') {
+                $userData = array_merge($userData, [
+                    'employee_number' => $user->employee_number,
+                    'department' => $user->department,
+                    'phone_number' => $user->phone_number,
+                    'employment_status' => $user->employment_status,
+                    'birthdate' => $user->birthdate,
+                ]);
+            }
         }
 
-        if (in_array('faculty_data', $apiKeyModel->permissions) && $user->role === 'Faculty') {
-            $userData = array_merge($userData, [
-                'employee_number' => $user->employee_number,
-                'department' => $user->department,
-                'phone_number' => $user->phone_number,
-                'employment_status' => $user->employment_status,
-                'birthdate' => $user->birthdate,
-            ]);
-        }
-
-        // Log successful login
         \Log::info('User login via API', [
             'user_id' => $user->id,
             'email' => $user->email,
-            'role' => $user->role,
+            'role' => $userData['role'],
+            'user_type' => $userType,
             'api_key_id' => $apiKeyModel->id,
             'application' => $apiKeyModel->application_name,
             'ip_address' => $request->ip()
         ]);
 
-        // Get redirect URL based on domain detection
-        $redirectUrl = $this->getRedirectUrl($request, $apiKeyModel);
+        // REDIRECT URL logic
+        if ($userType === 'admin') {
+            $baseUrl = env('APP_ENV') === 'production'
+                ? 'https://pupt-registration.site/external/student-management'
+                : 'http://127.0.0.1:8000/external/student-management';
+
+            $redirectUrl = $baseUrl . '?api_key=' . $apiKey;
+        } else {
+            $redirectUrl = $this->getRedirectUrl($request, $apiKeyModel);
+        }
 
         return response()->json([
             'success' => true,
@@ -201,6 +239,7 @@ class UserLoginController extends Controller
     {
         $currentDomain = $request->getHost();
         $scheme = $request->isSecure() ? 'https' : 'http';
+        $apiKeyParam = $request->header('X-API-Key') ?? $request->get('api_key');
         
         // If API key has allowed domains, use the first one
         if (!empty($apiKeyModel->allowed_domains)) {
@@ -210,21 +249,21 @@ class UserLoginController extends Controller
             if (strpos($domain, '://') === false) {
                 // Determine scheme based on domain
                 if ($domain === 'pupt-registration.site' || str_ends_with($domain, '.pupt-registration.site')) {
-                    return 'https://' . $domain;
+                    return 'https://' . $domain . '/external/student-management?api_key=' . urlencode($apiKeyParam);
                 } else {
-                    return $scheme . '://' . $domain;
+                    return $scheme . '://' . $domain . '/external/student-management?api_key=' . urlencode($apiKeyParam);
                 }
             } else {
-                return $domain;
+                return $domain . '/external/student-management?api_key=' . urlencode($apiKeyParam);
             }
         }
         
         // Fallback to current domain
         $port = $request->getPort();
         if ($port && !in_array($port, [80, 443])) {
-            return "{$scheme}://{$currentDomain}:{$port}";
+            return "{$scheme}://{$currentDomain}:{$port}/external/student-management?api_key=" . urlencode($apiKeyParam);
         } else {
-            return "{$scheme}://{$currentDomain}";
+            return "{$scheme}://{$currentDomain}/external/student-management?api_key=" . urlencode($apiKeyParam);
         }
     }
 
@@ -265,24 +304,47 @@ class UserLoginController extends Controller
             return $this->errorResponse('API key and session token are required', 401);
         }
 
-        // Find user by session token
-        $users = User::whereNotNull('api_session_token')->get();
+        // Find user by session token (check both regular users and admin cache)
         $user = null;
-
+        $userType = null;
+        
+        // Check regular users first
+        $users = User::whereNotNull('api_session_token')->get();
         foreach ($users as $u) {
             if (Hash::check($sessionToken, $u->api_session_token)) {
                 $user = $u;
+                $userType = 'user';
                 break;
+            }
+        }
+        
+        // If not found in users, check admin cache
+        if (!$user) {
+            $admins = Admin::all();
+            foreach ($admins as $admin) {
+                $cachedToken = Cache::get("admin_session_{$admin->id}");
+                if ($cachedToken && Hash::check($sessionToken, $cachedToken)) {
+                    $user = $admin;
+                    $userType = 'admin';
+                    break;
+                }
             }
         }
 
         if ($user) {
-            $user->update(['api_session_token' => null]);
+            if ($userType === 'admin') {
+                // Clear admin session from cache
+                Cache::forget("admin_session_{$user->id}");
+            } else {
+                // Clear user session token
+                $user->update(['api_session_token' => null]);
+            }
             
             \Log::info('User logout via API', [
                 'user_id' => $user->id,
                 'email' => $user->email,
-                'role' => $user->role,
+                'role' => $userType === 'admin' ? 'Admin' : $user->role,
+                'user_type' => $userType,
                 'ip_address' => $request->ip()
             ]);
         }
@@ -310,14 +372,30 @@ class UserLoginController extends Controller
             return $this->errorResponse('Invalid API key', 401);
         }
 
-        // Find user by session token
-        $users = User::whereNotNull('api_session_token')->get();
+        // Find user by session token (check both regular users and admin cache)
         $user = null;
-
+        $userType = null;
+        
+        // Check regular users first
+        $users = User::whereNotNull('api_session_token')->get();
         foreach ($users as $u) {
             if (Hash::check($sessionToken, $u->api_session_token)) {
                 $user = $u;
+                $userType = 'user';
                 break;
+            }
+        }
+        
+        // If not found in users, check admin cache
+        if (!$user) {
+            $admins = Admin::all();
+            foreach ($admins as $admin) {
+                $cachedToken = Cache::get("admin_session_{$admin->id}");
+                if ($cachedToken && Hash::check($sessionToken, $cachedToken)) {
+                    $user = $admin;
+                    $userType = 'admin';
+                    break;
+                }
             }
         }
 
@@ -325,17 +403,20 @@ class UserLoginController extends Controller
             return $this->errorResponse('Invalid session token', 401);
         }
 
+        $userData = [
+            'id' => $user->id,
+            'email' => $user->email,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'role' => $userType === 'admin' ? 'Admin' : $user->role,
+            'user_type' => $userType
+        ];
+
         return response()->json([
             'success' => true,
             'message' => 'Session is valid',
             'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'role' => $user->role,
-                ]
+                'user' => $userData
             ]
         ]);
     }

@@ -103,38 +103,17 @@
                 <ol class="mb-0">
                     <li><strong>Edit API Key:</strong>
                         <ul>
-                            <li>Go to Admin Panel → API Keys</li>
-                            <li>Find and edit your API key</li>
+                            <li>Contact Admin for API Keys</li>
                             <li>Check the "User Login Access" permission</li>
                             <li>Save the changes</li>
                         </ul>
                     </li>
                     <li><strong>Alternative:</strong>
                         <ul>
-                            <li>Generate a new API key with the correct permissions</li>
-                            <li>Make sure to select "User Login Access" during creation</li>
+                            <li>Contact Admin to generate a new API key with the correct permissions</li>
                         </ul>
                     </li>
                 </ol>
-            </div>
-            
-            <div class="d-grid gap-2">
-                <a href="{{ route('admin.api-keys.index') }}" class="btn btn-primary">
-                    <i class="fas fa-edit me-2"></i>Edit API Key Permissions
-                </a>
-                <a href="{{ route('admin.api-keys.create') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-plus me-2"></i>Generate New API Key
-                </a>
-                <button class="btn btn-outline-secondary" onclick="goBack()">
-                    <i class="fas fa-arrow-left me-2"></i>Go Back
-                </button>
-            </div>
-            
-            <div class="mt-4">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    API permissions help ensure that applications only access the features they need.
-                </small>
             </div>
         </div>
     </div>

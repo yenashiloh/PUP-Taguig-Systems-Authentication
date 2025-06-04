@@ -1,9 +1,10 @@
-// Global variables
 let API_KEY = '';
 let BASE_URL = '';
 let studentsData = [];
 let coursesData = [];
-let dataTable = null; // Add this to track DataTable instance
+let dataTable = null; 
+let currentUser = null;
+let sessionToken = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,13 +13,53 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('preloader').style.display = 'none';
     }, 1000);
 
-    // Get API key from URL parameters
+    // Get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     API_KEY = urlParams.get('api_key');
 
     if (!API_KEY) {
         showAlert('API key is required. Please add ?api_key=YOUR_API_KEY to the URL.', 'danger');
         return;
+    }
+
+    // Extract user data from URL if available (from login redirect)
+    const urlSessionToken = urlParams.get('session_token');
+    const userId = urlParams.get('user_id');
+    const userRole = urlParams.get('user_role');
+    const appName = urlParams.get('app_name');
+
+    // If we have session data in URL, store it and clean the URL
+    if (urlSessionToken && userId) {
+        sessionToken = urlSessionToken;
+        
+        // Create user object from URL params
+        currentUser = {
+            id: userId,
+            first_name: userRole, // Use role as name for now, we'll get real data from API
+            email: '', // Will be populated from API
+            role: userRole
+        };
+        
+        // Store in localStorage
+        localStorage.setItem('sessionToken', sessionToken);
+        localStorage.setItem('userData', JSON.stringify(currentUser));
+        
+        // Clean the URL to remove sensitive parameters
+        const cleanUrl = `${window.location.pathname}?api_key=${API_KEY}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        // Update profile display with basic info
+        updateProfileDisplay(currentUser);
+    } else {
+        // Check for stored session data
+        const storedSessionToken = localStorage.getItem('sessionToken');
+        const storedUserData = localStorage.getItem('userData');
+        
+        if (storedSessionToken && storedUserData) {
+            sessionToken = storedSessionToken;
+            currentUser = JSON.parse(storedUserData);
+            updateProfileDisplay(currentUser);
+        }
     }
 
     // Determine base URL dynamically
@@ -29,6 +70,67 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
+async function fetchLoggedInAdminData() {
+    try {
+        // Get admin data from API key validation or a dedicated endpoint
+        const response = await makeApiCall('/api/auth/current-admin', 'GET');
+        
+        if (response.success && response.data.user) {
+            currentUser = response.data.user;
+            sessionToken = response.data.session_token;
+            
+            // Update profile display
+            updateProfileDisplay(currentUser);
+            
+            // Store in localStorage for persistence
+            localStorage.setItem('userData', JSON.stringify(currentUser));
+            if (sessionToken) {
+                localStorage.setItem('sessionToken', sessionToken);
+            }
+            
+            return currentUser;
+        }
+    } catch (error) {
+        console.error('Failed to fetch admin data:', error);
+        
+        // Check localStorage for cached data
+        const cachedUserData = localStorage.getItem('userData');
+        const cachedSessionToken = localStorage.getItem('sessionToken');
+        
+        if (cachedUserData) {
+            currentUser = JSON.parse(cachedUserData);
+            sessionToken = cachedSessionToken;
+            updateProfileDisplay(currentUser);
+            return currentUser;
+        }
+    }
+    return null;
+}
+
+//Function to update the profile display
+function updateProfileDisplay(user) {
+    const profileName = document.getElementById('profileName');
+    const profileRole = document.getElementById('profileRole');
+    const dropdownProfileName = document.getElementById('dropdownProfileName');
+    const dropdownProfileEmail = document.getElementById('dropdownProfileEmail');
+    
+    if (user) {
+        const firstName = user.first_name || user.role || 'Admin';
+        const email = user.email || '';
+        const role = user.role || '';
+        
+        profileName.textContent = firstName;
+        profileRole.textContent = role;
+        dropdownProfileName.textContent = firstName;
+        dropdownProfileEmail.textContent = email;
+    } else {
+        // Default fallback
+        profileName.textContent = 'Admin';
+        profileRole.textContent = '';
+        dropdownProfileName.textContent = 'Admin';
+        dropdownProfileEmail.textContent = '';
+    }
+}
 // Determine the correct base URL
 function determineBaseUrl(urlParams) {
     // Check if base_url is explicitly provided in URL parameters
@@ -93,6 +195,64 @@ async function initializeApp() {
     }
 }
 
+// Check for login data from URL or localStorage
+function checkForLoginData() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userDataParam = urlParams.get('user_data');
+    const sessionTokenParam = urlParams.get('session_token');
+
+    if (userDataParam && sessionTokenParam) {
+        try {
+            const userData = {
+                user: JSON.parse(decodeURIComponent(userDataParam)),
+                session_token: sessionTokenParam
+            };
+            
+            // Store in localStorage for persistence
+            localStorage.setItem('userData', JSON.stringify(userData));
+            
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname + '?api_key=' + API_KEY);
+            
+            return userData;
+        } catch (e) {
+            console.error('Error parsing user data from URL:', e);
+        }
+    }
+
+    // Try to get from localStorage
+    const storedData = localStorage.getItem('userData');
+    if (storedData) {
+        try {
+            return JSON.parse(storedData);
+        } catch (e) {
+            console.error('Error parsing stored user data:', e);
+            localStorage.removeItem('userData');
+        }
+    }
+
+    return null;
+}
+
+// Update profile information in header
+function updateProfileInfo() {
+    if (!currentUser) return;
+
+    const profileName = document.getElementById('profileName');
+    const profileRole = document.getElementById('profileRole');
+    const dropdownProfileName = document.getElementById('dropdownProfileName');
+    const dropdownProfileEmail = document.getElementById('dropdownProfileEmail');
+    const firstName = document.getElementById('dropdownProfileName')?.textContent.split(' ')[0] || 'Not available';
+    const email = document.getElementById('dropdownProfileEmail')?.textContent || 'Not available';
+    console.log('First Name:', firstName);
+    console.log('Email:', email);
+    
+    if (profileName) profileName.textContent = fullName;
+    if (profileRole) profileRole.textContent = role;
+    if (dropdownProfileName) dropdownProfileName.textContent = fullName;
+    if (dropdownProfileEmail) dropdownProfileEmail.textContent = currentUser.email || 'user@example.com';
+}
+
 // Validate API key and load data
 async function validateAndLoadData() {
     try {
@@ -117,11 +277,31 @@ async function validateAndLoadData() {
 async function validateApiKey() {
     try {
         // Use an existing endpoint to validate the API key
-        // Let's use the students endpoint with a simple GET request
         const response = await makeApiCall('/api/students', 'GET');
 
         if (!response.success) {
             throw new Error(response.message || 'Invalid API key');
+        }
+
+        // If we have a session token, try to get user details
+        if (sessionToken && (!currentUser || !currentUser.email)) {
+            try {
+                const userResponse = await makeApiCall('/api/auth/verify-session', 'POST', {
+                    session_token: sessionToken
+                });
+                
+                if (userResponse.success && userResponse.data.user) {
+                    currentUser = {
+                        ...currentUser,
+                        ...userResponse.data.user
+                    };
+                    updateProfileDisplay(currentUser);
+                    localStorage.setItem('userData', JSON.stringify(currentUser));
+                }
+            } catch (error) {
+                console.warn('Could not verify session:', error);
+                // Continue without session verification
+            }
         }
 
         console.log('API key validated successfully');
@@ -142,6 +322,7 @@ async function validateApiKey() {
         }
     }
 }
+
 
 function isApiKeyError(error) {
     const errorMessage = error.message.toLowerCase();
@@ -201,6 +382,11 @@ async function makeApiCall(endpoint, method = 'GET', data = null) {
             'Accept': 'application/json'
         }
     };
+
+    // Add session token if available
+    if (sessionToken) {
+        options.headers['X-Session-Token'] = sessionToken;
+    }
 
     if (data && method !== 'GET') {
         if (data instanceof FormData) {
@@ -969,6 +1155,7 @@ function setupRealTimeValidation() {
     }
 }
 
+
 // Client-side validation function
 function validateStudentData(data, isUpdate = false) {
     const errors = {};
@@ -1576,5 +1763,285 @@ function hideLoading() {
 function disconnectApi() {
     if (confirm('Are you sure you want to disconnect from the system?')) {
         window.location.href = window.location.pathname;
+    }
+}
+
+// Update the preventBackAfterLogout function
+function preventBackAfterLogout() {
+    // Check if user just logged out
+    const justLoggedOut = sessionStorage.getItem('justLoggedOut');
+    
+    if (justLoggedOut === 'true') {
+        // Clear the flag
+        sessionStorage.removeItem('justLoggedOut');
+        
+        // If someone tries to access with API key after logout, block it
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiKey = urlParams.get('api_key');
+        
+        if (apiKey) {
+            // Remove API key and redirect to instructions
+            window.history.replaceState(null, '', window.location.pathname);
+            window.location.href = window.location.pathname;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Add this to your DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide preloader
+    setTimeout(() => {
+        document.getElementById('preloader').style.display = 'none';
+    }, 1000);
+
+    // Get API key from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    API_KEY = urlParams.get('api_key');
+
+    if (!API_KEY) {
+        showAlert('API key is required. Please add ?api_key=YOUR_API_KEY to the URL.', 'danger');
+        return;
+    }
+
+    // Determine base URL dynamically
+    BASE_URL = determineBaseUrl(urlParams);
+    console.log('Using BASE_URL:', BASE_URL);
+
+    // Initialize the application
+    initializeApp();
+});
+
+window.addEventListener('pageshow', function(event) {
+    // Only redirect if explicitly logged out and no session token in URL
+    const justLoggedOut = sessionStorage.getItem('justLoggedOut');
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSessionToken = urlParams.get('session_token');
+    
+    if (justLoggedOut === 'true' && !hasSessionToken && window.location.pathname.includes('student-management')) {
+        sessionStorage.removeItem('justLoggedOut');
+        const apiKey = urlParams.get('api_key');
+        if (apiKey) {
+            const loginUrl = `${window.location.protocol}//${window.location.host}/external/login?api_key=${apiKey}`;
+            window.location.replace(loginUrl);
+        }
+    }
+});
+
+async function logoutUser() {
+    try {
+        // Show confirmation dialog
+        const result = await Swal.fire({
+            title: 'Logout Confirmation',
+            text: 'Are you sure you want to logout?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Logout',
+            cancelButtonText: 'Cancel'
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        showLoading();
+
+        // Call logout API if we have session token
+        if (sessionToken) {
+            try {
+                await makeApiCall('/api/auth/logout', 'POST', {
+                    session_token: sessionToken
+                });
+            } catch (error) {
+                console.warn('Logout API call failed:', error);
+            }
+        }
+
+        // Clear ALL stored data
+        localStorage.removeItem('userData');
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('hasConnectedBefore');
+        sessionStorage.clear(); // Clear all session storage
+        
+        // Set logout flag
+        sessionStorage.setItem('justLoggedOut', 'true');
+        
+        currentUser = null;
+        sessionToken = null;
+
+        // Show success message
+        showAlert('Logged out successfully!', 'success');
+
+        // Redirect to login page with current API key
+        setTimeout(() => {
+            const loginUrl = `${BASE_URL}/external/login?api_key=${API_KEY}`;
+            window.location.replace(loginUrl);
+        }, 1500);
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        showAlert('Logout completed (with warnings)', 'warning');
+        
+        // Force logout
+        localStorage.clear();
+        sessionStorage.clear();
+        sessionStorage.setItem('justLoggedOut', 'true');
+        
+        setTimeout(() => {
+            const loginUrl = `${BASE_URL}/external/login?api_key=${API_KEY}`;
+            window.location.replace(loginUrl);
+        }, 1500);
+    } finally {
+        hideLoading();
+    }
+}
+
+// Prevent browser back button after logout
+(function() {
+    // Check if user just logged out
+    const justLoggedOut = sessionStorage.getItem('justLoggedOut');
+    if (justLoggedOut === 'true') {
+        
+        // Check if this is a fresh login (has session_token)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasSessionToken = urlParams.get('session_token');
+        
+        // If this is NOT a fresh login, then redirect
+        if (!hasSessionToken && window.location.pathname.includes('student-management')) {
+            // Clear the flag
+            sessionStorage.removeItem('justLoggedOut');
+            
+            // Extract API key and redirect to login
+            const apiKey = urlParams.get('api_key');
+            if (apiKey) {
+                const loginUrl = `${window.location.protocol}//${window.location.host}/external/login?api_key=${apiKey}`;
+                window.location.replace(loginUrl);
+                return;
+            }
+        } else if (hasSessionToken) {
+            // This is a fresh login, clear the logout flag
+            sessionStorage.removeItem('justLoggedOut');
+        }
+    }
+})();
+
+// Function to handle login success redirect
+function handleLoginSuccess(apiKey, sessionToken, userData) {
+    // Store the session data
+    if (sessionToken) {
+        localStorage.setItem('sessionToken', sessionToken);
+    }
+    if (userData) {
+        localStorage.setItem('userData', JSON.stringify(userData));
+    }
+    
+    // Redirect to student management with API key
+    const studentManagementUrl = `${window.location.protocol}//${window.location.host}/external/student-management?api_key=${apiKey}`;
+    window.location.replace(studentManagementUrl);
+}
+
+// Handle page visibility changes (when user tries to go back)
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide preloader
+    setTimeout(() => {
+        document.getElementById('preloader').style.display = 'none';
+    }, 1000);
+
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    API_KEY = urlParams.get('api_key');
+
+    if (!API_KEY) {
+        showAlert('API key is required. Please add ?api_key=YOUR_API_KEY to the URL.', 'danger');
+        return;
+    }
+
+    // Extract user data from URL if available (from login redirect)
+    const urlSessionToken = urlParams.get('session_token');
+    const userId = urlParams.get('user_id');
+    const userRole = urlParams.get('user_role');
+    const appName = urlParams.get('app_name');
+
+    // Determine base URL dynamically
+    BASE_URL = determineBaseUrl(urlParams);
+    console.log('Using BASE_URL:', BASE_URL);
+
+    // If we have session data in URL, this is a fresh login - handle it properly
+    if (urlSessionToken && userId) {
+        console.log('Fresh login detected, processing session data...');
+        
+        sessionToken = urlSessionToken;
+        
+        // Create user object from URL params
+        currentUser = {
+            id: userId,
+            first_name: userRole,
+            email: '',
+            role: userRole
+        };
+        
+        // Store in localStorage
+        localStorage.setItem('sessionToken', sessionToken);
+        localStorage.setItem('userData', JSON.stringify(currentUser));
+        
+        // Update profile display immediately
+        updateProfileDisplay(currentUser);
+        
+        // Clear any logout flags since this is a fresh login
+        sessionStorage.removeItem('justLoggedOut');
+        
+        // Initialize the application first, then clean URL
+        initializeAppWithSession().then(() => {
+            // Clean the URL after successful initialization
+            const cleanUrl = `${window.location.pathname}?api_key=${API_KEY}`;
+            window.history.replaceState({}, document.title, cleanUrl);
+        });
+        
+    } else {
+        // Check for stored session data
+        const storedSessionToken = localStorage.getItem('sessionToken');
+        const storedUserData = localStorage.getItem('userData');
+        
+        if (storedSessionToken && storedUserData) {
+            sessionToken = storedSessionToken;
+            currentUser = JSON.parse(storedUserData);
+            updateProfileDisplay(currentUser);
+        }
+        
+        // Initialize the application normally
+        initializeApp();
+    }
+});
+
+//Separate function for handling fresh login
+async function initializeAppWithSession() {
+    try {
+        console.log('Initializing app with fresh session...');
+        
+        // Validate API key and load initial data
+        await validateAndLoadData();
+
+        // Set up form handlers
+        setupFormHandlers();
+
+        // Setup real-time validation
+        setupRealTimeValidation();
+
+        // Show success alert for fresh login
+        showAlert('Logged in successfully!', 'success');
+        
+        console.log('Fresh login initialization completed');
+        
+    } catch (error) {
+        console.error('Fresh login initialization error:', error);
+
+        if (isApiKeyError(error)) {
+            showAlert('API Authentication failed: ' + error.message, 'danger');
+        } else {
+            showAlert('Failed to connect to the system. Please check your connection and try again.', 'danger');
+        }
     }
 }

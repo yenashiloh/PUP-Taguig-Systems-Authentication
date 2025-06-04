@@ -111,13 +111,6 @@
                             <li>Contact admin to add your domain to the API key whitelist</li>
                         </ul>
                     </li>
-                    <li><strong>Update API Key Settings:</strong>
-                        <ul>
-                            <li>Go to Admin Panel → API Keys</li>
-                            <li>Edit your API key</li>
-                            <li>Add your domain to "Allowed Domains"</li>
-                        </ul>
-                    </li>
                 </ol>
                 
                 <div class="alert alert-info mb-0">
@@ -125,27 +118,6 @@
                     • Development: <code>localhost</code>, <code>127.0.0.1</code> (any port)<br>
                     • Production: <code>pupt-registration.site</code>, <code>www.pupt-registration.site</code>
                 </div>
-            </div>
-            
-            <div class="d-grid gap-2">
-                <a href="{{ route('admin.api-keys.index') }}" class="btn btn-primary">
-                    <i class="fas fa-key me-2"></i>Update API Key Settings
-                </a>
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <a href="http://127.0.0.1:8000{{ request()->getRequestUri() }}" class="btn btn-outline-info w-100">
-                            <i class="fas fa-laptop-code me-2"></i>Try Localhost
-                        </a>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <a href="https://pupt-registration.site{{ request()->getRequestUri() }}" class="btn btn-outline-success w-100">
-                            <i class="fas fa-cloud me-2"></i>Try Production
-                        </a>
-                    </div>
-                </div>
-                <button class="btn btn-outline-secondary" onclick="goBack()">
-                    <i class="fas fa-arrow-left me-2"></i>Go Back
-                </button>
             </div>
             
             <div class="mt-4">

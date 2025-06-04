@@ -100,8 +100,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -127,7 +132,7 @@
             <div class="login-form">
 
                 <div class="form-title">
-                    <h2>Faculty & Student</h2>
+                    <h2>PUP-Taguig Systems</h2>
                     <h2>Authentication</h2>
                 </div>
 
@@ -214,68 +219,75 @@
             // Form submission
             loginForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                
+
                 // Show loading state
                 showLoading();
-                
+
                 const formData = new FormData(loginForm);
-                
+
                 // Make API request to login endpoint
-                fetch('{{ route("api.user.login") }}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'X-API-Key': '{{ $apiKey }}',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    hideLoading();
-                    
-                    if (data.success) {
-                        showAlert('Login successful! Redirecting to application...', 'success');
-                        
-                        // Store session token securely (you might want to use httpOnly cookies in production)
-                        if (data.data && data.data.session_token) {
-                            localStorage.setItem('pup_session_token', data.data.session_token);
-                            localStorage.setItem('pup_user_data', JSON.stringify(data.data.user));
+                fetch('{{ route('api.user.login') }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content'),
+                            'X-API-Key': '{{ $apiKey }}',
+                            'Accept': 'application/json'
                         }
-                        
-                        // Redirect to the developer's domain
-                        setTimeout(() => {
-                            if (data.data.redirect_url) {
-                                // Redirect to developer's domain with session data
-                                const redirectUrl = new URL(data.data.redirect_url);
-                                redirectUrl.searchParams.set('session_token', data.data.session_token);
-                                redirectUrl.searchParams.set('user_id', data.data.user.id);
-                                redirectUrl.searchParams.set('user_role', data.data.user.role);
-                                redirectUrl.searchParams.set('app_name', data.data.application.name);
-                                
-                                window.location.href = redirectUrl.toString();
-                            } else {
-                                // Fallback: communicate with parent window if in iframe
-                                if (window.parent !== window) {
-                                    window.parent.postMessage({
-                                        type: 'login_success',
-                                        data: data.data
-                                    }, '*');
-                                } else {
-                                    // Show success message if no redirect URL
-                                    showAlert('Login successful! Please contact the application developer for next steps.', 'success');
-                                }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        hideLoading();
+
+                        if (data.success) {
+                            showAlert('Login successful! Redirecting to application...', 'success');
+
+                            // Store session token securely (you might want to use httpOnly cookies in production)
+                            if (data.data && data.data.session_token) {
+                                localStorage.setItem('pup_session_token', data.data.session_token);
+                                localStorage.setItem('pup_user_data', JSON.stringify(data.data.user));
                             }
-                        }, 1500);
-                    } else {
-                        showAlert(data.message || 'Login failed. Please try again.', 'error');
-                    }
-                })
-                .catch(error => {
-                    hideLoading();
-                    console.error('Login error:', error);
-                    showAlert('Network error. Please check your connection and try again.', 'error');
-                });
+
+                            // Redirect to the developer's domain
+                            setTimeout(() => {
+                                if (data.data.redirect_url) {
+                                    // Redirect to developer's domain with session data
+                                    const redirectUrl = new URL(data.data.redirect_url);
+                                    redirectUrl.searchParams.set('session_token', data.data
+                                        .session_token);
+                                    redirectUrl.searchParams.set('user_id', data.data.user.id);
+                                    redirectUrl.searchParams.set('user_role', data.data.user
+                                        .role);
+                                    redirectUrl.searchParams.set('app_name', data.data
+                                        .application.name);
+
+                                    window.location.href = redirectUrl.toString();
+                                } else {
+                                    // Fallback: communicate with parent window if in iframe
+                                    if (window.parent !== window) {
+                                        window.parent.postMessage({
+                                            type: 'login_success',
+                                            data: data.data
+                                        }, '*');
+                                    } else {
+                                        // Show success message if no redirect URL
+                                        showAlert(
+                                            'Login successful! Please contact the application developer for next steps.',
+                                            'success');
+                                    }
+                                }
+                            }, 1500);
+                        } else {
+                            showAlert(data.message || 'Login failed. Please try again.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        hideLoading();
+                        console.error('Login error:', error);
+                        showAlert('Network error. Please check your connection and try again.',
+                        'error');
+                    });
             });
 
             function showLoading() {
@@ -295,7 +307,7 @@
             function showAlert(message, type) {
                 const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
                 const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
-                
+
                 alertContainer.innerHTML = `
                     <div class="alert ${alertClass}" style="margin-bottom: 15px; padding: 12px; border-radius: 5px; ${type === 'success' ? 'background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;' : 'background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;'}">
                         <i class="fas ${iconClass} me-2"></i>
@@ -315,7 +327,7 @@
             function showUserInfo(userData) {
                 // For demonstration purposes, show user info in console
                 console.log('Login successful:', userData);
-                
+
                 // In a real implementation, you would use this data to:
                 // 1. Store session token securely
                 // 2. Update UI with user information
@@ -327,23 +339,23 @@
         // Handle logout (if needed)
         function logout() {
             const sessionToken = localStorage.getItem('session_token'); // or however you store it
-            
-            fetch('{{ route("api.user.logout") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-API-Key': '{{ $apiKey }}',
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    localStorage.removeItem('session_token');
-                    // Redirect to login or home page
-                }
-            });
+
+            fetch('{{ route('api.user.logout') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-API-Key': '{{ $apiKey }}',
+                        'X-Session-Token': sessionToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        localStorage.removeItem('session_token');
+                        // Redirect to login or home page
+                    }
+                });
         }
     </script>
 </body>

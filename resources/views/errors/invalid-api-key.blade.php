@@ -97,12 +97,10 @@
                     <li><strong>Check API Key:</strong> Verify that you're using the correct API key</li>
                     <li><strong>Check Expiration:</strong> Ensure your API key hasn't expired</li>
                     <li><strong>Check Status:</strong> Make sure the API key is still active</li>
-                    <li><strong>Generate New Key:</strong> If needed, generate a new API key from the admin panel</li>
+                    <li><strong>Generate New Key:</strong> If needed, please contact the admin to generate a new API key</li>
                 </ol>
             </div>
-            
-            
-            
+        
             <div class="mt-4">
                 <small class="text-muted">
                     <i class="fas fa-info-circle me-1"></i>

@@ -55,14 +55,6 @@
                     <span class="text">User Management</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="">
-                    <span class="icon">
-                        <i class="fas fa-user-shield"></i>
-                    </span>
-                    <span class="text">Access Control</span>
-                </a>
-            </li>
             <span class="divider">
                 <hr />
             </span>

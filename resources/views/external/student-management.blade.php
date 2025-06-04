@@ -61,11 +61,11 @@
                     <hr />
                 </span>
                 <li class="nav-item">
-                    <a href="javascript:void(0);" onclick="disconnectApi()">
+                    <a href="javascript:void(0);" onclick="logoutUser()">
                         <span class="icon">
-                            <i class="fas fa-sign-out-alt"></i>
+                      <i class="lni lni-exit"></i>
                         </span>
-                        <span class="text">Disconnect</span>
+                        <span class="text">Sign Out</span>
                     </a>
                 </li>
             </ul>
@@ -74,6 +74,70 @@
 
     <!-- ======== main-wrapper start =========== -->
     <main class="main-wrapper">
+        <!-- ========== header start ========== -->
+        <header class="header">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-5 col-md-5 col-6">
+                        <div class="header-left d-flex align-items-center">
+                            <div class="menu-toggle-btn mr-15">
+                                <button id="menu-toggle" class="main-btn primary-btn btn-hover">
+                                    <i class="lni lni-chevron-left me-2"></i> Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7 col-md-7 col-6">
+                        <div class="header-right">
+                            <!-- ========== profile start ========== -->
+                            <div class="profile-box ml-15">
+                                <button class="dropdown-toggle bg-transparent border-0" type="button" id="profile"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="profile-info">
+                                        <div class="info">
+                                            <div class="image">
+                                                <img src="../../../assets/admin/images/profile-picture.png"
+                                                    alt="" />
+                                                <span class="status-indicator bg-success"></span>
+                                            </div>
+                                            <div>
+                                                <h6 class="fw-500 text-dark" id="profileName"></h6>
+                                                <p id="profileRole">Admin</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profile"   style="min-width: auto; width: auto;">
+                                    <li>
+                                        <div class="author-info flex items-center !p-1">
+                                            <div class="image">
+                                                <img src="../../../assets/admin/images/profile-picture.png"
+                                                    alt="" />
+
+                                            </div>
+                                            <div class="content">
+                                                <h4 class="text-sm" id="dropdownProfileName">Admin</h4>
+                                                <a class="text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white text-xs"
+                                                    href="#" id="dropdownProfileEmail"></a>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li class="divider"></li>
+                                    <li>
+                                        <a href="javascript:void(0);" onclick="logoutUser()">
+                                              <i class="lni lni-exit"></i> Sign Out
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <!-- ========== profile end ========== -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- ========== header end ========== -->
+
         <!-- ========== section start ========== -->
         <section class="section">
             <div class="container-fluid">
@@ -171,11 +235,6 @@
                                                 <span class="ms-2 text-muted" id="selectionDetails"></span>
                                             </div>
                                             <div class="btn-group" role="group">
-                                                {{-- <button type="button" class="btn btn-sm btn-primary"
-                                                    onclick="selectAllVisible()" id="selectAllVisibleBtn"
-                                                    title="Select All Visible Students">
-                                                    <i class="fas fa-check-double me-1"></i> Select All
-                                                </button> --}}
                                                 <button type="button" class="btn btn-sm btn-success"
                                                     onclick="bulkAction('reactivate')" id="bulkReactivateBtn"
                                                     title="Reactivate Selected">
@@ -361,7 +420,8 @@
                                 <!-- Birthdate -->
                                 <div class="col-12 col-md-6">
                                     <div class="input-group-validation input-style-1">
-                                        <label for="add_birthdate" class="form-label">Birthdate <span class="text-danger">*</span></label>
+                                        <label for="add_birthdate" class="form-label">Birthdate <span
+                                                class="text-danger">*</span></label>
                                         <input type="date" class="form-control" id="add_birthdate"
                                             name="birthdate">
                                         <div class="invalid-feedback"></div>
@@ -377,7 +437,7 @@
                     <button type="submit" class="main-button primary-btn btn-hover mb-1" form="addUserForm"
                         id="addStudentBtn">
                         <span class="btn-text">
-                        Add Student
+                            Add Student
                         </span>
                     </button>
                 </div>
@@ -514,7 +574,7 @@
                                 <input type="file" class="form-control" name="upload_files[]"
                                     id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
                                 <div class="text-center mb-1 mt-2">
-                                         <small class="text-muted">Multiple files supported (Max: 10MB)</small>
+                                    <small class="text-muted">Multiple files supported (Max: 10MB)</small>
                                 </div>
                                 <div class="">
                                     <div id="filesList" class="files-list"></div>
@@ -527,7 +587,8 @@
                 <div class="modal-footer">
                     <button type="button" class="main-button light-btn btn-hover mb-1 me-2" data-bs-dismiss="modal"
                         id="cancelUploadBtn">Cancel</button>
-                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="batchUploadForm" id="startUploadBtn">
+                    <button type="submit" class="main-button primary-btn btn-hover mb-1" form="batchUploadForm"
+                        id="startUploadBtn">
                         <span class="btn-text">Start Batch Upload
                         </span>
                     </button>
@@ -557,7 +618,7 @@
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 
     <script src="../../../../assets/external/student-management.js"></script>
-  
+
 </body>
 
 </html>
