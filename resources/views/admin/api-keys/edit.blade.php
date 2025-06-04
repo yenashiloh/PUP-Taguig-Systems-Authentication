@@ -185,8 +185,7 @@
                                     class="main-button light-btn btn-hover btn-sm">
                                     Cancel
                                 </a>
-                                <button type="submit" class="main-button primary-btn btn-hover btn-sm">
-                                    <i class="fas fa-save me-1"></i> Update API Key
+                                <button type="submit" class="main-button primary-btn btn-hover btn-sm"> Update API Key
                                 </button>
                             </div>
                         </div>

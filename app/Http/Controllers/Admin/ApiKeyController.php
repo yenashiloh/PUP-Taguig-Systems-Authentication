@@ -127,7 +127,6 @@ class ApiKeyController extends Controller
             'permissions.*' => 'in:add_user,update_user,deactivate_user,login_user,logout_user',
             'rate_limit' => 'required|integer|min:10|max:1000',
             'expires_at' => 'nullable|date|after:today',
-            'is_active' => 'boolean',
         ], [
             'permissions.required' => 'Please select at least one permission.',
             'permissions.min' => 'Please select at least one permission.',
@@ -151,7 +150,6 @@ class ApiKeyController extends Controller
                 'permissions' => $validated['permissions'],
                 'request_limit_per_minute' => $validated['rate_limit'],
                 'expires_at' => $validated['expires_at'] ? \Carbon\Carbon::parse($validated['expires_at']) : null,
-                'is_active' => $request->boolean('is_active'),
             ]);
 
             return redirect()->route('admin.api-keys.show', $apiKey)
@@ -362,7 +360,7 @@ class ApiKeyController extends Controller
             Log::error('Error exporting API keys: ' . $e->getMessage());
             return redirect()->back()
                             ->with('error', 'Failed to export API keys data.');
-        }
+    }
     }
 
     /**
