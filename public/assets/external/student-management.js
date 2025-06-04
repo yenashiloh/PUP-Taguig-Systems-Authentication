@@ -1032,7 +1032,9 @@ function validateStudentData(data, isUpdate = false) {
     }
 
     // Birthdate validation (optional but validate if provided)
-    if (data.birthdate && data.birthdate.trim()) {
+    if (!data.birthdate || !data.birthdate.trim()) {
+    errors.birthdate = ['Birthdate is required.'];
+    } else {
         const birthDate = new Date(data.birthdate);
         const today = new Date();
 
@@ -1059,6 +1061,14 @@ function validateStudentData(data, isUpdate = false) {
 
     return errors;
 }
+
+//Birthdate max date setup
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
+const maxDate = `${yyyy}-${mm}-${dd}`;
+document.getElementById('add_birthdate').setAttribute('max', maxDate);
 
 // Email validation helper
 function isValidEmail(email) {

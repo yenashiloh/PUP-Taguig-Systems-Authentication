@@ -171,11 +171,11 @@
                                                 <span class="ms-2 text-muted" id="selectionDetails"></span>
                                             </div>
                                             <div class="btn-group" role="group">
-                                                <button type="button" class="btn btn-sm btn-primary"
+                                                {{-- <button type="button" class="btn btn-sm btn-primary"
                                                     onclick="selectAllVisible()" id="selectAllVisibleBtn"
                                                     title="Select All Visible Students">
                                                     <i class="fas fa-check-double me-1"></i> Select All
-                                                </button>
+                                                </button> --}}
                                                 <button type="button" class="btn btn-sm btn-success"
                                                     onclick="bulkAction('reactivate')" id="bulkReactivateBtn"
                                                     title="Reactivate Selected">
@@ -361,7 +361,7 @@
                                 <!-- Birthdate -->
                                 <div class="col-12 col-md-6">
                                     <div class="input-group-validation input-style-1">
-                                        <label for="add_birthdate" class="form-label">Birthdate</label>
+                                        <label for="add_birthdate" class="form-label">Birthdate <span class="text-danger">*</span></label>
                                         <input type="date" class="form-control" id="add_birthdate"
                                             name="birthdate">
                                         <div class="invalid-feedback"></div>
@@ -537,9 +537,6 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-
-
     <script src="../assets/admin/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/admin/js/Chart.min.js"></script>
     <script src="../assets/admin/js/dynamic-pie-chart.js"></script>
