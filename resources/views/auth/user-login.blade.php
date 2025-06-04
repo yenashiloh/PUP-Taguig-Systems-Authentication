@@ -163,9 +163,9 @@
                         </span>
                     </button>
 
-                    <div class="signup-text">
+                    {{-- <div class="signup-text">
                         <a href="{{ route('forgot-password') }}" class="signup-link">Forgot Password?</a>
-                    </div>
+                    </div> --}}
 
                 </form>
 

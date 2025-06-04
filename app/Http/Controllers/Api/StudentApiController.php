@@ -1398,23 +1398,51 @@ public function update(Request $request, $id)
     }
 
     /**
-     * Get application information
+     * Get application information (for API key validation)
      */
     public function getAppInfo(Request $request)
     {
         try {
             $apiKey = $request->apiKeyModel;
             
+            if (!$apiKey) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'API key validation failed'
+                ], 401);
+            }
+            
+            // Check if API key has required permissions for student management
+            $requiredPermissions = ['login_user', 'basic_auth', 'student_data', 'user_profile'];
+            $hasAnyPermission = false;
+            
+            foreach ($requiredPermissions as $permission) {
+                if (in_array($permission, $apiKey->permissions)) {
+                    $hasAnyPermission = true;
+                    break;
+                }
+            }
+            
+            if (!$hasAnyPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'API key does not have sufficient permissions for student management'
+                ], 403);
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Application information retrieved successfully',
+                'message' => 'API key validated successfully',
                 'data' => [
                     'application_name' => $apiKey->application_name,
                     'developer_name' => $apiKey->developer_name,
                     'permissions' => $apiKey->permissions,
+                    'formatted_permissions' => $apiKey->formatted_permissions,
                     'rate_limit' => $apiKey->request_limit_per_minute,
                     'total_requests' => $apiKey->total_requests,
-                    'last_used' => $apiKey->last_used_at
+                    'last_used' => $apiKey->last_used_at,
+                    'is_valid' => true,
+                    'validation_time' => now()->toISOString()
                 ]
             ]);
             
@@ -1423,7 +1451,7 @@ public function update(Request $request, $id)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve application information',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
     }

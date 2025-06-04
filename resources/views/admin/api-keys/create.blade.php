@@ -112,77 +112,76 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="permissions[]"
-                                            value="login_user" id="perm_login" checked>
-                                        <label class="form-check-label" for="perm_login">
-                                            <strong>User Login Access</strong>
-                                            <small class="d-block text-muted">Allow faculty/students to login through
-                                                this application</small>
+                                        <input class="form-check-input permission-checkbox" type="checkbox"
+                                            name="permissions[]" value="add_user" id="perm_add_user">
+                                        <label class="form-check-label" for="perm_add_user">
+                                            Add User / Batch Upload
+                                            <small class="d-block text-muted">Allows adding individual users or
+                                                uploading in bulk</small>
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="permissions[]"
-                                            value="basic_auth" id="perm_basic">
-                                        <label class="form-check-label" for="perm_basic">
-                                            Basic Authentication
-                                            <small class="d-block text-muted">Basic API authentication features</small>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="permissions[]"
-                                            value="user_profile" id="perm_profile">
-                                        <label class="form-check-label" for="perm_profile">
-                                            User Profile Access
-                                            <small class="d-block text-muted">Access to user profile
+                                        <input class="form-check-input permission-checkbox" type="checkbox"
+                                            name="permissions[]" value="update_user" id="perm_update_user">
+                                        <label class="form-check-label" for="perm_update_user">
+                                            Update User Information
+                                            <small class="d-block text-muted">Edit user details and profile
                                                 information</small>
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="permissions[]"
-                                            value="student_data" id="perm_student">
-                                        <label class="form-check-label" for="perm_student">
-                                            Student Data Access
-                                            <small class="d-block text-muted">Access student-specific
-                                                information</small>
+                                        <input class="form-check-input permission-checkbox" type="checkbox"
+                                            name="permissions[]" value="deactivate_user" id="perm_deactivate_user">
+                                        <label class="form-check-label" for="perm_deactivate_user">
+                                            Deactivate User
+                                            <small class="d-block text-muted">Temporarily disable user access</small>
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="permissions[]"
-                                            value="faculty_data" id="perm_faculty">
-                                        <label class="form-check-label" for="perm_faculty">
-                                            Faculty Data Access
-                                            <small class="d-block text-muted">Access faculty-specific
-                                                information</small>
+                                        <input class="form-check-input permission-checkbox" type="checkbox"
+                                            name="permissions[]" value="login_user" id="perm_login_user">
+                                        <label class="form-check-label" for="perm_login_user">
+                                            User Login Access
+                                            <small class="d-block text-muted">Allow users to log in through this
+                                                system</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input permission-checkbox" type="checkbox"
+                                            name="permissions[]" value="logout_user" id="perm_logout_user">
+                                        <label class="form-check-label" for="perm_logout_user">
+                                            User Logout Access
+                                            <small class="d-block text-muted">Allows users to securely log out</small>
                                         </label>
                                     </div>
                                 </div>
                             </div>
                             <small class="text-info">
                                 <i class="fas fa-info-circle me-1"></i>
-                                <strong>Note:</strong> "User Login Access" permission is required for external
-                                applications to authenticate faculty and students.
+                                <strong>Note:</strong> Grant appropriate permissions based on the user's intended access
+                                and functionality.
                             </small>
-                        </div>
-                        <div class="col-md-12">
-                            <div class="d-flex justify-content-end gap-2">
-                                <a href="{{ route('admin.api-keys.index') }}"
-                                    class="main-button light-btn btn-hover btn-sm">
-                                    Cancel
-                                </a>
-                                <button type="submit" class="main-button primary-btn btn-hover btn-sm">
-                                    <i class="fas fa-key me-1"></i> Generate API Key
-                                </button>
+
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ route('admin.api-keys.index') }}"
+                                        class="main-button light-btn btn-hover btn-sm">
+                                        Cancel
+                                    </a>
+                                    <button type="submit" class="main-button primary-btn btn-hover btn-sm">
+                                        <i class="fas fa-key me-1"></i> Generate API Key
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
                 </form>
             </div>
         </div>

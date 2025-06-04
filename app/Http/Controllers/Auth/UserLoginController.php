@@ -38,9 +38,9 @@ class UserLoginController extends Controller
             return response()->view('errors.no-login-permission', [], 403);
         }
 
-        // Check domain restrictions (allow localhost for testing)
+        // Check domain restrictions with enhanced domain support
         $domain = $request->getHost();
-        if (!$this->isDomainAllowedForTesting($apiKeyModel, $domain)) {
+        if (!$this->isDomainAllowed($apiKeyModel, $domain)) {
             return response()->view('errors.domain-not-allowed', ['domain' => $domain], 403);
         }
 
@@ -176,11 +176,8 @@ class UserLoginController extends Controller
             'ip_address' => $request->ip()
         ]);
 
-        // Get redirect URL from allowed domains (first domain will be used for redirect)
-        $redirectUrl = null;
-        if (!empty($apiKeyModel->allowed_domains)) {
-            $redirectUrl = 'https://' . $apiKeyModel->allowed_domains[0];
-        }
+        // Get redirect URL based on domain detection
+        $redirectUrl = $this->getRedirectUrl($request, $apiKeyModel);
 
         return response()->json([
             'success' => true,
@@ -195,6 +192,40 @@ class UserLoginController extends Controller
                 'redirect_url' => $redirectUrl
             ]
         ]);
+    }
+
+    /**
+     * Get redirect URL based on domain and API key configuration
+     */
+    private function getRedirectUrl(Request $request, $apiKeyModel)
+    {
+        $currentDomain = $request->getHost();
+        $scheme = $request->isSecure() ? 'https' : 'http';
+        
+        // If API key has allowed domains, use the first one
+        if (!empty($apiKeyModel->allowed_domains)) {
+            $domain = $apiKeyModel->allowed_domains[0];
+            
+            // Handle different domain formats
+            if (strpos($domain, '://') === false) {
+                // Determine scheme based on domain
+                if ($domain === 'pupt-registration.site' || str_ends_with($domain, '.pupt-registration.site')) {
+                    return 'https://' . $domain;
+                } else {
+                    return $scheme . '://' . $domain;
+                }
+            } else {
+                return $domain;
+            }
+        }
+        
+        // Fallback to current domain
+        $port = $request->getPort();
+        if ($port && !in_array($port, [80, 443])) {
+            return "{$scheme}://{$currentDomain}:{$port}";
+        } else {
+            return "{$scheme}://{$currentDomain}";
+        }
     }
 
     /**
@@ -360,12 +391,17 @@ class UserLoginController extends Controller
     }
 
     /**
-     * Check if domain is allowed (with localhost exception for testing)
+     * Check if domain is allowed with enhanced support for both domains
      */
-    private function isDomainAllowedForTesting($apiKeyModel, $domain)
+    private function isDomainAllowed($apiKeyModel, $domain)
     {
         // Allow localhost and 127.0.0.1 for testing
         if (in_array($domain, ['localhost', '127.0.0.1', '::1'])) {
+            return true;
+        }
+        
+        // Allow production domain
+        if ($domain === 'pupt-registration.site' || $domain === 'www.pupt-registration.site') {
             return true;
         }
         

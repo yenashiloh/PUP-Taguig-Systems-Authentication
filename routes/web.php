@@ -47,11 +47,28 @@ Route::prefix('external')->name('external.')->group(function () {
 });
 
 
-
 // For testing purposes - direct access to login with API key
 Route::get('/test-login/{apiKey}', function($apiKey) {
     return redirect()->route('external.login', ['api_key' => $apiKey]);
 })->name('test.login');
+
+Route::prefix('errors')->name('errors.')->group(function () {
+    Route::get('api-key-required', function () {
+        return view('errors.api-key-required');
+    })->name('api-key-required');
+
+    Route::get('invalid-api-key', function () {
+        return view('errors.invalid-api-key');
+    })->name('invalid-api-key');
+
+    Route::get('domain-not-allowed', function () {
+        return view('errors.domain-not-allowed');
+    })->name('domain-not-allowed');
+
+    Route::get('no-login-permission', function () {
+        return view('errors.no-login-permission');
+    })->name('no-login-permission');
+});
 
 // API documentation route (optional)
 Route::get('/api/docs', function () {

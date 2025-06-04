@@ -27,7 +27,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             padding: 40px;
-            max-width: 600px;
+            max-width: 700px;
             text-align: center;
         }
         .logo {
@@ -84,6 +84,17 @@
             background: #6b0c08;
             border-color: #6b0c08;
         }
+        .domain-examples {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .environment-section {
+            text-align: left;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -106,9 +117,23 @@
                 <div class="setup-step">
                     <div class="step-number">2</div>
                     <div>
-                        <h6><strong>Access with API Key</strong></h6>
-                        <p class="mb-1">Add your API key to the URL:</p>
-                        <div class="code-example">{{ $example_url }}</div>
+                        <h6><strong>Access URLs by Environment</strong></h6>
+                        
+                        <div class="environment-section">
+                            <strong>🔧 Local Development:</strong>
+                            <div class="code-example">http://127.0.0.1:8000/external/student-management?api_key=YOUR_API_KEY</div>
+                            
+                            <strong>🌐 Production:</strong>
+                            <div class="code-example">https://pupt-registration.site/external/student-management?api_key=YOUR_API_KEY</div>
+                        </div>
+                        
+                        <div class="domain-examples">
+                            <h6><i class="fas fa-info-circle me-2"></i>Supported Domains:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Development:</strong> localhost, 127.0.0.1 (with any port)</li>
+                                <li><strong>Production:</strong> pupt-registration.site, www.pupt-registration.site</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 
@@ -116,8 +141,12 @@
                     <div class="step-number">3</div>
                     <div>
                         <h6><strong>Optional Parameters</strong></h6>
-                        <p class="mb-1">You can also add:</p>
-                        <div class="code-example">?api_key=YOUR_KEY&base_url=http://127.0.0.1:8000&app_name=My App</div>
+                        <p class="mb-1">You can customize with additional parameters:</p>
+                        <div class="code-example">?api_key=YOUR_KEY&app_name=My App&base_url=https://pupt-registration.site</div>
+                        <small class="text-muted">
+                            • <strong>app_name:</strong> Custom application name<br>
+                            • <strong>base_url:</strong> Override automatic domain detection
+                        </small>
                     </div>
                 </div>
             </div>
@@ -133,11 +162,32 @@
             
             <div class="mt-4">
                 <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    For testing on localhost, use: <code>http://127.0.0.1:8000</code> as base URL
+                    <i class="fas fa-lightbulb me-1"></i>
+                    <strong>Quick Start:</strong> The system automatically detects your domain. No need to specify base_url unless you're testing cross-domain functionality.
                 </small>
             </div>
         </div>
     </div>
+
+    <script>
+        // Auto-detect current environment and show appropriate example
+        document.addEventListener('DOMContentLoaded', function() {
+            const hostname = window.location.hostname;
+            const examples = document.querySelectorAll('.code-example');
+            
+            // Highlight the current environment example
+            examples.forEach(example => {
+                if ((hostname.includes('127.0.0.1') || hostname.includes('localhost')) && 
+                    example.textContent.includes('127.0.0.1')) {
+                    example.style.border = '2px solid #28a745';
+                    example.style.backgroundColor = '#d4edda';
+                } else if (hostname.includes('pupt-registration.site') && 
+                          example.textContent.includes('pupt-registration.site')) {
+                    example.style.border = '2px solid #28a745';
+                    example.style.backgroundColor = '#d4edda';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

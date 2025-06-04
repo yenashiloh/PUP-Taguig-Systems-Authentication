@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invalid API Key - PUP-Taguig Systems</title>
+    <title>No Login Permission - PUP-Taguig Systems</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
@@ -64,18 +64,24 @@
             padding: 20px;
             margin: 20px 0;
         }
+        .permissions-list {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
     <div class="error-container">
         <div class="error-card">
             <div class="error-icon">
-                <i class="fas fa-key"></i>
-                <i class="fas fa-times-circle position-absolute" style="margin-left: -1rem; margin-top: 1rem; font-size: 2rem;"></i>
+                <i class="fas fa-user-lock"></i>
             </div>
             
-            <h2 class="error-title">Invalid API Key</h2>
-            <p class="text-muted mb-4">The API key you provided is invalid, expired, or has been revoked.</p>
+            <h2 class="error-title">Insufficient Permissions</h2>
+            <p class="text-muted mb-4">This API key does not have permission to access the login functionality.</p>
             
             @if(request('error_detail'))
                 <div class="error-details">
@@ -84,29 +90,50 @@
                 </div>
             @endif
             
-            @if(request('api_key'))
-                <div class="error-details">
-                    <strong>Provided API Key:</strong><br>
-                    <code>{{ Str::limit(request('api_key'), 20, '...') }}</code>
-                </div>
-            @endif
+            <div class="permissions-list">
+                <h6><i class="fas fa-shield-alt me-2"></i>Required Permissions:</h6>
+                <ul class="text-start mb-0">
+                    <li><strong>User Login Access</strong> - Allow users to login through this application</li>
+                    <li><strong>Basic Authentication</strong> - Basic API authentication features</li>
+                </ul>
+            </div>
             
             <div class="solution-steps">
-                <h5><i class="fas fa-wrench me-2"></i>How to Fix This:</h5>
+                <h5><i class="fas fa-tools me-2"></i>How to Fix This:</h5>
                 <ol class="mb-0">
-                    <li><strong>Check API Key:</strong> Verify that you're using the correct API key</li>
-                    <li><strong>Check Expiration:</strong> Ensure your API key hasn't expired</li>
-                    <li><strong>Check Status:</strong> Make sure the API key is still active</li>
-                    <li><strong>Generate New Key:</strong> If needed, generate a new API key from the admin panel</li>
+                    <li><strong>Edit API Key:</strong>
+                        <ul>
+                            <li>Go to Admin Panel → API Keys</li>
+                            <li>Find and edit your API key</li>
+                            <li>Check the "User Login Access" permission</li>
+                            <li>Save the changes</li>
+                        </ul>
+                    </li>
+                    <li><strong>Alternative:</strong>
+                        <ul>
+                            <li>Generate a new API key with the correct permissions</li>
+                            <li>Make sure to select "User Login Access" during creation</li>
+                        </ul>
+                    </li>
                 </ol>
             </div>
             
-            
+            <div class="d-grid gap-2">
+                <a href="{{ route('admin.api-keys.index') }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i>Edit API Key Permissions
+                </a>
+                <a href="{{ route('admin.api-keys.create') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-2"></i>Generate New API Key
+                </a>
+                <button class="btn btn-outline-secondary" onclick="goBack()">
+                    <i class="fas fa-arrow-left me-2"></i>Go Back
+                </button>
+            </div>
             
             <div class="mt-4">
                 <small class="text-muted">
                     <i class="fas fa-info-circle me-1"></i>
-                    If you continue to experience issues, please contact the puptloginsystem69@gmail.com
+                    API permissions help ensure that applications only access the features they need.
                 </small>
             </div>
         </div>

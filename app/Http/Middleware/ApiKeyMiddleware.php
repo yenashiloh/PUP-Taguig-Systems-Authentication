@@ -34,7 +34,7 @@ class ApiKeyMiddleware
             ], 401);
         }
 
-        // Check domain restrictions with better localhost handling
+        // Check domain restrictions with enhanced domain handling
         $domain = $request->getHost();
         if (!$this->isDomainAllowed($apiKeyModel, $domain)) {
             return response()->json([
@@ -99,7 +99,7 @@ class ApiKeyMiddleware
     }
 
     /**
-     * Check if domain is allowed with comprehensive localhost support
+     * Check if domain is allowed with comprehensive support for both local and production domains
      */
     private function isDomainAllowed($apiKeyModel, $domain)
     {
@@ -111,7 +111,7 @@ class ApiKeyMiddleware
         // Normalize the domain
         $domain = strtolower($domain);
 
-        // List of localhost variations to always allow for development
+        // Enhanced localhost variations for development
         $localhostDomains = [
             'localhost',
             '127.0.0.1',
@@ -121,11 +121,24 @@ class ApiKeyMiddleware
             'localhost:3000',
             '127.0.0.1:3000',
             'localhost:80',
-            '127.0.0.1:80'
+            '127.0.0.1:80',
+            'localhost:443',
+            '127.0.0.1:443'
         ];
 
         // Always allow localhost for development/testing
         if (in_array($domain, $localhostDomains)) {
+            return true;
+        }
+
+        // Production domains to always allow
+        $productionDomains = [
+            'pupt-registration.site',
+            'www.pupt-registration.site'
+        ];
+
+        // Always allow production domains
+        if (in_array($domain, $productionDomains)) {
             return true;
         }
 
@@ -142,6 +155,15 @@ class ApiKeyMiddleware
             if (strpos($allowedDomain, '*.') === 0) {
                 $baseDomain = substr($allowedDomain, 2);
                 if (str_ends_with($domain, '.' . $baseDomain) || $domain === $baseDomain) {
+                    return true;
+                }
+            }
+            
+            // Support for pupt-registration.site and its subdomains
+            if ($allowedDomain === 'pupt-registration.site' || $allowedDomain === '*.pupt-registration.site') {
+                if ($domain === 'pupt-registration.site' || 
+                    $domain === 'www.pupt-registration.site' || 
+                    str_ends_with($domain, '.pupt-registration.site')) {
                     return true;
                 }
             }

@@ -95,6 +95,23 @@ Route::group(['middleware' => ['api.key']], function () {
 Route::put('/students/{id}', [StudentApiController::class, 'update']);
 Route::patch('/students/{id}', [StudentApiController::class, 'update']);
 
+// Error pages for API key issues
+Route::get('/errors/api-key-required', function() {
+    return view('errors.api-key-required');
+})->name('errors.api-key-required');
+
+Route::get('/errors/invalid-api-key', function() {
+    return view('errors.invalid-api-key');
+})->name('errors.invalid-api-key');
+
+Route::get('/errors/domain-not-allowed', function() {
+    return view('errors.domain-not-allowed');
+})->name('errors.domain-not-allowed');
+
+Route::get('/errors/no-login-permission', function() {
+    return view('errors.no-login-permission');
+})->name('errors.no-login-permission');
+
 // Error handling for API routes
 Route::fallback(function () {
     return response()->json([
