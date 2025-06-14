@@ -371,9 +371,6 @@
                                             <button type="submit" class="main-button primary-btn btn-hover">
                                                 Update
                                             </button>
-                                            <a href="" class="main-button secondary-btn btn-hover">
-                                                View Activity Log
-                                            </a>
                                         </div>
                                     </div>
                                 </form>

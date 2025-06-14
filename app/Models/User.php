@@ -64,37 +64,38 @@ class User extends Authenticatable
     // Static method to get program counts
     public static function getProgramCounts()
     {
-        return self::students()
-                   ->groupBy('program')
-                   ->selectRaw('program, COUNT(*) as count')
-                   ->pluck('count', 'program');
+        return self::where('role', 'Student')
+                ->groupBy('program')
+                ->selectRaw('program, COUNT(*) as count')
+                ->pluck('count', 'program');
     }
+
 
     // Static method to get year counts
     public static function getYearCounts()
     {
-        return self::students()
-                   ->groupBy('year')
-                   ->selectRaw('year, COUNT(*) as count')
-                   ->pluck('count', 'year');
+        return self::where('role', 'Student')
+                ->groupBy('year')
+                ->selectRaw('year, COUNT(*) as count')
+                ->pluck('count', 'year');
     }
 
     // Static method to get section counts
     public static function getSectionCounts()
     {
-        return self::students()
-                   ->groupBy('section')
-                   ->selectRaw('section, COUNT(*) as count')
-                   ->pluck('count', 'section');
+        return self::where('role', 'Student')
+                ->groupBy('section')
+                ->selectRaw('section, COUNT(*) as count')
+                ->pluck('count', 'section');
     }
 
     // Static method to get status counts
     public static function getStatusCounts()
     {
-        return self::students()
-                   ->groupBy('status')
-                   ->selectRaw('status, COUNT(*) as count')
-                   ->pluck('count', 'status');
+        return self::where('role', 'Student')
+                ->groupBy('status')
+                ->selectRaw('status, COUNT(*) as count')
+                ->pluck('count', 'status');
     }
 
     // Static method to get batch counts
@@ -117,7 +118,6 @@ class User extends Authenticatable
             'years' => self::getYearCounts(),
             'sections' => self::getSectionCounts(),
             'statuses' => self::getStatusCounts(),
-            'batches' => self::getBatchCounts(),
         ];
     }
 

@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\StudentApiController;
 use App\Http\Controllers\Auth\UserLoginController;
-
+use App\Http\Controllers\Api\FacultyController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -17,7 +17,7 @@ use App\Http\Controllers\Auth\UserLoginController;
 */
 Route::prefix('auth')->middleware(['api.key'])->group(function () {
     Route::post('/login', [UserLoginController::class, 'login'])->name('api.user.login');
-    Route::post('/logout', [UserLoginController::class, 'logout'])->name('api.user.logout');
+      Route::post('/logout', [UserLoginController::class, 'logout'])->name('api.user.logout');
     Route::post('/verify-session', [UserLoginController::class, 'verifySession'])->name('api.user.verify');
 });
 
@@ -101,21 +101,88 @@ Route::fallback(function () {
         'success' => false,
         'message' => 'API endpoint not found',
         'available_endpoints' => [
+            // General endpoints
             'GET /api/health' => 'Health check',
             'GET /api/verify-api-key' => 'Verify API key (requires X-API-Key header)',
+            'GET /api/app-info' => 'Get application information',
+            
+            // Student endpoints
             'GET /api/students' => 'Get all students',
-            'POST /api/students' => 'Create student',
+            'POST /api/students' => 'Create student (requires add_user permission)',
             'GET /api/students/{id}' => 'Get student details',
-            'PUT /api/students/{id}' => 'Update student',
-            'POST /api/students/{id}/toggle-status' => 'Toggle student status',
-            'POST /api/students/bulk-toggle-status' => 'Bulk toggle student status',
-            'POST /api/students/batch-upload' => 'Batch upload students',
+            'PUT /api/students/{id}' => 'Update student (requires update_user permission)',
+            'POST /api/students/{id}/toggle-status' => 'Toggle student status (requires deactivate_user permission)',
+            'POST /api/students/bulk-toggle-status' => 'Bulk toggle student status (requires deactivate_user permission)',
+            'POST /api/students/batch-upload' => 'Batch upload students (requires add_user permission)',
             'GET /api/students/export' => 'Export all students',
             'GET /api/students/export-filtered' => 'Export filtered students',
             'GET /api/students/download-template' => 'Download import template',
-            'GET /api/courses' => 'Get all courses',
-            'GET /api/departments' => 'Get all departments',
-            'GET /api/app-info' => 'Get application information'
+            'GET /api/students/courses' => 'Get all courses',
+            'GET /api/students/departments' => 'Get all departments',
+            
+            // Faculty endpoints
+            'GET /api/faculty' => 'Get all faculty',
+            'POST /api/faculty' => 'Create faculty member (requires add_user permission)',
+            'GET /api/faculty/{id}' => 'Get faculty details',
+            'PUT /api/faculty/{id}' => 'Update faculty member (requires update_user permission)',
+            'POST /api/faculty/{id}/toggle-status' => 'Toggle faculty status (requires deactivate_user permission)',
+            'GET /api/faculty/export' => 'Export faculty data',
+            'GET /api/faculty/departments' => 'Get all departments',
+            
+            // Authentication endpoints
+            'POST /api/auth/login' => 'User login (requires login_user permission)',
+            'POST /api/auth/logout' => 'User logout (requires logout_user permission)',
+            'POST /api/auth/verify-session' => 'Verify user session (requires login_user permission)',
+        ],
+        'note' => 'All endpoints except /health require a valid API key in X-API-Key header',
+        'permissions' => [
+            'add_user' => 'Create new users and batch upload functionality',
+            'update_user' => 'Update user information and details',
+            'deactivate_user' => 'Activate/deactivate user accounts',
+            'login_user' => 'Authenticate faculty/students via API',
+            'logout_user' => 'End user sessions via API'
         ]
     ], 404);
 });
+
+Route::group(['prefix' => 'faculty', 'middleware' => ['api.key']], function () {
+    
+    // Get all faculty (with filters and pagination)
+    Route::get('/', [FacultyController::class, 'index']);
+    
+    // Get specific faculty member
+    Route::get('{id}', [FacultyController::class, 'show']);
+    
+    // Create new faculty member (requires add_user permission)
+    Route::middleware(['api.permission:add_user'])->post('/', [FacultyController::class, 'store']);
+    
+    // Update faculty member (requires update_user permission)
+    Route::middleware(['api.permission:update_user'])->put('{id}', [FacultyController::class, 'update']);
+    Route::middleware(['api.permission:update_user'])->patch('{id}', [FacultyController::class, 'update']);
+    
+    // Deactivate faculty member (requires deactivate_user permission)
+    Route::middleware(['api.permission:deactivate_user'])->delete('{id}', [FacultyController::class, 'destroy']);
+    
+    // Reactivate faculty member (requires deactivate_user permission)
+    Route::middleware(['api.permission:deactivate_user'])->patch('{id}/reactivate', [FacultyController::class, 'reactivate']);
+    
+    // Batch upload faculty (requires add_user permission)
+    Route::middleware(['api.permission:add_user'])->post('batch-upload', [FacultyController::class, 'batchUpload']);
+    
+    // Bulk operations (requires deactivate_user permission)
+    Route::middleware(['api.permission:deactivate_user'])->post('bulk/toggle-status', [FacultyController::class, 'bulkToggleStatus']);
+    
+    // Statistics (no special permission required, just API key)
+    Route::get('statistics/overview', [FacultyController::class, 'statistics']);
+    
+    // Download template for faculty import (requires add_user permission)
+    Route::middleware(['api.permission:add_user'])->get('download-template', [FacultyController::class, 'downloadTemplate']);
+    
+    // Export faculty data (no special permission required, just API key)
+    Route::get('export', [FacultyController::class, 'export']);
+    Route::get('export-filtered', [FacultyController::class, 'exportFiltered']);
+    
+    // Get departments for dropdown (no special permission required)
+    Route::get('data/departments', [FacultyController::class, 'getDepartments']);
+});
+

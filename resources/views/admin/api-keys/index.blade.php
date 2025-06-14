@@ -66,7 +66,6 @@
                                 <th>Developer</th>
                                 <th>Permissions</th>
                                 <th>Status</th>
-                                <th>Last Used</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -95,21 +94,18 @@
                                     <td>
                                         @if ($key->is_active)
                                             @if ($key->expires_at && $key->expires_at->isPast())
-                                                <span class="badge bg-warning">Expired</span>
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-times me-1"></i> Expired
+                                                </span>
                                             @else
-                                                <span class="badge bg-success">Active</span>
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i> Active
+                                                </span>
                                             @endif
                                         @else
-                                            <span class="badge bg-danger">Inactive</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if ($key->last_used_at)
-                                            {{ $key->last_used_at->diffForHumans() }}
-                                            <br>
-                                            <small class="text-muted">{{ number_format($key->total_requests) }} requests</small>
-                                        @else
-                                            <span class="text-muted">Never used</span>
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i> Inactive
+                                            </span>
                                         @endif
                                     </td>
                                     <td>

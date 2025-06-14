@@ -455,53 +455,8 @@
                                 <div class="col-md-6">
                                     <p class="mb-1"><strong>Required Columns:</strong></p>
                                     <p class="mb-0">
-                                        Email, First Name, Middle Name (optional), Last Name, Student Number, Program,
-                                        Year, Section, Birthdate
-
+                                        Email, First Name, Middle Name (optional), Last Name, Student Number, Birthdate
                                     </p>
-                                    <!-- Template Download -->
-                                    <p class="mt-2 mb-0">
-                                        <a href="{{ route('admin.user-management.download-template') }}"
-                                            class="text-primary">
-                                            <i class="fa fa-download me-1"></i>Download Template
-                                        </a>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Selections OUTSIDE the alert -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>Select Batch Number <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="batch_number" required>
-                                        <option value="" disabled selected>Choose Batch Number</option>
-                                        @for ($i = 1; $i <= 10; $i++)
-                                            <option value="{{ $i }}">Batch {{ $i }}</option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a batch number.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>School Year <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="school_year" required>
-                                        <option value="" disabled selected>Choose School Year</option>
-                                        @php
-                                            $currentYear = date('Y');
-                                            $startYear = $currentYear - 5;
-                                            $endYear = $currentYear;
-                                        @endphp
-                                        @for ($year = $endYear; $year >= $startYear; $year--)
-                                            <option value="{{ $year }}"
-                                                {{ $year == $currentYear ? 'selected' : '' }}>
-                                                {{ $year }}
-                                            </option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a school year.</div>
                                 </div>
                             </div>
                         </div>

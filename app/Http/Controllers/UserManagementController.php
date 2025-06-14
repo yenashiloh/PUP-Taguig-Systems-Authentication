@@ -247,8 +247,7 @@ class UserManagementController extends Controller
     public function batchUploadFaculty(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'batch_number' => 'required|integer|min:1|max:10',
-            'school_year' => 'required|integer|min:2020|max:' . (date('Y') + 5),
+            // Removed batch_number and school_year requirements
             'upload_files' => 'required|array|min:1|max:10',
             'upload_files.*' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB limit
         ]);
@@ -260,8 +259,9 @@ class UserManagementController extends Controller
 
         try {
             $admin = Auth::guard('admin')->user();
-            $batchNumber = $request->batch_number;
-            $schoolYear = $request->school_year;
+            // Set batchNumber and schoolYear to null or default if not provided
+            $batchNumber = $request->batch_number ?? null;
+            $schoolYear = $request->school_year ?? null;
             $files = $request->file('upload_files');
 
             $totalSize = 0;
@@ -274,7 +274,7 @@ class UserManagementController extends Controller
                     ->with('batch_error', "Total combined file size exceeds the 10MB limit.");
             }
             
-            // Generate unique batch ID
+            // Generate unique batch ID (no batch number/school year)
             $batchId = BatchUpload::generateBatchId('faculty', $schoolYear, $batchNumber);
             
             $totalImported = 0;
@@ -291,7 +291,6 @@ class UserManagementController extends Controller
             
             // Validate total rows across all files first and check file structure
             foreach ($files as $fileIndex => $file) {
-                // Additional file validation
                 if ($file->getSize() == 0) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " is empty.");
@@ -301,22 +300,18 @@ class UserManagementController extends Controller
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
-                // Check if file has data
                 if (empty($rows) || count($rows) < 2) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " must contain at least one data row besides the header.");
                 }
                 
-                // Check headers
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
                 
-                // Check for empty headers
                 if (in_array('', $headers) || in_array(null, $headers)) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " header row contains empty columns. Please ensure all columns have proper headers.");
                 }
                 
-                // Check if all required headers are present
                 $requiredHeaders = ['email', 'first name', 'last name', 'employee number', 'phone number', 'department', 'employment status'];
                 $missingHeaders = array_diff($requiredHeaders, $headers);
                 
@@ -325,15 +320,12 @@ class UserManagementController extends Controller
                         ->with('batch_error', "File " . ($fileIndex + 1) . " missing required columns: " . implode(', ', $missingHeaders));
                 }
                 
-                if (count($rows) > 1) { // Exclude header
+                if (count($rows) > 1) {
                     $totalRows += count($rows) - 1;
                 }
                 
-                // Pre-check for duplicates within each file
                 $fileEmails = [];
                 $fileEmployeeNumbers = [];
-                
-                // Remove header row for processing
                 $dataRows = array_slice($rows, 1);
                 
                 foreach ($dataRows as $index => $row) {
@@ -354,8 +346,6 @@ class UserManagementController extends Controller
                                 ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Email '$email' is duplicated in the file");
                         } else {
                             $fileEmails[] = $email;
-                            
-                            // Check across all files
                             if (in_array($email, $allFileEmails)) {
                                 return redirect()->back()
                                     ->with('batch_error', "Email '$email' is duplicated across multiple files");
@@ -371,8 +361,6 @@ class UserManagementController extends Controller
                                 ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Employee number '$employeeNumber' is duplicated in the file");
                         } else {
                             $fileEmployeeNumbers[] = $employeeNumber;
-                            
-                            // Check across all files
                             if (in_array($employeeNumber, $allFileEmployeeNumbers)) {
                                 return redirect()->back()
                                     ->with('batch_error', "Employee number '$employeeNumber' is duplicated across multiple files");
@@ -389,7 +377,7 @@ class UserManagementController extends Controller
                     ->with('batch_error', "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows.");
             }
             
-            // Create batch upload record
+            // Create batch upload record (no batch number/school year)
             $batchUpload = BatchUpload::create([
                 'batch_id' => $batchId,
                 'admin_email' => $admin->email,
@@ -404,7 +392,6 @@ class UserManagementController extends Controller
                 'started_at' => now()
             ]);
             
-            // Process each file
             foreach ($files as $fileIndex => $file) {
                 $fileName = $batchId . '_file_' . ($fileIndex + 1) . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('batch_uploads/' . $batchId, $fileName);
@@ -413,19 +400,13 @@ class UserManagementController extends Controller
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
-                // Process file headers and data
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
-                
-                // Remove header row
                 array_shift($rows);
                 
-                // Process each row in the file
                 foreach ($rows as $rowIndex => $row) {
                     $actualRowNumber = $rowIndex + 2; 
-                    
                     if (empty(array_filter($row))) continue;
                     
-                    // Map columns to user fields
                     $rowData = [];
                     foreach ($headers as $colIndex => $header) {
                         $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
@@ -435,7 +416,6 @@ class UserManagementController extends Controller
                     $hasError = false;
                     $rowErrors = [];
                     
-                    // Validate email
                     $email = $rowData['email'] ?? '';
                     if (empty($email)) {
                         $rowErrors[] = "Email is required";
@@ -444,11 +424,10 @@ class UserManagementController extends Controller
                         $rowErrors[] = "Email '$email' is not a valid email format";
                         $hasError = true;
                     } elseif (User::where('email', strtolower($email))->exists()) {
-                        $rowErrors[] = "Email '$email' already exists in the system";
+                        $rowErrors[] = "Email '$email' is already exist.";
                         $hasError = true;
                     }
                     
-                    // Validate first name
                     $firstName = $rowData['first_name'] ?? '';
                     if (empty($firstName)) {
                         $rowErrors[] = "First name is required";
@@ -461,7 +440,6 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate last name
                     $lastName = $rowData['last_name'] ?? '';
                     if (empty($lastName)) {
                         $rowErrors[] = "Last name is required";
@@ -474,14 +452,12 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate middle name (optional)
                     $middleName = $rowData['middle_name'] ?? '';
                     if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
                         $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
                         $hasError = true;
                     }
                     
-                    // Validate employee number
                     $employeeNumber = $rowData['employee_number'] ?? '';
                     if (empty($employeeNumber)) {
                         $rowErrors[] = "Employee number is required";
@@ -490,11 +466,10 @@ class UserManagementController extends Controller
                         $rowErrors[] = "Employee number '$employeeNumber' must be at least 3 characters";
                         $hasError = true;
                     } elseif (User::where('employee_number', $employeeNumber)->exists()) {
-                        $rowErrors[] = "Employee number '$employeeNumber' already exists in the system";
+                        $rowErrors[] = "Employee number '$employeeNumber' is already exist.";
                         $hasError = true;
                     }
                     
-                    // Validate phone number
                     $phoneNumber = $rowData['phone_number'] ?? '';
                     if (empty($phoneNumber)) {
                         $rowErrors[] = "Phone number is required";
@@ -504,14 +479,12 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate department
                     $department = $rowData['department'] ?? '';
                     if (empty($department)) {
                         $rowErrors[] = "Department is required";
                         $hasError = true;
                     }
                     
-                    // Validate employment status
                     $employmentStatus = $rowData['employment_status'] ?? '';
                     $validStatuses = ['Full-Time', 'Part-Time', 'full-time', 'part-time'];
                     if (empty($employmentStatus)) {
@@ -522,7 +495,6 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate birthdate (optional)
                     $birthdate = $rowData['birthdate'] ?? '';
                     if (!empty($birthdate)) {
                         try {
@@ -538,7 +510,6 @@ class UserManagementController extends Controller
                         }
                     }
                     
-                    // If there are errors for this row, add them to the errors array
                     if ($hasError) {
                         foreach ($rowErrors as $error) {
                             $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): {$error}";
@@ -547,9 +518,7 @@ class UserManagementController extends Controller
                         continue;
                     }
                     
-                    // Create the user if all validations pass
                     try {
-                        // Generate password
                         $randomNumbers = rand(10000, 99999);
                         $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                         $specialChars = "!@#$%^&*";
@@ -577,7 +546,6 @@ class UserManagementController extends Controller
                         $totalImported++;
                         $importedUsers[] = $user;
 
-                        // Send email notification
                         try {
                             Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
                                 $message->to($user->email)
@@ -597,7 +565,6 @@ class UserManagementController extends Controller
                 }
             }
             
-            // Update batch upload record
             $status = 'completed';
             if ($totalImported == 0 && $totalFailed > 0) {
                 $status = 'failed';
@@ -622,10 +589,9 @@ class UserManagementController extends Controller
                 ]
             ]);
 
-            // Log to audit trail
             AuditTrail::log(
                 'batch_upload_faculty',
-                "Batch uploaded $totalImported faculty members from " . count($files) . " files (Batch: $batchNumber, School Year: $schoolYear)",
+                "Batch uploaded $totalImported faculty members from " . count($files) . " files",
                 'BatchUpload',
                 $batchUpload->id,
                 $batchId,
@@ -648,14 +614,11 @@ class UserManagementController extends Controller
                 ]
             );
             
-            // Prepare response messages exactly like student implementation
             if ($totalImported > 0 && $totalFailed == 0) {
-                // All successful
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
                 return redirect()->back()
                     ->with('batch_success', "Successfully imported all $totalImported faculty member(s)!{$emailMessage}");
             } elseif ($totalImported > 0 && $totalFailed > 0) {
-                // Partial success
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
                 $mainMessage = "Successfully imported $totalImported faculty member(s). $totalFailed row(s) had errors and were skipped.{$emailMessage}";
                 $errorList = '<div class="text-danger mb-0"><strong>Errors encountered:</strong></div>';
@@ -671,7 +634,6 @@ class UserManagementController extends Controller
                 return redirect()->back()
                     ->with('batch_success', $mainMessage . $errorList);
             } elseif ($totalImported == 0 && $totalFailed > 0) {
-                // All failed
                 $mainMessage = "No faculty members were imported. All $totalFailed row(s) contained errors:";
                 $errorList = '<ul class="mt-2 mb-0">';
                 foreach (array_slice($allErrors, 0, 10) as $error) {
@@ -685,7 +647,6 @@ class UserManagementController extends Controller
                 return redirect()->back()
                     ->with('batch_error', $mainMessage . $errorList);
             } else {
-                // No data processed
                 return redirect()->back()
                     ->with('batch_error', 'No valid data found to import.');
             }
@@ -700,7 +661,6 @@ class UserManagementController extends Controller
                 ->with('batch_error', 'Failed to import faculty: ' . $e->getMessage());
         }
     }
-
 
     // Download a template file for faculty import
     public function downloadFacultyTemplate()
@@ -1132,7 +1092,7 @@ class UserManagementController extends Controller
         $admin = Auth::guard('admin')->user();
         
         // Get students sorted by last_name in ascending order
-        $users = User::students()->orderBy('last_name', 'asc')->get();
+        $users = User::where('role', 'Student')->orderBy('last_name', 'asc')->get();
         
         // Get all active courses
         $courses = Course::where('status', 'active')->orderBy('course_name', 'asc')->get();
@@ -1143,6 +1103,14 @@ class UserManagementController extends Controller
         $yearCounts = $filterCounts['years'];
         $sectionCounts = $filterCounts['sections'];
         $statusCounts = $filterCounts['statuses'];
+        
+        // Transform users to ensure display of program, year, and section (handle null values)
+        $users = $users->map(function ($user) {
+            $user->program = $user->program ?? 'N/A';
+            $user->year = $user->year ?? 'N/A';
+            $user->section = $user->section ?? 'N/A';
+            return $user;
+        });
         
         return view('admin.user-management.student', compact('admin', 'users', 'courses', 'programCounts', 'yearCounts', 'sectionCounts', 'statusCounts'));
     }
@@ -1511,24 +1479,19 @@ class UserManagementController extends Controller
     public function batchUploadStudents(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'batch_number' => 'required|integer|min:1|max:10',
-            'school_year' => 'required|integer|min:2020|max:' . (date('Y') + 5),
             'upload_files' => 'required|array|min:1|max:10',
             'upload_files.*' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB limit
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $validator->errors()
-            ], 422);
+            return redirect()->back()
+                ->with('batch_error', 'Validation failed: ' . $validator->errors()->first());
         }
 
         try {
             $admin = Auth::guard('admin')->user();
-            $batchNumber = $request->batch_number;
-            $schoolYear = $request->school_year;
+            $batchNumber = $request->batch_number ?? null;
+            $schoolYear = $request->school_year ?? null;
             $files = $request->file('upload_files');
 
             $totalSize = 0;
@@ -1541,7 +1504,6 @@ class UserManagementController extends Controller
                     ->with('batch_error', "Total combined file size exceeds the 10MB limit.");
             }
             
-            // Generate unique batch ID
             $batchId = BatchUpload::generateBatchId('students', $schoolYear, $batchNumber);
             
             $totalImported = 0;
@@ -1552,13 +1514,10 @@ class UserManagementController extends Controller
             $emailsSent = 0;
             $emailsFailed = 0;
             
-            // Pre-check for duplicates across all files
             $allFileEmails = [];
             $allFileStudentNumbers = [];
             
-            // Validate total rows across all files first and check file structure
             foreach ($files as $fileIndex => $file) {
-                // Additional file validation
                 if ($file->getSize() == 0) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " is empty.");
@@ -1568,39 +1527,48 @@ class UserManagementController extends Controller
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
-                // Check if file has data
                 if (empty($rows) || count($rows) < 2) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " must contain at least one data row besides the header.");
                 }
                 
-                // Check headers
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
-                
-                // Check for empty headers
                 if (in_array('', $headers) || in_array(null, $headers)) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " header row contains empty columns. Please ensure all columns have proper headers.");
                 }
                 
-                // Check if all required headers are present
-                $requiredHeaders = ['email', 'first name', 'last name', 'student number', 'program', 'year', 'section'];
-                $missingHeaders = array_diff($requiredHeaders, $headers);
+                // Map new headers: Surname, Firstname, Middlename, Date of Birth, Email, Reference Number
+                $headerMap = [
+                    'surname' => 'last_name',
+                    'firstname' => 'first_name',
+                    'middlename' => 'middle_name',
+                    'date of birth' => 'birthdate',
+                    'email' => 'email',
+                    'reference number' => 'student_number'
+                ];
                 
+                $mappedHeaders = [];
+                foreach ($headers as $header) {
+                    $normalizedHeader = strtolower(trim($header));
+                    if (array_key_exists($normalizedHeader, $headerMap)) {
+                        $mappedHeaders[$normalizedHeader] = $headerMap[$normalizedHeader];
+                    }
+                }
+                
+                $requiredHeaders = ['email', 'first_name', 'last_name', 'student_number'];
+                $missingHeaders = array_diff($requiredHeaders, array_values($mappedHeaders));
                 if (!empty($missingHeaders)) {
                     return redirect()->back()
                         ->with('batch_error', "File " . ($fileIndex + 1) . " missing required columns: " . implode(', ', $missingHeaders));
                 }
                 
-                if (count($rows) > 1) { // Exclude header
+                if (count($rows) > 1) {
                     $totalRows += count($rows) - 1;
                 }
                 
-                // Pre-check for duplicates within each file
                 $fileEmails = [];
                 $fileStudentNumbers = [];
-                
-                // Remove header row for processing
                 $dataRows = array_slice($rows, 1);
                 
                 foreach ($dataRows as $index => $row) {
@@ -1608,7 +1576,10 @@ class UserManagementController extends Controller
                     
                     $rowData = [];
                     foreach ($headers as $colIndex => $header) {
-                        $rowData[str_replace(' ', '_', strtolower($header))] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                        $normalizedHeader = strtolower(trim($header));
+                        if (array_key_exists($normalizedHeader, $mappedHeaders)) {
+                            $rowData[$mappedHeaders[$normalizedHeader]] = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                        }
                     }
                     
                     $email = strtolower($rowData['email'] ?? '');
@@ -1621,8 +1592,6 @@ class UserManagementController extends Controller
                                 ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Email '$email' is duplicated in the file");
                         } else {
                             $fileEmails[] = $email;
-                            
-                            // Check across all files
                             if (in_array($email, $allFileEmails)) {
                                 return redirect()->back()
                                     ->with('batch_error', "Email '$email' is duplicated across multiple files");
@@ -1638,8 +1607,6 @@ class UserManagementController extends Controller
                                 ->with('batch_error', "File " . ($fileIndex + 1) . " Row $rowNumber: Student number '$studentNumber' is duplicated in the file");
                         } else {
                             $fileStudentNumbers[] = $studentNumber;
-                            
-                            // Check across all files
                             if (in_array($studentNumber, $allFileStudentNumbers)) {
                                 return redirect()->back()
                                     ->with('batch_error', "Student number '$studentNumber' is duplicated across multiple files");
@@ -1656,7 +1623,6 @@ class UserManagementController extends Controller
                     ->with('batch_error', "Total rows across all files ($totalRows) exceeds the maximum limit of 5000 rows.");
             }
             
-            // Create batch upload record
             $batchUpload = BatchUpload::create([
                 'batch_id' => $batchId,
                 'admin_email' => $admin->email,
@@ -1671,7 +1637,6 @@ class UserManagementController extends Controller
                 'started_at' => now()
             ]);
             
-            // Process each file
             foreach ($files as $fileIndex => $file) {
                 $fileName = $batchId . '_file_' . ($fileIndex + 1) . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('batch_uploads/' . $batchId, $fileName);
@@ -1680,29 +1645,25 @@ class UserManagementController extends Controller
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
                 
-                // Process file headers and data
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
-                
-                // Remove header row
                 array_shift($rows);
                 
-                // Process each row in the file
                 foreach ($rows as $rowIndex => $row) {
-                    $actualRowNumber = $rowIndex + 2; 
-                    
+                    $actualRowNumber = $rowIndex + 2;
                     if (empty(array_filter($row))) continue;
                     
-                    // Map columns to user fields
                     $rowData = [];
                     foreach ($headers as $colIndex => $header) {
-                        $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                        $rowData[str_replace(' ', '_', strtolower($header))] = $value;
+                        $normalizedHeader = strtolower(trim($header));
+                        if (array_key_exists($normalizedHeader, $mappedHeaders)) {
+                            $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
+                            $rowData[$mappedHeaders[$normalizedHeader]] = $value;
+                        }
                     }
                     
                     $hasError = false;
                     $rowErrors = [];
                     
-                    // Validate email
                     $email = $rowData['email'] ?? '';
                     if (empty($email)) {
                         $rowErrors[] = "Email is required";
@@ -1711,11 +1672,10 @@ class UserManagementController extends Controller
                         $rowErrors[] = "Email '$email' is not a valid email format";
                         $hasError = true;
                     } elseif (User::where('email', strtolower($email))->exists()) {
-                        $rowErrors[] = "Email '$email' already exists in the system";
+                        $rowErrors[] = "Email '$email' is already exist.";
                         $hasError = true;
                     }
                     
-                    // Validate first name
                     $firstName = $rowData['first_name'] ?? '';
                     if (empty($firstName)) {
                         $rowErrors[] = "First name is required";
@@ -1728,7 +1688,6 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate last name
                     $lastName = $rowData['last_name'] ?? '';
                     if (empty($lastName)) {
                         $rowErrors[] = "Last name is required";
@@ -1741,14 +1700,12 @@ class UserManagementController extends Controller
                         $hasError = true;
                     }
                     
-                    // Validate middle name (optional)
                     $middleName = $rowData['middle_name'] ?? '';
                     if (!empty($middleName) && !preg_match('/^[a-zA-Z\s]+$/', $middleName)) {
                         $rowErrors[] = "Middle name '$middleName' can only contain letters and spaces";
                         $hasError = true;
                     }
                     
-                    // Validate student number
                     $studentNumber = $rowData['student_number'] ?? '';
                     if (empty($studentNumber)) {
                         $rowErrors[] = "Student number is required";
@@ -1760,39 +1717,10 @@ class UserManagementController extends Controller
                         $rowErrors[] = "Student number '$studentNumber' can only contain letters, numbers, and hyphens";
                         $hasError = true;
                     } elseif (User::where('student_number', $studentNumber)->exists()) {
-                        $rowErrors[] = "Student number '$studentNumber' already exists in the system";
+                        $rowErrors[] = "Student number '$studentNumber' is already exist.";
                         $hasError = true;
                     }
                     
-                    // Validate program
-                    $program = $rowData['program'] ?? '';
-                    if (empty($program)) {
-                        $rowErrors[] = "Program is required";
-                        $hasError = true;
-                    }
-                    
-                    // Validate year
-                    $year = $rowData['year'] ?? '';
-                    $validYears = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '1', '2', '3', '4', '5'];
-                    if (empty($year)) {
-                        $rowErrors[] = "Year is required";
-                        $hasError = true;
-                    } elseif (!in_array($year, $validYears)) {
-                        $rowErrors[] = "Year '$year' is not valid. Use: 1st Year, 2nd Year, etc.";
-                        $hasError = true;
-                    }
-                    
-                    // Validate section
-                    $section = $rowData['section'] ?? '';
-                    if (empty($section)) {
-                        $rowErrors[] = "Section is required";
-                        $hasError = true;
-                    } elseif (!preg_match('/^[A-Za-z0-9\-]+$/', $section)) {
-                        $rowErrors[] = "Section '$section' contains invalid characters";
-                        $hasError = true;
-                    }
-                    
-                    // Validate birthdate (optional)
                     $birthdate = $rowData['birthdate'] ?? '';
                     if (!empty($birthdate)) {
                         try {
@@ -1808,7 +1736,6 @@ class UserManagementController extends Controller
                         }
                     }
                     
-                    // If there are errors for this row, add them to the errors array
                     if ($hasError) {
                         foreach ($rowErrors as $error) {
                             $allErrors[] = "File " . ($fileIndex + 1) . " Row $actualRowNumber ({$firstName} {$lastName}): {$error}";
@@ -1817,9 +1744,7 @@ class UserManagementController extends Controller
                         continue;
                     }
                     
-                    // Create the user if all validations pass
                     try {
-                        // Generate a password
                         $randomNumbers = rand(10000, 99999);
                         $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                         $specialChars = "!@#$%^&*";
@@ -1835,17 +1760,15 @@ class UserManagementController extends Controller
                         $user->middle_name = !empty($middleName) ? ucwords(strtolower($middleName)) : null;
                         $user->last_name = ucwords(strtolower($lastName));
                         $user->student_number = strtoupper($studentNumber);
-                        $user->program = $program;
-                        $user->year = $year;
-                        $user->section = strtoupper($section);
                         $user->birthdate = !empty($birthdate) ? Carbon::parse($birthdate)->format('Y-m-d') : null;
                         $user->status = 'Active';
+                        $user->batch_number = $batchNumber;
+                        $user->school_year = $schoolYear;
                         
                         $user->save();
                         $totalImported++;
                         $importedUsers[] = $user;
 
-                        // Send email notification with credentials
                         try {
                             Mail::send('emails.credentials', ['user' => $user, 'password' => $password], function($message) use ($user) {
                                 $message->to($user->email)
@@ -1853,17 +1776,8 @@ class UserManagementController extends Controller
                             });
                             $emailsSent++;
                         } catch (\Exception $mailError) {
-                            \Log::error('Email sending failed for ' . $user->email . ': ' . $mailError->getMessage());
+                            $allErrors[] = "Email sending failed for '" . $user->email . "': " . $mailError->getMessage();
                             $emailsFailed++;
-                            // Log email failure
-                            AuditTrail::log(
-                                'batch_upload_students',
-                                "Failed to send email for student {$user->email} in batch {$batchId}",
-                                'User',
-                                $user->id,
-                                "{$user->first_name} {$user->last_name}",
-                                ['error' => $mailError->getMessage()]
-                            );
                         }
                         
                     } catch (\Exception $e) {
@@ -1874,7 +1788,6 @@ class UserManagementController extends Controller
                 }
             }
             
-            // Update batch upload record
             $status = 'completed';
             if ($totalImported == 0 && $totalFailed > 0) {
                 $status = 'failed';
@@ -1894,44 +1807,41 @@ class UserManagementController extends Controller
                     'success' => $totalImported,
                     'failed' => $totalFailed,
                     'emails_sent' => $emailsSent,
-                    'emails_failed' => $emailsFailed
+                    'emails_failed' => $emailsFailed,
+                    'files_processed' => count($files)
                 ]
             ]);
-            
-            // Log batch completion
+
             AuditTrail::log(
                 'batch_upload_students',
-                "Completed batch {$batchNumber} upload with {$totalImported} successful and {$totalFailed} failed imports",
+                "Batch uploaded $totalImported students from " . count($files) . " files",
                 'BatchUpload',
+                $batchUpload->id,
                 $batchId,
-                "Batch {$batchNumber} ({$schoolYear})",
                 [
+                    'batch_id' => $batchId,
+                    'batch_number' => $batchNumber,
+                    'school_year' => $schoolYear,
+                    'files_count' => count($files),
                     'total_rows' => $totalRows,
                     'successful_imports' => $totalImported,
                     'failed_imports' => $totalFailed,
-                    'emails_sent' => $emailsSent,
-                    'emails_failed' => $emailsFailed,
-                    'errors' => $allErrors
+                    'imported_users' => array_map(function($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'student_number' => $user->student_number,
+                            'email' => $user->email
+                        ];
+                    }, $importedUsers)
                 ]
             );
             
-            // Prepare response
-            $summary = [
-                'batch_id' => $batchId,
-                'total' => $totalRows,
-                'success' => $totalImported,
-                'failed' => $totalFailed,
-                'emails_sent' => $emailsSent,
-                'emails_failed' => $emailsFailed
-            ];
-            
             if ($totalImported > 0 && $totalFailed == 0) {
-                // All successful
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : " All login credentials have been sent via email.";
                 return redirect()->back()
                     ->with('batch_success', "Successfully imported all $totalImported student(s)!{$emailMessage}");
             } elseif ($totalImported > 0 && $totalFailed > 0) {
-                // Partial success
                 $emailMessage = $emailsFailed > 0 ? " Note: {$emailsFailed} email(s) failed to send." : "";
                 $mainMessage = "Successfully imported $totalImported student(s). $totalFailed row(s) had errors and were skipped.{$emailMessage}";
                 $errorList = '<div class="text-danger mb-0"><strong>Errors encountered:</strong></div>';
@@ -1947,7 +1857,6 @@ class UserManagementController extends Controller
                 return redirect()->back()
                     ->with('batch_success', $mainMessage . $errorList);
             } elseif ($totalImported == 0 && $totalFailed > 0) {
-                // All failed
                 $mainMessage = "No students were imported. All $totalFailed row(s) contained errors:";
                 $errorList = '<ul class="mt-2 mb-0">';
                 foreach (array_slice($allErrors, 0, 10) as $error) {
@@ -1961,35 +1870,16 @@ class UserManagementController extends Controller
                 return redirect()->back()
                     ->with('batch_error', $mainMessage . $errorList);
             } else {
-                // No data processed
                 return redirect()->back()
                     ->with('batch_error', 'No valid data found to import.');
             }
             
         } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
             \Log::error('Spreadsheet reading error: ' . $e->getMessage());
-            // Log failure due to spreadsheet error
-            AuditTrail::log(
-                'batch_upload_students',
-                "Failed batch upload due to spreadsheet reading error",
-                'BatchUpload',
-                $batchId,
-                "Batch {$batchNumber} ({$schoolYear})",
-                ['error' => $e->getMessage()]
-            );
             return redirect()->back()
                 ->with('batch_error', 'Unable to read one or more files. Please ensure they are valid Excel or CSV files.');
         } catch (\Exception $e) {
             \Log::error('Batch import error: ' . $e->getMessage());
-            // Log general failure
-            AuditTrail::log(
-                'batch_upload_students',
-                "Failed batch upload due to unexpected error",
-                'BatchUpload',
-                $batchId,
-                "Batch {$batchNumber} ({$schoolYear})",
-                ['error' => $e->getMessage()]
-            );
             return redirect()->back()
                 ->with('batch_error', 'Failed to import students: ' . $e->getMessage());
         }

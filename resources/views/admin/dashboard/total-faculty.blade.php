@@ -22,7 +22,7 @@
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
                                     <li class="breadcrumb-item">
-                                        <a href="{{ route('admin.user-management.users') }}">User Management</a>
+                                        <a href="{{ route('admin.dashboard') }}">Home</a>
                                     </li>
                                     <li class="breadcrumb-item active" aria-current="page">
                                         Faculty
@@ -392,7 +392,6 @@
         </div>
     </div>
 
-    <!-- Batch Upload Modal -->
     <div class="modal fade" id="batchUploadModal" tabindex="-1" aria-labelledby="batchUploadModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -426,8 +425,7 @@
                                 <div class="col-md-6">
                                     <p class="mb-1"><strong>Required Columns:</strong></p>
                                     <p class="mb-0">
-                                        Email, First Name, Middle Name (optional), Last Name, Employee Number, Phone
-                                        Number, Department, Employment Status, Birthdate
+                                        Email, First Name, Middle Name (optional), Last Name, Employee Number, Phone Number, Department, Employment Status, Birthdate 
                                     </p>
                                     <!-- Template Download -->
                                     <p class="mt-2 mb-0">
@@ -442,38 +440,7 @@
 
                         <!-- Selections OUTSIDE the alert -->
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>Select Batch Number <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="batch_number" required>
-                                        <option value="" disabled selected>Choose Batch Number</option>
-                                        @for ($i = 1; $i <= 10; $i++)
-                                            <option value="{{ $i }}">Batch {{ $i }}</option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a batch number.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>School Year <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="school_year" required>
-                                        <option value="" disabled selected>Choose School Year</option>
-                                        @php
-                                            $currentYear = date('Y');
-                                            $startYear = $currentYear - 5;
-                                            $endYear = $currentYear;
-                                        @endphp
-                                        @for ($year = $endYear; $year >= $startYear; $year--)
-                                            <option value="{{ $year }}"
-                                                {{ $year == $currentYear ? 'selected' : '' }}>
-                                                {{ $year }}
-                                            </option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a school year.</div>
-                                </div>
-                            </div>
+                            
                         </div>
 
                         <!-- File Upload Section -->
@@ -485,7 +452,7 @@
                                     id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
                                 <div class="text-center mb-1 mt-2">
                                     <small class="text-muted">Multiple files supported (Max: 10 files, 10MB
-                                        each)</small>
+                                        total only)</small>
                                 </div>
                                 <div class="">
                                     <div id="filesList" class="files-list"></div>
@@ -506,7 +473,6 @@
             </div>
         </div>
     </div>
-
 </main>
 <!-- ======== main-wrapper end =========== -->
 

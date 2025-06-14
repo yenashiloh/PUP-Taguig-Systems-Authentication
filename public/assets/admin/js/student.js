@@ -159,82 +159,63 @@ function exportFilteredStudents() {
  * Enhanced filter table function that updates select all state
  */
 function filterTable() {
-    const programFilter = document.getElementById('programFilter').value.toLowerCase();
-    const yearFilter = document.getElementById('yearFilter').value.toLowerCase();
-    const sectionFilter = document.getElementById('sectionFilter').value.toLowerCase();
-    const accountStatusFilter = document.getElementById('accountStatusFilter').value.toLowerCase();
+    if (!dataTable) return;
     
-    const tableRows = document.querySelectorAll('#userTable tbody tr:not(.no-records-row):not(.no-filter-results-row)');
-    let visibleRows = 0;
+    const filters = getActiveFilters();
     
-    const hasActiveFilters = programFilter || yearFilter || sectionFilter || accountStatusFilter;
+    // Apply custom filtering to DataTable
+    $.fn.dataTable.ext.search.pop(); // Remove previous custom filter
     
-    tableRows.forEach(row => {
-        const program = row.getAttribute('data-program')?.toLowerCase() || '';
-        const year = row.getAttribute('data-year')?.toLowerCase() || '';
-        const section = row.getAttribute('data-section')?.toLowerCase() || '';
-        const status = row.getAttribute('data-status')?.toLowerCase() || '';
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const row = dataTable.row(dataIndex).node();
         
-        const programMatch = !programFilter || program.includes(programFilter);
-        const yearMatch = !yearFilter || year.includes(yearFilter);
-        const sectionMatch = !sectionFilter || section.includes(sectionFilter);
-        const statusMatch = !accountStatusFilter || status.includes(accountStatusFilter);
+        // Get data attributes, treating empty strings as null/unassigned
+        const rowProgram = $(row).attr('data-program') || null;
+        const rowYear = $(row).attr('data-year') || null;
+        const rowSection = $(row).attr('data-section') || null;
+        const rowStatus = $(row).attr('data-status') || null;
         
-        if (programMatch && yearMatch && sectionMatch && statusMatch) {
-            row.style.display = '';
-            visibleRows++;
-        } else {
-            row.style.display = 'none';
-            // Uncheck hidden rows
-            const checkbox = row.querySelector('.user-checkbox');
-            if (checkbox) {
-                checkbox.checked = false;
+        // Program filter - show if no filter selected OR if program matches
+        if (filters.program) {
+            if (rowProgram !== filters.program) {
+                return false;
             }
         }
+        
+        // Year filter - show if no filter selected OR if year matches
+        if (filters.year) {
+            if (rowYear !== filters.year) {
+                return false;
+            }
+        }
+        
+        // Section filter - show if no filter selected OR if section matches
+        if (filters.section) {
+            if (rowSection !== filters.section) {
+                return false;
+            }
+        }
+        
+        // Status filter - show if no filter selected OR if status matches
+        if (filters.status) {
+            if (rowStatus !== filters.status.toLowerCase()) {
+                return false;
+            }
+        }
+        
+        return true;
     });
     
-    // Handle no records scenarios
-    const originalNoRecordsRow = document.querySelector('.no-records-row');
-    let noFilterResultsRow = document.querySelector('.no-filter-results-row');
-    
-    if (noFilterResultsRow) {
-        noFilterResultsRow.remove();
-        noFilterResultsRow = null;
-    }
-    
-    if (visibleRows === 0) {
-        if (hasActiveFilters) {
-            const tbody = document.querySelector('#userTable tbody');
-            noFilterResultsRow = document.createElement('tr');
-            noFilterResultsRow.className = 'no-filter-results-row';
-            noFilterResultsRow.innerHTML = `
-                <td colspan="7" class="text-center py-4">
-                    <div class="d-flex flex-column align-items-center">
-                        <p class="text-muted mb-2 fw-bold">No records found matching the selected filters.</p>
-                        <button class="btn btn-sm btn-outline-primary" onclick="clearAllStudentFilters()">
-                            <i class="fas fa-times me-1"></i> Clear Filters
-                        </button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(noFilterResultsRow);
-            
-            if (originalNoRecordsRow) {
-                originalNoRecordsRow.style.display = 'none';
-            }
-        } else {
-            if (originalNoRecordsRow) {
-                originalNoRecordsRow.style.display = '';
-            }
-        }
-    } else {
-        if (originalNoRecordsRow) {
-            originalNoRecordsRow.style.display = 'none';
-        }
-    }
-    
-    // Update select all state after filtering
-    updateSelectAll();
+    dataTable.draw();
+}
+
+function getActiveFilters() {
+    return {
+        program: document.getElementById('programFilter').value || null,
+        year: document.getElementById('yearFilter').value || null,
+        section: document.getElementById('sectionFilter').value || null,
+        status: document.getElementById('accountStatusFilter').value || null
+    };
 }
 
 // Initialize when document is ready

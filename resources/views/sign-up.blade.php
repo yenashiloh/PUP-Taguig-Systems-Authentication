@@ -190,7 +190,7 @@
                     </div>
 
                     <div class="row mb-2">
-                        <!-- Student number and program-->
+                        <!-- Student number and birthdate -->
                         <div class="col-md-6 mb-2 mb-md-0">
                             <div class="form-group">
                                 <label for="studentNumber">Student Number <span class="text-danger">*</span></label>
@@ -213,55 +213,6 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="program">Program <span class="text-danger">*</span></label>
-                                <select id="program" class="form-control form-select" name="program"
-                                    data-required="true" required>
-                                    <option value="" disabled selected>Select your program</option>
-                                    @foreach ($courses as $course)
-                                        <option value="{{ $course->course_name }}">{{ $course->course_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-2">
-                        <!-- Year, section, and birthdate  -->
-                        <div class="col-md-4 mb-2 mb-md-0">
-                            <div class="form-group">
-                                <label for="year">Year <span class="text-danger">*</span></label>
-                                <select id="year" class="form-control form-select" name="year"
-                                    data-required="true" required>
-                                    <option value="" disabled selected>Select your year</option>
-                                    <option value="1st Year">1st Year</option>
-                                    <option value="2nd Year">2nd Year</option>
-                                    <option value="3rd Year">3rd Year</option>
-                                    <option value="4th Year">4th Year</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-2 mb-md-0">
-                            <div class="form-group">
-                                <label for="section">Section <span class="text-danger">*</span></label>
-                                <select id="section" class="form-control form-select" name="section"
-                                    data-required="true" required>
-                                    <option value="" disabled selected>Select your section</option>
-                                    <option value="1">Section 1</option>
-                                    <option value="2">Section 2</option>
-                                    <option value="3">Section 3</option>
-                                    <option value="4">Section 4</option>
-                                    <option value="5">Section 5</option>
-                                    <option value="6">Section 6</option>
-                                    <option value="7">Section 7</option>
-                                    <option value="8">Section 8</option>
-                                    <option value="9">Section 9</option>
-                                    <option value="10">Section 10</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
                             <div class="form-group">
                                 <label for="studentBirthdate">Birthdate <span class="text-danger">*</span></label>
                                 <input type="date" id="studentBirthdate" class="form-control" name="birthdate"

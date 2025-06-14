@@ -109,7 +109,7 @@ class AdminController extends Controller
        $admin = Auth::guard('admin')->user();
         
         // Get students sorted by last_name in ascending order
-        $users = User::students()->orderBy('last_name', 'asc')->get();
+        $users = User::where('role', 'Student')->orderBy('last_name', 'asc')->get();
         
         // Get all active courses
         $courses = Course::where('status', 'active')->orderBy('course_name', 'asc')->get();

@@ -170,9 +170,6 @@ class PublicController extends Controller
                 $studentValidation = UserValidation::where('validation_type', 'student_number')->where('is_active', true)->first();
 
                 $studentValidationRules = [
-                    'program' => 'required|string',
-                    'year' => 'required|string',
-                    'section' => 'required|string',
                     'student_number' => array_merge(['required', 'unique:users,student_number'], is_array($studentRules) ? $studentRules : explode('|', $studentRules)),
                     'birthdate' => [
                         'required',

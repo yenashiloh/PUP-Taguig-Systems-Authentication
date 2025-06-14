@@ -24,7 +24,7 @@
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
                                     <li class="breadcrumb-item">
-                                        <a href="{{ route('admin.user-management.users') }}">User Management</a>
+                                        <a href="{{ route('admin.dashboard') }}">Home</a>
                                     </li>
                                     <li class="breadcrumb-item active" aria-current="page">
                                         Student
@@ -112,20 +112,20 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4 d-flex mb-2 justify-content-end">
-                                        <button class="main-button primary-btn me-2 btn-sm" data-bs-toggle="modal"
-                                            data-bs-target="#addUserModal">
-                                            Add
+                                        <button class="main-button primary-btn me-2 btn-sm d-flex align-items-center"
+                                            data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                            <i class="fas fa-plus me-1"></i> Add
                                         </button>
                                         <button type="button"
                                             class="main-btn primary-btn-outline square-btn me-2 btn-hover btn-sm"
                                             data-bs-toggle="modal" data-bs-target="#batchUploadModal">
-                                            Batch Upload
+                                            <i class="fas fa-upload me-1"></i>Upload
                                         </button>
                                         <div class="dropdown me-2">
                                             <button class="main-btn primary-btn-outline square-btn btn-hover btn-sm"
                                                 type="button" id="exportDropdown" data-bs-toggle="dropdown"
                                                 aria-expanded="false">
-                                                Export
+                                                <i class="fas fa-file-export me-1"></i> Export
                                             </button>
                                             <ul class="dropdown-menu" aria-labelledby="exportDropdown">
                                                 <li>
@@ -455,53 +455,8 @@
                                 <div class="col-md-6">
                                     <p class="mb-1"><strong>Required Columns:</strong></p>
                                     <p class="mb-0">
-                                        Email, First Name, Middle Name (optional), Last Name, Student Number, Program,
-                                        Year, Section, Birthdate
-
+                                        Email, First Name, Middle Name (optional), Last Name, Student Number, Birthdate
                                     </p>
-                                    <!-- Template Download -->
-                                    <p class="mt-2 mb-0">
-                                        <a href="{{ route('admin.user-management.download-template') }}"
-                                            class="text-primary">
-                                            <i class="fa fa-download me-1"></i>Download Template
-                                        </a>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Selections OUTSIDE the alert -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>Select Batch Number <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="batch_number" required>
-                                        <option value="" disabled selected>Choose Batch Number</option>
-                                        @for ($i = 1; $i <= 10; $i++)
-                                            <option value="{{ $i }}">Batch {{ $i }}</option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a batch number.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-style-1">
-                                    <label>School Year <span class="text-danger">*</span></label>
-                                    <select class="form-control form-select" name="school_year" required>
-                                        <option value="" disabled selected>Choose School Year</option>
-                                        @php
-                                            $currentYear = date('Y');
-                                            $startYear = $currentYear - 5;
-                                            $endYear = $currentYear;
-                                        @endphp
-                                        @for ($year = $endYear; $year >= $startYear; $year--)
-                                            <option value="{{ $year }}"
-                                                {{ $year == $currentYear ? 'selected' : '' }}>
-                                                {{ $year }}
-                                            </option>
-                                        @endfor
-                                    </select>
-                                    <div class="invalid-feedback">Please select a school year.</div>
                                 </div>
                             </div>
                         </div>
@@ -514,8 +469,7 @@
                                 <input type="file" class="form-control" name="upload_files[]"
                                     id="batchUploadFiles" multiple accept=".csv,.xlsx,.xls" required>
                                 <div class="text-center mb-1 mt-2">
-                                    <small class="text-muted">Multiple files supported (Max: 10 files, 10MB
-                                        each)</small>
+                                    <small class="text-muted">Multiple files supported (Max: 10MB)</small>
                                 </div>
                                 <div class="">
                                     <div id="filesList" class="files-list"></div>
@@ -536,6 +490,7 @@
             </div>
         </div>
     </div>
+
 
 
     <!-- ========== section end ========== -->

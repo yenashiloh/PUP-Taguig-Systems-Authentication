@@ -10,6 +10,7 @@ use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\Admin\ApiKeyController;
 use App\Http\Controllers\Auth\UserLoginController;
 use App\Http\Controllers\External\ExternalStudentController;
+use App\Http\Controllers\API\FacultyController;
 
 // Routes that should redirect logged-in admins
 Route::middleware(['redirect.if.admin'])->group(function () {

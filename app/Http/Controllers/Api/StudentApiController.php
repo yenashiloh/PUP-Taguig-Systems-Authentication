@@ -14,10 +14,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 
 class StudentApiController extends Controller
 {
@@ -119,9 +121,9 @@ class StudentApiController extends Controller
                     'regex:/^[a-zA-Z\s]+$/'
                 ],
                 'student_number' => 'required|string|max:255|unique:users,student_number|min:5|regex:/^[A-Za-z0-9\-]+$/',
-                'program' => 'required|string|max:255',
-                'year' => 'required|string|in:1st Year,2nd Year,3rd Year,4th Year',
-                'section' => 'required|string|in:1,2,3,4,5,6,7,8,9,10',
+                'program' => 'nullable|string|max:255',
+                'year' => 'nullable|string|in:1st Year,2nd Year,3rd Year,4th Year',
+                'section' => 'nullable|string|in:1,2,3,4,5,6,7,8,9,10',
                 'birthdate' => 'required|date|before:today',
             ], [
                 'email.required' => 'Email address is required.',
@@ -134,10 +136,8 @@ class StudentApiController extends Controller
                 'last_name.regex' => 'Last name can only contain letters and spaces.',
                 'student_number.required' => 'Student number is required.',
                 'student_number.unique' => 'This student number is already taken.',
-                'program.required' => 'Program is required.',
-                'year.required' => 'Year is required.',
+                // Removed required messages for program, year, section
                 'year.in' => 'Please select a valid year.',
-                'section.required' => 'Section is required.',
                 'section.in' => 'Please select a valid section.',
                 'birthdate.before' => 'Birthdate must be before today.',
             ]);
@@ -193,9 +193,9 @@ class StudentApiController extends Controller
                 'middle_name' => !empty($validated['middle_name']) ? ucwords(strtolower($validated['middle_name'])) : null,
                 'last_name' => ucwords(strtolower($validated['last_name'])),
                 'student_number' => strtoupper($validated['student_number']),
-                'program' => $validated['program'],
-                'year' => $validated['year'],
-                'section' => $validated['section'],
+                'program' => $validated['program'] ?? null,
+                'year' => $validated['year'] ?? null,
+                'section' => $validated['section'] ?? null,
                 'birthdate' => $validated['birthdate'] ?? null,
             ]);
 
@@ -795,8 +795,6 @@ public function update(Request $request, $id)
     public function batchUpload(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'batch_number' => 'required|integer|min:1|max:10',
-            'school_year' => 'required|integer|min:2020|max:' . (date('Y') + 5),
             'upload_files' => 'required|array|min:1|max:10',
             'upload_files.*' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB limit
         ]);
@@ -810,8 +808,6 @@ public function update(Request $request, $id)
         }
 
         try {
-            $batchNumber = $request->batch_number;
-            $schoolYear = $request->school_year;
             $files = $request->file('upload_files');
 
             // Check total file size
@@ -828,7 +824,7 @@ public function update(Request $request, $id)
             }
             
             // Generate unique batch ID
-            $batchId = BatchUpload::generateBatchId('students', $schoolYear, $batchNumber);
+            $batchId = BatchUpload::generateBatchId('students', date('Y'), 1);
             
             $totalImported = 0;
             $totalFailed = 0;
@@ -847,13 +843,13 @@ public function update(Request $request, $id)
                 'file_name' => count($files) . ' files uploaded via API',
                 'file_path' => 'batch_uploads/' . $batchId,
                 'total_rows' => 0, // Will be updated
-                'batch_number' => $batchNumber,
-                'school_year' => $schoolYear,
+                'batch_number' => 1,
+                'school_year' => date('Y'),
                 'status' => 'processing',
                 'started_at' => now()
             ]);
             
-            // Process files (similar to admin controller but with API responses)
+            // Process files
             foreach ($files as $fileIndex => $file) {
                 $fileName = $batchId . '_file_' . ($fileIndex + 1) . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('batch_uploads/' . $batchId, $fileName);
@@ -867,8 +863,47 @@ public function update(Request $request, $id)
                     continue;
                 }
                 
+                // Get headers and normalize them
                 $headers = array_map('strtolower', array_map('trim', $rows[0]));
-                array_shift($rows); // Remove header
+                
+                // Check for required headers
+                $requiredHeaders = ['email', 'first name', 'last name', 'reference number'];
+                $headerMap = [];
+                
+                // Map headers to database fields
+                foreach ($headers as $index => $header) {
+                    $normalizedHeader = str_replace([' ', '_', '-'], '', strtolower($header));
+                    
+                    // Map various possible header names to our fields
+                    if (in_array($normalizedHeader, ['email', 'emailaddress', 'mail'])) {
+                        $headerMap['email'] = $index;
+                    } elseif (in_array($normalizedHeader, ['firstname', 'fname', 'givenname'])) {
+                        $headerMap['first_name'] = $index;
+                    } elseif (in_array($normalizedHeader, ['lastname', 'lname', 'surname', 'familyname'])) {
+                        $headerMap['last_name'] = $index;
+                    } elseif (in_array($normalizedHeader, ['middlename', 'mname', 'middle'])) {
+                        $headerMap['middle_name'] = $index;
+                    } elseif (in_array($normalizedHeader, ['referencenumber', 'refnumber', 'studentnumber', 'studnum', 'idnumber', 'id'])) {
+                        $headerMap['student_number'] = $index;
+                    } elseif (in_array($normalizedHeader, ['birthdate', 'dateofbirth', 'dob', 'birthday'])) {
+                        $headerMap['birthdate'] = $index;
+                    }
+                }
+                
+                // Check if all required fields are mapped
+                $missingFields = [];
+                if (!isset($headerMap['email'])) $missingFields[] = 'Email';
+                if (!isset($headerMap['first_name'])) $missingFields[] = 'First Name';
+                if (!isset($headerMap['last_name'])) $missingFields[] = 'Last Name';
+                if (!isset($headerMap['student_number'])) $missingFields[] = 'Reference Number/Student Number';
+                
+                if (!empty($missingFields)) {
+                    $allErrors[] = "File " . ($fileIndex + 1) . " missing required columns: " . implode(', ', $missingFields);
+                    continue;
+                }
+                
+                // Skip header row for processing
+                array_shift($rows);
                 $totalRows += count($rows);
                 
                 foreach ($rows as $rowIndex => $row) {
@@ -876,31 +911,51 @@ public function update(Request $request, $id)
                     
                     if (empty(array_filter($row))) continue;
                     
-                    // Map data and validate (simplified version)
-                    $rowData = [];
-                    foreach ($headers as $colIndex => $header) {
-                        $value = isset($row[$colIndex]) ? trim($row[$colIndex]) : null;
-                        $rowData[str_replace(' ', '_', strtolower($header))] = $value;
-                    }
+                    // Extract data using header mapping
+                    $email = isset($row[$headerMap['email']]) ? trim($row[$headerMap['email']]) : '';
+                    $firstName = isset($row[$headerMap['first_name']]) ? trim($row[$headerMap['first_name']]) : '';
+                    $lastName = isset($row[$headerMap['last_name']]) ? trim($row[$headerMap['last_name']]) : '';
+                    $middleName = isset($headerMap['middle_name']) && isset($row[$headerMap['middle_name']]) ? trim($row[$headerMap['middle_name']]) : '';
+                    $studentNumber = isset($row[$headerMap['student_number']]) ? trim($row[$headerMap['student_number']]) : '';
+                    $birthdate = isset($headerMap['birthdate']) && isset($row[$headerMap['birthdate']]) ? trim($row[$headerMap['birthdate']]) : '';
                     
-                    // Basic validation
+                    // Validation
                     $errors = [];
-                    if (empty($rowData['email']) || !filter_var($rowData['email'], FILTER_VALIDATE_EMAIL)) {
-                        $errors[] = "Invalid email";
-                    }
-                    if (empty($rowData['first_name'])) $errors[] = "First name required";
-                    if (empty($rowData['last_name'])) $errors[] = "Last name required";
-                    if (empty($rowData['student_number'])) $errors[] = "Student number required";
-                    if (empty($rowData['program'])) $errors[] = "Program required";
-                    if (empty($rowData['year'])) $errors[] = "Year required";
-                    if (empty($rowData['section'])) $errors[] = "Section required";
                     
-                    // Check for duplicates
-                    if (User::where('email', strtolower($rowData['email']))->exists()) {
+                    // Email validation
+                    if (empty($email)) {
+                        $errors[] = "Email is required";
+                    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $errors[] = "Invalid email format";
+                    } elseif (User::where('email', strtolower($email))->exists()) {
                         $errors[] = "Email already exists";
                     }
-                    if (User::where('student_number', $rowData['student_number'])->exists()) {
+                    
+                    // First name validation
+                    if (empty($firstName)) {
+                        $errors[] = "First name is required";
+                    }
+                    
+                    // Last name validation
+                    if (empty($lastName)) {
+                        $errors[] = "Last name is required";
+                    }
+                    
+                    // Student number validation
+                    if (empty($studentNumber)) {
+                        $errors[] = "Reference number is required";
+                    } elseif (User::where('student_number', strtoupper($studentNumber))->exists()) {
                         $errors[] = "Student number already exists";
+                    }
+                    
+                    // Birthdate validation (optional but if provided should be valid)
+                    $parsedBirthdate = null;
+                    if (!empty($birthdate)) {
+                        try {
+                            $parsedBirthdate = Carbon::parse($birthdate)->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            $errors[] = "Invalid birthdate format";
+                        }
                     }
                     
                     if (!empty($errors)) {
@@ -910,28 +965,26 @@ public function update(Request $request, $id)
                     }
                     
                     try {
-                        // Create student
+                        // Generate password
                         $randomNumbers = rand(10000, 99999);
-                        $firstTwoLetters = strtoupper(substr($rowData['first_name'], 0, 1) . substr($rowData['last_name'], 0, 1));
+                        $firstTwoLetters = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
                         $specialChars = "!@#$%^&*";
                         $specialChar = $specialChars[rand(0, strlen($specialChars) - 1)];
                         $password = $randomNumbers . $firstTwoLetters . $specialChar;
 
+                        // Create user with only required fields
                         $user = User::create([
                             'role' => 'Student',
-                            'email' => strtolower($rowData['email']),
+                            'email' => strtolower($email),
                             'password' => Hash::make($password),
-                            'first_name' => ucwords(strtolower($rowData['first_name'])),
-                            'middle_name' => !empty($rowData['middle_name']) ? ucwords(strtolower($rowData['middle_name'])) : null,
-                            'last_name' => ucwords(strtolower($rowData['last_name'])),
-                            'student_number' => strtoupper($rowData['student_number']),
-                            'program' => $rowData['program'],
-                            'year' => $rowData['year'],
-                            'section' => strtoupper($rowData['section']),
-                            'birthdate' => !empty($rowData['birthdate']) ? Carbon::parse($rowData['birthdate'])->format('Y-m-d') : null,
+                            'first_name' => ucwords(strtolower($firstName)),
+                            'middle_name' => !empty($middleName) ? ucwords(strtolower($middleName)) : null,
+                            'last_name' => ucwords(strtolower($lastName)),
+                            'student_number' => strtoupper($studentNumber),
+                            'birthdate' => $parsedBirthdate,
                             'status' => 'Active',
-                            'batch_number' => $batchNumber,
-                            'school_year' => $schoolYear,
+                            'batch_number' => 1,
+                            'school_year' => date('Y'),
                         ]);
                         
                         $totalImported++;
@@ -967,14 +1020,14 @@ public function update(Request $request, $id)
             // Log to audit trail
             AuditTrail::log(
                 'batch_upload_students_api',
-                "Batch uploaded $totalImported students via API (Batch: $batchNumber, School Year: $schoolYear)",
+                "Batch uploaded $totalImported students via API",
                 'BatchUpload',
                 $batchUpload->id,
                 $batchId,
                 [
                     'batch_id' => $batchId,
-                    'batch_number' => $batchNumber,
-                    'school_year' => $schoolYear,
+                    'batch_number' => 1,
+                    'school_year' => date('Y'),
                     'files_count' => count($files),
                     'total_rows' => $totalRows,
                     'successful_imports' => $totalImported,
@@ -1016,7 +1069,6 @@ public function update(Request $request, $id)
             ], 500);
         }
     }
-
     /**
      * Export all students
      */

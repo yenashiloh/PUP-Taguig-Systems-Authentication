@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-
+use Illuminate\Support\Facades\Log;
 class UserLoginController extends Controller
 {
     /**
@@ -227,7 +227,6 @@ class UserLoginController extends Controller
                     'name' => $apiKeyModel->application_name,
                     'developer' => $apiKeyModel->developer_name
                 ],
-                'redirect_url' => $redirectUrl
             ]
         ]);
     }
@@ -295,20 +294,44 @@ class UserLoginController extends Controller
     /**
      * Handle user logout
      */
-    public function logout(Request $request)
+  public function logout(Request $request)
     {
+        // Get API key and session token from headers or request parameters
         $apiKey = $request->header('X-API-Key') ?? $request->get('api_key');
         $sessionToken = $request->header('X-Session-Token') ?? $request->get('session_token');
 
-        if (!$apiKey || !$sessionToken) {
-            return $this->errorResponse('API key and session token are required', 401);
+        // Validate that both API key and session token are provided
+        if (!$apiKey) {
+            return response()->json([
+                'success' => false,
+                'message' => 'API key is required. Please provide X-API-Key header or api_key parameter.',
+                'error_code' => 'MISSING_API_KEY'
+            ], 401);
         }
 
-        // Find user by session token (check both regular users and admin cache)
+        if (!$sessionToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session token is required. Please provide X-Session-Token header or session_token parameter.',
+                'error_code' => 'MISSING_SESSION_TOKEN'
+            ], 401);
+        }
+
+        // Validate API key first
+        $apiKeyModel = $this->validateApiKey($apiKey, $request);
+        if (!$apiKeyModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid API key provided.',
+                'error_code' => 'INVALID_API_KEY'
+            ], 401);
+        }
+
+        // Find user by session token (check ALL user types: students, faculty, admin)
         $user = null;
         $userType = null;
         
-        // Check regular users first
+        // Check regular users first (Students and Faculty)
         $users = User::whereNotNull('api_session_token')->get();
         foreach ($users as $u) {
             if (Hash::check($sessionToken, $u->api_session_token)) {
@@ -331,45 +354,93 @@ class UserLoginController extends Controller
             }
         }
 
-        if ($user) {
+        // Handle the case where session token is invalid or expired
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired session token. User may already be logged out.',
+                'error_code' => 'INVALID_SESSION_TOKEN'
+            ], 401);
+        }
+
+        // Clear session based on user type
+        try {
             if ($userType === 'admin') {
                 // Clear admin session from cache
                 Cache::forget("admin_session_{$user->id}");
             } else {
-                // Clear user session token
+                // Clear user session token from database
                 $user->update(['api_session_token' => null]);
             }
             
-            \Log::info('User logout via API', [
+            // Log successful logout
+            Log::info('User logout via API', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'role' => $userType === 'admin' ? 'Admin' : $user->role,
                 'user_type' => $userType,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+                'api_key_app' => $apiKeyModel->application_name ?? 'Unknown'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Logout successful',
+                'data' => [
+                    'user_type' => $userType,
+                    'role' => $userType === 'admin' ? 'Admin' : $user->role,
+                    'logged_out_at' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Logout error', [
+                'user_id' => $user->id ?? 'unknown',
+                'error' => $e->getMessage(),
                 'ip_address' => $request->ip()
             ]);
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout successful'
-        ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred during logout. Please try again.',
+                'error_code' => 'LOGOUT_ERROR'
+            ], 500);
+        }
     }
+
 
     /**
      * Verify user session
      */
-    public function verifySession(Request $request)
+      public function verifySession(Request $request)
     {
         $apiKey = $request->header('X-API-Key') ?? $request->get('api_key');
         $sessionToken = $request->header('X-Session-Token') ?? $request->get('session_token');
 
-        if (!$apiKey || !$sessionToken) {
-            return $this->errorResponse('API key and session token are required', 401);
+        if (!$apiKey) {
+            return response()->json([
+                'success' => false,
+                'message' => 'API key is required',
+                'error_code' => 'MISSING_API_KEY'
+            ], 401);
+        }
+
+        if (!$sessionToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session token is required',
+                'error_code' => 'MISSING_SESSION_TOKEN'
+            ], 401);
         }
 
         $apiKeyModel = $this->validateApiKey($apiKey, $request);
         if (!$apiKeyModel) {
-            return $this->errorResponse('Invalid API key', 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid API key',
+                'error_code' => 'INVALID_API_KEY'
+            ], 401);
         }
 
         // Find user by session token (check both regular users and admin cache)
@@ -400,7 +471,11 @@ class UserLoginController extends Controller
         }
 
         if (!$user) {
-            return $this->errorResponse('Invalid session token', 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired session token',
+                'error_code' => 'INVALID_SESSION_TOKEN'
+            ], 401);
         }
 
         $userData = [
@@ -424,26 +499,24 @@ class UserLoginController extends Controller
     /**
      * Validate API key
      */
-    private function validateApiKey($apiKey, Request $request)
+     private function validateApiKey($apiKey, Request $request)
     {
         $apiKeys = ApiKey::active()->get();
         
         foreach ($apiKeys as $key) {
             if ($key->verifyKey($apiKey)) {
                 // Simple rate limiting using Cache
-                $rateLimitKey = 'api-requests:' . $key->id . ':' . now()->format('Y-m-d-H-i');
+                $rateLimitKey = 'api-requests:' . $key->id . ':' . floor(time() / 60);
                 
                 try {
-                    $requests = Cache::get($rateLimitKey, 0);
-                    
-                    if ($requests >= $key->request_limit_per_minute) {
+                    $currentRequests = Cache::get($rateLimitKey, 0);
+                    if ($currentRequests >= $key->request_limit_per_minute) {
                         return null; // Rate limit exceeded
                     }
                     
-                    Cache::put($rateLimitKey, $requests + 1, 60); // 1 minute window
+                    Cache::put($rateLimitKey, $currentRequests + 1, 60);
                 } catch (\Exception $e) {
                     // Continue without rate limiting if cache fails
-                    \Log::warning('Rate limiting failed: ' . $e->getMessage());
                 }
                 
                 return $key;
