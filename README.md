@@ -129,7 +129,6 @@
 
 <h2>🚀 <strong>INSTALLATION & SETUP</strong></h2>
 <h3><strong>Prerequisites</strong></h3>
-<br>
 
 <ul>
 <li>PHP 8.1 or higher</li>
