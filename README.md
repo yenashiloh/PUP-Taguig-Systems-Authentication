@@ -264,7 +264,6 @@ MAIL_ENCRYPTION=tls</code></pre>
 <pre><code>php artisan test</code></pre>
 
 <h2>📝 <strong>USAGE EXAMPLES</strong></h2>
-<br>
 
 <h3><strong>Bulk User Import</strong></h3>
 <br>
@@ -285,49 +284,7 @@ MAIL_ENCRYPTION=tls</code></pre>
 <li>Copy the generated key for integration</li>
 </ol>
 
-<h2>🤝 <strong>CONTRIBUTING</strong></h2>
-<br>
-
-<ol>
-<li>Fork the repository</li>
-<li>Create your feature branch (<code>git checkout -b feature/AmazingFeature</code>)</li>
-<li>Commit your changes (<code>git commit -m 'Add some AmazingFeature'</code>)</li>
-<li>Push to the branch (<code>git push origin feature/AmazingFeature</code>)</li>
-<li>Open a Pull Request</li>
-</ol>
-
 <h2>📄 <strong>LICENSE</strong></h2>
 <br>
 
-<p>This project is licensed under the MIT License - see the <a href="LICENSE">LICENSE</a> file for details.</p>
-
-<h2>👥 <strong>TEAM</strong></h2>
-<br>
-
-<ul>
-<li><strong>Project Lead</strong>: [Your Name]</li>
-<li><strong>Developers</strong>: [Team Member Names]</li>
-<li><strong>Institution</strong>: Polytechnic University of the Philippines - Taguig Branch</li>
-</ul>
-
-<h2>📞 <strong>SUPPORT</strong></h2>
-<br>
-
-<p>For support and inquiries:</p>
-<ul>
-<li>Email: support@pup-taguig-auth.edu.ph</li>
-<li>Issue Tracker: <a href="https://github.com/yourusername/PUP-Taguig-Systems-Authentication/issues">GitHub Issues</a></li>
-</ul>
-
-<h2>🔄 <strong>VERSION HISTORY</strong></h2>
-<br>
-
-<ul>
-<li><strong>v1.0.0</strong> - Initial release with core authentication features</li>
-<li><strong>v1.1.0</strong> - Added bulk import and API key management</li>
-<li><strong>v1.2.0</strong> - Enhanced dashboard and audit trail features</li>
-</ul>
-
-<hr>
-
-<p><strong>Made with ❤️ for Polytechnic University of the Philippines - Taguig Branch</strong></p>
+<p>This project is licensed under the MIT License - see the <a href="https://github.com/yenashiloh/PUP-Taguig-Systems-Authentication/blob/main/LICENSE.md">LICENSE</a> file for details.</p>
