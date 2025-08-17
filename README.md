@@ -47,7 +47,6 @@
 <h2>✨ <strong>KEY FEATURES</strong></h2>
 
 <h3>🔐 <strong>Authentication & Security</strong></h3>
-<br>
 
 <ul>
 <li>Multi-role authentication (Admin, Faculty, Students)</li>
@@ -210,7 +209,6 @@ npm run build</code></pre>
 <br>
 
 <h3><strong>Email Configuration</strong></h3>
-<br>
 
 <p>Configure email settings in <code>.env</code> for verification and notifications:</p>
 <pre><code>MAIL_MAILER=smtp
@@ -226,7 +224,6 @@ MAIL_ENCRYPTION=tls</code></pre>
 <p>Set up API rate limiting and authentication in <code>config/sanctum.php</code></p>
 
 <h2>📖 <strong>API DOCUMENTATION</strong></h2>
-<br>
 
 <h3><strong>Authentication Endpoints</strong></h3>
 <br>
@@ -285,6 +282,5 @@ MAIL_ENCRYPTION=tls</code></pre>
 </ol>
 
 <h2>📄 <strong>LICENSE</strong></h2>
-<br>
 
 <p>This project is licensed under the MIT License - see the <a href="https://github.com/yenashiloh/PUP-Taguig-Systems-Authentication/blob/main/LICENSE.md">LICENSE</a> file for details.</p>
