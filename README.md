@@ -209,7 +209,6 @@ npm run build</code></pre>
 └── public/</code></pre>
 
 <h2>🔧 <strong>CONFIGURATION</strong></h2>
-<br>
 
 <h3><strong>Email Configuration</strong></h3>
 
