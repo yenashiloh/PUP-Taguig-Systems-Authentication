@@ -1,7 +1,8 @@
 <h1>PUP-Taguig-Systems-Authentication</h1>
 <div align="center">
 
-  <img src="https://raw.githubusercontent.com/yenashiloh/PUP-Taguig-Systems-Authentication/main/public/assets/images/system-screenshot.png" alt="PUP Authentication System Banner" width="800">
+  <img src="https://raw.githubusercontent.com/yenashiloh/PUP-Taguig-Systems-Authentication/main/public/assets/images/system-screenshot.png" alt="Hero Section" width="800">
+    <img src="https://raw.githubusercontent.com/yenashiloh/PUP-Taguig-Systems-Authentication/main/public/assets/images/screenshot-features.png" alt="Features Section" width="800">
   <br><br>
 </div>
 <p><strong>Polytechnic University of the Philippines - Taguig Branch</strong> is a premier state university committed to providing quality education and advancing knowledge through innovative teaching, research, and community service. As one of the leading technological universities in the Philippines, PUP-Taguig serves thousands of students across various academic programs and disciplines.</p>
