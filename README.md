@@ -60,6 +60,7 @@
 <li>Email verification system</li>
 <li>Password reset functionality</li>
 </ul>
+<br>
 
 <h3>👥 <strong>User Management</strong></h3>
 <ul>
@@ -69,6 +70,7 @@
 <li><strong>User Activity Logs</strong>: Comprehensive logging of user actions and system access</li>
 <li><strong>Account Management</strong>: Activate/deactivate user accounts with audit trail</li>
 </ul>
+<br>
 
 <h3>🏫 <strong>PUP-Specific Integration</strong></h3>
 <ul>
@@ -78,6 +80,7 @@
 <li><strong>Semester/Academic Year Context</strong>: Academic period-aware access control</li>
 <li><strong>Grade Level Restrictions</strong>: Access control based on student year level</li>
 </ul>
+<br>
 
 <h3>📊 <strong>Administrative Dashboard</strong></h3>
 <ul>
@@ -87,6 +90,7 @@
 <li>System health monitoring</li>
 <li>Quick action panels for common administrative tasks</li>
 </ul>
+<br>
 
 <h3>📋 <strong>Management Modules</strong></h3>
 <ul>
@@ -95,6 +99,7 @@
 <li><strong>Course Management</strong>: Course creation, modification, and assignment</li>
 <li><strong>User Validation</strong>: Administrative approval system for new user registrations</li>
 </ul>
+<br>
 
 <h3>🔑 <strong>API Management</strong></h3>
 <ul>
@@ -103,6 +108,7 @@
 <li>Rate limiting and API usage analytics</li>
 <li>Secure API authentication with token-based access</li>
 </ul>
+<br>
 
 <h2>🎭 <strong>USER ROLES & PERMISSIONS</strong></h2>
 <h3>👨‍💼 <strong>Administrator</strong></h3>
@@ -114,6 +120,7 @@
 <li>System audit trail access</li>
 <li>Bulk operations (import/export)</li>
 </ul>
+<br>
 
 <h3>👨‍🏫 <strong>Faculty</strong></h3>
 <ul>
@@ -122,6 +129,7 @@
 <li>Academic year/semester context access</li>
 <li>Limited reporting capabilities</li>
 </ul>
+<br>
 
 <h3>👨‍🎓 <strong>Students</strong></h3>
 <ul>
@@ -130,6 +138,7 @@
 <li>Academic information access</li>
 <li>Grade level appropriate system access</li>
 </ul>
+<br>
 
 <h2>🚀 <strong>INSTALLATION & SETUP</strong></h2>
 <h3><strong>Prerequisites</strong></h3>
