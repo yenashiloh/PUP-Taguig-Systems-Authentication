@@ -37,7 +37,7 @@
 
 <ul>
 <li><strong>Frontend</strong>: HTML5, CSS3, Bootstrap 5, JavaScript (ES6+)</li>
-<li><strong>Backend</strong>: Laravel 10.x (PHP 8.1+)</li>
+<li><strong>Backend</strong>: Laravel 12.2.0</li>
 <li><strong>Database</strong>: MySQL 8.0+</li>
 <li><strong>Authentication</strong>: Laravel Sanctum/Passport</li>
 <li><strong>Styling</strong>: Bootstrap 5 with custom CSS</li>
@@ -45,7 +45,6 @@
 </ul>
 
 <h2>✨ <strong>KEY FEATURES</strong></h2>
-<br>
 
 <h3>🔐 <strong>Authentication & Security</strong></h3>
 <br>
@@ -60,8 +59,6 @@
 </ul>
 
 <h3>👥 <strong>User Management</strong></h3>
-<br>
-
 <ul>
 <li><strong>Profile Management</strong>: Complete user profile system with photo upload</li>
 <li><strong>Email Verification</strong>: Automated email verification for new accounts</li>
@@ -71,8 +68,6 @@
 </ul>
 
 <h3>🏫 <strong>PUP-Specific Integration</strong></h3>
-<br>
-
 <ul>
 <li><strong>Student ID Integration</strong>: Seamless integration with PUP student identification system</li>
 <li><strong>Faculty ID Integration</strong>: Faculty identification and verification system</li>
@@ -82,8 +77,6 @@
 </ul>
 
 <h3>📊 <strong>Administrative Dashboard</strong></h3>
-<br>
-
 <ul>
 <li>Real-time system statistics and user metrics</li>
 <li>User management interface with search and filter capabilities</li>
@@ -93,8 +86,6 @@
 </ul>
 
 <h3>📋 <strong>Management Modules</strong></h3>
-<br>
-
 <ul>
 <li><strong>Audit Trail</strong>: Comprehensive system activity tracking and reporting</li>
 <li><strong>Department Management</strong>: CRUD operations for academic departments</li>
@@ -103,8 +94,6 @@
 </ul>
 
 <h3>🔑 <strong>API Management</strong></h3>
-<br>
-
 <ul>
 <li><strong>API Keys Management</strong>: Generate, manage, and revoke API keys for system integrations</li>
 <li>RESTful API endpoints for external system integration</li>
@@ -113,11 +102,7 @@
 </ul>
 
 <h2>🎭 <strong>USER ROLES & PERMISSIONS</strong></h2>
-<br>
-
 <h3>👨‍💼 <strong>Administrator</strong></h3>
-<br>
-
 <ul>
 <li>Full system access and configuration</li>
 <li>User management (create, edit, delete, activate/deactivate)</li>
@@ -128,8 +113,6 @@
 </ul>
 
 <h3>👨‍🏫 <strong>Faculty</strong></h3>
-<br>
-
 <ul>
 <li>Profile management and course access</li>
 <li>Student roster viewing (for assigned courses)</li>
@@ -138,8 +121,6 @@
 </ul>
 
 <h3>👨‍🎓 <strong>Students</strong></h3>
-<br>
-
 <ul>
 <li>Personal profile management</li>
 <li>Course enrollment status viewing</li>
@@ -148,8 +129,6 @@
 </ul>
 
 <h2>🚀 <strong>INSTALLATION & SETUP</strong></h2>
-<br>
-
 <h3><strong>Prerequisites</strong></h3>
 <br>
 
@@ -162,8 +141,6 @@
 </ul>
 
 <h3><strong>Installation Steps</strong></h3>
-<br>
-
 <p><strong>1. Clone the Repository</strong></p>
 <pre><code>git clone https://github.com/yourusername/PUP-Taguig-Systems-Authentication.git
 cd PUP-Taguig-Systems-Authentication</code></pre>
