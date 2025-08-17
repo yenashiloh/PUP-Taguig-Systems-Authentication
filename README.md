@@ -1,4 +1,8 @@
 <h1>PUP-Taguig-Systems-Authentication</h1>
+
+<p><strong>Polytechnic University of the Philippines - Taguig Branch</strong> is a premier state university committed to providing quality education and advancing knowledge through innovative teaching, research, and community service. As one of the leading technological universities in the Philippines, PUP-Taguig serves thousands of students across various academic programs and disciplines.</p>
+<p>The university recognizes the importance of secure, efficient, and user-friendly digital systems to support its academic operations. With the increasing need for digital transformation in education, PUP-Taguig requires a robust authentication system that can seamlessly integrate with various academic platforms while maintaining the highest standards of security and user experience.</p>
+<p>This comprehensive authentication and user management system was developed to centralize identity management across all PUP-Taguig digital platforms. The system ensures secure access control, streamlined user management, and seamless integration capabilities for students, faculty, and administrative staff.</p>
 <div align="center">
 
   <img src="https://raw.githubusercontent.com/yenashiloh/PUP-Taguig-Systems-Authentication/main/public/assets/images/system-screenshot.png" alt="Hero Section" width="800">
@@ -6,10 +10,6 @@
   <img src="https://raw.githubusercontent.com/yenashiloh/PUP-Taguig-Systems-Authentication/main/public/assets/images/how-it-works.png" alt="How it Works Section" width="800">
   <br><br>
 </div>
-<p><strong>Polytechnic University of the Philippines - Taguig Branch</strong> is a premier state university committed to providing quality education and advancing knowledge through innovative teaching, research, and community service. As one of the leading technological universities in the Philippines, PUP-Taguig serves thousands of students across various academic programs and disciplines.</p>
-<p>The university recognizes the importance of secure, efficient, and user-friendly digital systems to support its academic operations. With the increasing need for digital transformation in education, PUP-Taguig requires a robust authentication system that can seamlessly integrate with various academic platforms while maintaining the highest standards of security and user experience.</p>
-<p>This comprehensive authentication and user management system was developed to centralize identity management across all PUP-Taguig digital platforms. The system ensures secure access control, streamlined user management, and seamless integration capabilities for students, faculty, and administrative staff.</p>
-
 <h2>📋 <strong>PROJECT OVERVIEW</strong></h2>
 <br>
 
